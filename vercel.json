@@ -1,6 +1,12 @@
 ﻿{
   "version": 2,
+  "builds": [
+    { "src": "client/package.json", "use": "@vercel/static-build", "config": { "distDir": "dist" } },
+    { "src": "api/**/*.js", "use": "@vercel/node" }
+  ],
   "routes": [
-    { "src": "/tiktokabCCg2bffdNI9RazL34NG1AAXub8Adg7.txt", "dest": "/api/serve-token" }
+    { "src": "/tiktokabCCg2bffdNI9RazL34NG1AAXub8Adg7.txt", "dest": "/api/tiktokabCCg2bffdNI9RazL34NG1AAXub8Adg7.txt" },
+    { "src": "/api/(.*)", "dest": "/api/$1" },
+    { "src": "/(.*)", "dest": "/client/dist/$1" }
   ]
 }
