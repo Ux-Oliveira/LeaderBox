@@ -1,5 +1,6 @@
 ﻿{
-  "rewrites": [
-    { "source": "/tiktokabCCg2bffdNI9RazL34NG1AAXub8Adg7.txt", "destination": "/api/serve-token" }
+  "version": 2,
+  "routes": [
+    { "src": "/tiktokabCCg2bffdNI9RazL34NG1AAXub8Adg7.txt", "dest": "/api/serve-token" }
   ]
 }
