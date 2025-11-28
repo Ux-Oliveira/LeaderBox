@@ -8,6 +8,9 @@ import bodyParser from "body-parser";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import { randomUUID } from "node:crypto";
+import fs from "fs";
+
+import { getTikTokAuthURL, exchangeTikTokCode } from "./tiktok.js";
 
 dotenv.config();
 
@@ -42,10 +45,7 @@ app.use(cookieParser());
 // ---------------------------
 // Serve runtime config to browser
 // ---------------------------
-// This returns a small JS that defines `window.__ENV` (and also `process.env`
-// to avoid the "process is not defined" error in some frontends).
 app.get("/config.js", (req, res) => {
-  // Only expose PUBLIC values to the browser. Do NOT expose client secret here.
   const publicEnv = {
     REACT_APP_TIKTOK_CLIENT_KEY: TIKTOK_CLIENT_KEY || "",
     REACT_APP_TIKTOK_REDIRECT_URI: TIKTOK_REDIRECT_URI || ""
@@ -66,10 +66,20 @@ app.get("/config.js", (req, res) => {
 });
 
 // ---------------------------
+// Optional: server-side login entrypoint
+// ---------------------------
+// Redirect to TikTok authorize URL. (Note: this helper does not generate PKCE code_challenge;
+// your frontend should implement PKCE, or extend this to do server-side PKCE.)
+app.get("/auth/tiktok/login", (req, res) => {
+  const url = getTikTokAuthURL();
+  return res.redirect(url);
+});
+
+// ---------------------------
 // Exchange endpoint
 // ---------------------------
-// This receives { code, code_verifier, redirect_uri? } from the frontend and exchanges it server-side with TikTok
-// The server must use the client_secret. We do NOT leak client_secret to browser.
+// Receives { code, code_verifier, redirect_uri? } from the frontend and exchanges it server-side.
+// The server must use client_secret. We do NOT leak client_secret to browser.
 app.post("/api/auth/tiktok/exchange", async (req, res) => {
   try {
     const { code, code_verifier, redirect_uri } = req.body || {};
@@ -84,47 +94,17 @@ app.post("/api/auth/tiktok/exchange", async (req, res) => {
       return res.status(400).json({ error: "Missing redirect_uri (server-side fallback not configured)" });
     }
 
-    // Build token exchange payload as application/x-www-form-urlencoded (common for OAuth token endpoints)
-    const params = new URLSearchParams();
-    params.append("client_key", TIKTOK_CLIENT_KEY);
-    params.append("client_secret", TIKTOK_CLIENT_SECRET);
-    params.append("grant_type", "authorization_code");
-    params.append("code", code);
-    params.append("redirect_uri", effectiveRedirectUri);
-
-    // Include code_verifier for PKCE if provided
-    if (code_verifier) {
-      params.append("code_verifier", code_verifier);
-    } else {
-      // warn but continue — some TikTok apps may not require PKCE server-side (but modern flows do)
-      console.warn("No code_verifier provided by frontend. If your TikTok app requires PKCE, exchanges will fail.");
-    }
-
-    const tokenUrl = TIKTOK_TOKEN_URL;
-
-    const tokenRes = await fetch(tokenUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded"
-      },
-      body: params.toString()
-    });
-
-    const tokenText = await tokenRes.text();
+    // Exchange with helper
     let tokenJson;
     try {
-      tokenJson = JSON.parse(tokenText);
-    } catch (e) {
-      // not JSON
-      tokenJson = { raw: tokenText };
-    }
-
-    if (!tokenRes.ok) {
-      console.error("TikTok token exchange failed", tokenRes.status, tokenText);
-      return res.status(502).json({
+      tokenJson = await exchangeTikTokCode({ code, code_verifier, redirect_uri: effectiveRedirectUri });
+    } catch (err) {
+      console.error("TikTok token exchange failed:", err.status || "", err.body || err.message || err);
+      const status = err.status || 502;
+      return res.status(status).json({
         error: "TikTok token exchange failed",
-        status: tokenRes.status,
-        body: tokenJson
+        status: status,
+        body: err.body || err.message || null
       });
     }
 
@@ -157,7 +137,6 @@ app.post("/api/auth/tiktok/exchange", async (req, res) => {
 // ---------------------------
 // Serve frontend static files (if available)
 // ---------------------------
-import fs from "fs";
 const buildCandidate = path.resolve(__dirname, FRONTEND_BUILD_PATH);
 if (fs.existsSync(buildCandidate)) {
   console.log("Serving static frontend from:", buildCandidate);
