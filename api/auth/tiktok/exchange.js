@@ -1,4 +1,3 @@
-// server/api/auth/tiktok/exchange.js
 import fetch from "node-fetch";
 import dotenv from "dotenv";
 
@@ -12,12 +11,15 @@ const {
 } = process.env;
 
 export default async function handler(req, res) {
-  if (req.method !== "POST") return res.status(405).json({ error: "Method Not Allowed" });
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method Not Allowed" });
+  }
 
   try {
     const { code, code_verifier } = req.body;
     if (!code) return res.status(400).json({ error: "Missing code" });
 
+    // ✅ URL-encoded body
     const body = new URLSearchParams({
       client_key: TIKTOK_CLIENT_KEY,
       client_secret: TIKTOK_CLIENT_SECRET,
@@ -36,12 +38,17 @@ export default async function handler(req, res) {
 
     const data = await tokenRes.json();
 
-    if (!tokenRes.ok) {
+    if (!tokenRes.ok || data.error) {
       console.error("TikTok token error:", data);
-      return res.status(tokenRes.status).json(data);
+      return res.status(tokenRes.status || 502).json({
+        error: data.message || "TikTok token exchange failed",
+        body: data
+      });
     }
 
+    // Optional: set session cookie
     res.status(200).json(data);
+
   } catch (err) {
     console.error("Exchange error:", err);
     res.status(500).json({ error: "Server error", details: err.message });
