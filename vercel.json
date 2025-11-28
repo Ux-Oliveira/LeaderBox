@@ -1,9 +1,21 @@
 {
-  "rewrites": [
-    { "source": "/privacy", "destination": "/privacy.html" },
-    { "source": "/terms", "destination": "/terms.html" },
+  "version": 2,
+  "builds": [
+    { "src": "package.json", "use": "@vercel/node" },
+    { "src": "client/package.json", "use": "@vercel/static-build" }
+  ],
+  "routes": [
+    // Frontend static pages
+    { "src": "/privacy", "dest": "/privacy.html" },
+    { "src": "/terms", "dest": "/terms.html" },
 
-    { "source": "/auth/tiktok/callback", "destination": "/" },
-    { "source": "/api/:path*", "destination": "/api/:path*" },
+    // TikTok OAuth callback handled by frontend React app
+    { "src": "/auth/tiktok/callback", "dest": "/" },
+
+    // Keep API routes intact
+    { "src": "/api/(.*)", "dest": "/api/$1" },
+
+    // SPA fallback for all other frontend routes
+    { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
