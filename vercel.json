@@ -1,17 +1,8 @@
 {
-  "version": 2,
-  "builds": [
-    { "src": "package.json", "use": "@vercel/node" },
-    { "src": "client/package.json", "use": "@vercel/static-build" }
-  ],
-  "routes": [
-    { "src": "/privacy", "dest": "/privacy.html" },
-    { "src": "/terms", "dest": "/terms.html" },
+  "rewrites": [
+    { "source": "/privacy", "destination": "/privacy.html" },
+    { "source": "/terms", "destination": "/terms.html" },
 
-    { "src": "/auth/tiktok/callback", "dest": "/" },
-
-    { "src": "/api/(.*)", "dest": "/api/$1" },
-
-    { "src": "/(.*)", "dest": "/index.html" }
+    { "source": "/auth/tiktok/callback", "destination": "/" }
   ]
 }
