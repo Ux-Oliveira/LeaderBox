@@ -71,6 +71,26 @@ export default function App() {
         onLogout={handleLogout}
         onUpdateUser={(u)=>setUser(u)}
       />
+
+       <footer style={{
+    marginTop: "60px",
+    padding: "20px",
+    textAlign: "center",
+    color: "#888",
+    fontSize: "14px"
+  }}>
+    <p>
+      Mentions: YouTube, TikTok, etc.  
+      <br />
+      <a href="/privacy.html" target="_blank" style={{ color: "#66aaff" }}>
+        Privacy Policy
+      </a>{" "}
+      •{" "}
+      <a href="/terms.html" target="_blank" style={{ color: "#66aaff" }}>
+        Terms of Service
+      </a>
+    </p>
+  </footer>
     </>
   );
 }
