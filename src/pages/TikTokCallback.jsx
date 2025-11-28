@@ -1,9 +1,11 @@
-// src/pages/TikTokCallback.jsx
 import React, { useEffect, useState } from "react";
 
 function getRuntimeEnv(varName, fallback = "") {
   if (typeof window !== "undefined" && window.__ENV && window.__ENV[varName]) {
     return window.__ENV[varName];
+  }
+  if (typeof window !== "undefined" && typeof import.meta !== "undefined" && import.meta.env && import.meta.env[varName]) {
+    return import.meta.env[varName];
   }
   return fallback;
 }
