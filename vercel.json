@@ -1,6 +1,9 @@
 {
   "rewrites": [
     { "source": "/privacy", "destination": "/privacy.html" },
-    { "source": "/terms", "destination": "/terms.html" }
+    { "source": "/terms", "destination": "/terms.html" },
+
+    // ✅ TikTok callback rewrite to SPA route
+    { "source": "/auth/tiktok/callback", "destination": "/" }
   ]
 }
