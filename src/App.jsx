@@ -79,9 +79,7 @@ export default function App() {
     color: "#888",
     fontSize: "14px"
   }}>
-    <p>
-      Mentions: YouTube, TikTok, etc.  
-      <br />
+    <br />
       <a href="/privacy.html" target="_blank" style={{ color: "#66aaff" }}>
         Privacy Policy
       </a>{" "}
@@ -89,7 +87,6 @@ export default function App() {
       <a href="/terms.html" target="_blank" style={{ color: "#66aaff" }}>
         Terms of Service
       </a>
-    </p>
   </footer>
     </>
   );
