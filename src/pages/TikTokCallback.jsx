@@ -1,25 +1,20 @@
+// src/pages/TikTokCallback.jsx
 import React, { useEffect, useState } from "react";
 
 /**
  * TikTok OAuth callback handler.
  * Place this component at the route you registered with TikTok as your redirect URI,
- * for example: /auth/tiktok/callback
+ * e.g., /auth/tiktok/callback
  *
  * Behavior:
- * - Parses `code`, `state`, `error` from the querystring.
- * - Verifies `state` against sessionStorage value stored before redirect.
- * - Sends `code` to your server endpoint to exchange for tokens (server must have client_secret).
- *
- * Replace /api/auth/tiktok/exchange with your server path.
+ * - Parses `code`, `state`, `error` from query string.
+ * - Verifies `state` against sessionStorage.
+ * - Sends `code` + `code_verifier` to server endpoint /api/auth/tiktok/exchange for token exchange.
  */
 
-// small env helper so we can include the redirect URI when exchanging
 function getRuntimeEnv(varName, fallback = "") {
   if (typeof window !== "undefined" && window.__ENV && window.__ENV[varName]) {
     return window.__ENV[varName];
-  }
-  if (typeof process !== "undefined" && process && process.env && process.env[varName]) {
-    return process.env[varName];
   }
   return fallback;
 }
@@ -34,11 +29,13 @@ export default function TikTokCallback() {
       const code = params.get("code");
       const returnedState = params.get("state");
       const error = params.get("error");
+
       if (error) {
         setStatus("error");
         setMessage(`Authorization error: ${error} ${params.get("error_description") || ""}`);
         return;
       }
+
       if (!code) {
         setStatus("error");
         setMessage("No authorization code received from TikTok.");
@@ -48,14 +45,13 @@ export default function TikTokCallback() {
       const storedState = sessionStorage.getItem("tiktok_oauth_state");
       if (!storedState || storedState !== returnedState) {
         setStatus("error");
-        setMessage("Invalid or missing state (possible CSRF).");
+        setMessage("Invalid or missing state (possible CSRF attack).");
         return;
       }
 
-      // retrieve stored code_verifier for PKCE
       const storedCodeVerifier = sessionStorage.getItem("tiktok_code_verifier");
 
-      // Optional: clear stored state and verifier
+      // Clear session storage for security
       sessionStorage.removeItem("tiktok_oauth_state");
       sessionStorage.removeItem("tiktok_code_verifier");
 
@@ -63,16 +59,13 @@ export default function TikTokCallback() {
       setMessage("Exchanging code with server...");
 
       try {
-        // Send the authorization code and code_verifier to your server for exchange.
-        // Server endpoint must securely call TikTok token API using client_secret.
         const REDIRECT_URI = getRuntimeEnv("VITE_TIKTOK_REDIRECT_URI", window.location.origin + "/auth/tiktok/callback");
 
         const res = await fetch("/api/auth/tiktok/exchange", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({ code, code_verifier: storedCodeVerifier, redirect_uri: REDIRECT_URI })
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code, code_verifier: storedCodeVerifier, redirect_uri: REDIRECT_URI }),
+          credentials: "include"
         });
 
         if (!res.ok) {
@@ -81,10 +74,9 @@ export default function TikTokCallback() {
         }
 
         const data = await res.json();
-        // Expected: server returns session token / user info / whatever your backend supplies.
         setStatus("success");
-        setMessage("Logged in successfully. You may close this page or be redirected.");
-        // Example: if server returned tokens or a redirect URL:
+        setMessage("Logged in successfully. Redirecting...");
+
         if (data.redirectUrl) {
           window.location.href = data.redirectUrl;
         }
@@ -100,15 +92,13 @@ export default function TikTokCallback() {
       <h2>TikTok Authentication</h2>
       <p>Status: {status}</p>
       <pre style={{ whiteSpace: "pre-wrap", color: status === "error" ? "#a00" : "#333" }}>{message}</pre>
-      {status === "success" ? (
-        <p>Success — redirecting or ready to use your session.</p>
-      ) : status === "error" ? (
+      {status === "success" && <p>Success — redirecting or ready to use your session.</p>}
+      {status === "error" && (
         <p>
-          There was a problem. Check console and server logs. If you're developing locally, remember TikTok requires registered redirect URIs (often not plain localhost unless allowed).
+          There was a problem. Check console and server logs. Ensure your TikTok redirect URI is registered correctly.
         </p>
-      ) : (
-        <p>Working…</p>
       )}
+      {status === "processing" && <p>Working…</p>}
     </div>
   );
 }
