@@ -1,13 +1,18 @@
 // src/pages/Signup.jsx
 import React from "react";
 
+// Safe runtime environment helper
 function getRuntimeEnv(varName, fallback = "") {
+  // First try window.__CONFIG__ if you inject env via HTML (optional)
   if (typeof window !== "undefined" && window.__CONFIG__ && window.__CONFIG__[varName]) {
     return window.__CONFIG__[varName];
   }
-  if (typeof import !== "undefined" && import.meta && import.meta.env && import.meta.env[varName]) {
+
+  // Only access import.meta.env in the browser
+  if (typeof window !== "undefined" && typeof import.meta !== "undefined" && import.meta.env && import.meta.env[varName]) {
     return import.meta.env[varName];
   }
+
   return fallback;
 }
 
