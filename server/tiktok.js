@@ -10,8 +10,9 @@ const {
   TIKTOK_TOKEN_URL = "https://open.tiktokapis.com/v2/oauth/token"
 } = process.env;
 
+// Correct endpoint now
 export function getTikTokAuthURL({ state = "" } = {}) {
-  const url = new URL("https://www.tiktok.com/v2/oauth/authorize");
+  const url = new URL("https://www.tiktok.com/v2/auth/authorize");
   url.searchParams.set("client_key", TIKTOK_CLIENT_KEY);
   url.searchParams.set("response_type", "code");
   url.searchParams.set("scope", "user.info.basic");
