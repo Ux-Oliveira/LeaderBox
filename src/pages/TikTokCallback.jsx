@@ -1,4 +1,3 @@
-// src/pages/TikTokCallback.jsx
 import React, { useEffect, useState } from "react";
 
 /**
@@ -13,6 +12,17 @@ import React, { useEffect, useState } from "react";
  *
  * Replace /api/auth/tiktok/exchange with your server path.
  */
+
+// small env helper so we can include the redirect URI when exchanging
+function getRuntimeEnv(varName, fallback = "") {
+  if (typeof window !== "undefined" && window.__ENV && window.__ENV[varName]) {
+    return window.__ENV[varName];
+  }
+  if (typeof process !== "undefined" && process && process.env && process.env[varName]) {
+    return process.env[varName];
+  }
+  return fallback;
+}
 
 export default function TikTokCallback() {
   const [status, setStatus] = useState("processing");
@@ -42,21 +52,27 @@ export default function TikTokCallback() {
         return;
       }
 
-      // Optional: clear stored state
+      // retrieve stored code_verifier for PKCE
+      const storedCodeVerifier = sessionStorage.getItem("tiktok_code_verifier");
+
+      // Optional: clear stored state and verifier
       sessionStorage.removeItem("tiktok_oauth_state");
+      sessionStorage.removeItem("tiktok_code_verifier");
 
       setStatus("exchanging");
       setMessage("Exchanging code with server...");
 
       try {
-        // Send the authorization code to your server for exchange.
+        // Send the authorization code and code_verifier to your server for exchange.
         // Server endpoint must securely call TikTok token API using client_secret.
+        const REDIRECT_URI = getRuntimeEnv("REACT_APP_TIKTOK_REDIRECT_URI", window.location.origin + "/auth/tiktok/callback");
+
         const res = await fetch("/api/auth/tiktok/exchange", {
           method: "POST",
           headers: {
             "Content-Type": "application/json"
           },
-          body: JSON.stringify({ code })
+          body: JSON.stringify({ code, code_verifier: storedCodeVerifier, redirect_uri: REDIRECT_URI })
         });
 
         if (!res.ok) {
