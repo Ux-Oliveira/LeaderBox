@@ -11,15 +11,15 @@ function getRuntimeEnv(varName) {
 }
 
 export default function Signup({ onSigned }) {
-  const CLIENT_KEY = getRuntimeEnv("REACT_APP_TIKTOK_CLIENT_KEY",  "awh9zb8br82e9xxxxx");
-  const REDIRECT_URI = getRuntimeEnv("REACT_APP_TIKTOK_REDIRECT_URI", "https://www.leaderbox.co/auth/tiktok/callback");
+  const CLIENT_KEY = getRuntimeEnv("VITE_TIKTOK_CLIENT_KEY",  "awh9zb8br82e9xxxxx");
+  const REDIRECT_URI = getRuntimeEnv("VITE_TIKTOK_REDIRECT_URI", "https://www.leaderbox.co/auth/tiktok/callback");
 
   if (!CLIENT_KEY) {
-    console.error("❌ ERROR: REACT_APP_TIKTOK_CLIENT_KEY is NOT LOADED.");
+    console.error("❌ ERROR: VITE_TIKTOK_CLIENT_KEY is NOT LOADED.");
   }
 
   if (!REDIRECT_URI) {
-    console.error("❌ ERROR: REACT_APP_TIKTOK_REDIRECT_URI is NOT LOADED.");
+    console.error("❌ ERROR: VITE_TIKTOK_REDIRECT_URI is NOT LOADED.");
   }
 
   const SCOPES = "user.info.basic";
