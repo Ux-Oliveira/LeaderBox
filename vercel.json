@@ -3,6 +3,7 @@
     { "source": "/privacy", "destination": "/privacy.html" },
     { "source": "/terms", "destination": "/terms.html" },
 
-    { "source": "/auth/tiktok/callback", "destination": "/" }
+    { "source": "/auth/tiktok/callback", "destination": "/" },
+    { "source": "/api/:path*", "destination": "/api/:path*" },
   ]
 }
