@@ -1,4 +1,4 @@
-// server/tiktok.js (Node / serverless)
+// server/tiktok.js
 import fetch from "node-fetch";
 import dotenv from "dotenv";
 dotenv.config();
@@ -9,7 +9,7 @@ const {
   TIKTOK_REDIRECT_URI
 } = process.env;
 
-export function getTikTokAuthURL() {
+export async function getTikTokAuthURL() {
   const params = new URLSearchParams({
     client_key: TIKTOK_CLIENT_KEY,
     scope: "user.info.basic",
@@ -19,14 +19,21 @@ export function getTikTokAuthURL() {
   return `https://www.tiktok.com/auth/authorize?${params.toString()}`;
 }
 
-export async function exchangeTikTokCode(code) {
+export async function exchangeTikTokCode({ code, code_verifier, redirect_uri }) {
+  if (!code || !redirect_uri) throw new Error("Missing code or redirect_uri");
+
   const params = new URLSearchParams({
     client_key: TIKTOK_CLIENT_KEY,
     client_secret: TIKTOK_CLIENT_SECRET,
     code,
     grant_type: "authorization_code",
-    redirect_uri: TIKTOK_REDIRECT_URI
+    redirect_uri
   });
+
+  // Include code_verifier if provided (PKCE)
+  if (code_verifier) {
+    params.append("code_verifier", code_verifier);
+  }
 
   const res = await fetch("https://open.tiktokapis.com/v2/oauth/token", {
     method: "POST",
@@ -34,6 +41,17 @@ export async function exchangeTikTokCode(code) {
     body: params.toString()
   });
 
-  if (!res.ok) throw new Error(`Token exchange failed: ${res.status}`);
-  return res.json();
+  const text = await res.text();
+  let tokenJson;
+  try {
+    tokenJson = JSON.parse(text);
+  } catch (e) {
+    tokenJson = { raw: text };
+  }
+
+  if (!res.ok) {
+    throw new Error(`Token exchange failed: ${res.status} ${text}`);
+  }
+
+  return tokenJson;
 }
