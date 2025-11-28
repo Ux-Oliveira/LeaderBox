@@ -65,7 +65,7 @@ export default function TikTokCallback() {
       try {
         // Send the authorization code and code_verifier to your server for exchange.
         // Server endpoint must securely call TikTok token API using client_secret.
-        const REDIRECT_URI = getRuntimeEnv("REACT_APP_TIKTOK_REDIRECT_URI", window.location.origin + "/auth/tiktok/callback");
+        const REDIRECT_URI = getRuntimeEnv("VITE_TIKTOK_REDIRECT_URI", window.location.origin + "/auth/tiktok/callback");
 
         const res = await fetch("/api/auth/tiktok/exchange", {
           method: "POST",
