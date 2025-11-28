@@ -1,7 +1,7 @@
 // src/components/LoginButton.jsx
 import React from "react";
 
-const LoginButton = () => {
+const Login = () => {
   const CLIENT_KEY = import.meta.env.VITE_TIKTOK_CLIENT_KEY;
   const REDIRECT_URI = import.meta.env.VITE_TIKTOK_REDIRECT_URI;
 
