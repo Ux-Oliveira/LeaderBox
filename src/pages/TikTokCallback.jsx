@@ -1,15 +1,5 @@
 import React, { useEffect, useState } from "react";
 
-function getRuntimeEnv(varName, fallback = "") {
-  if (typeof window !== "undefined" && window.__ENV && window.__ENV[varName]) {
-    return window.__ENV[varName];
-  }
-  if (typeof window !== "undefined" && typeof import.meta !== "undefined" && import.meta.env && import.meta.env[varName]) {
-    return import.meta.env[varName];
-  }
-  return fallback;
-}
-
 export default function TikTokCallback() {
   const [status, setStatus] = useState("processing");
   const [message, setMessage] = useState("");
@@ -49,7 +39,7 @@ export default function TikTokCallback() {
       setMessage("Exchanging code with server...");
 
       try {
-        const REDIRECT_URI = getRuntimeEnv("VITE_TIKTOK_REDIRECT_URI", window.location.origin + "/auth/tiktok/callback");
+        const REDIRECT_URI = import.meta.env.VITE_TIKTOK_REDIRECT_URI;
 
         const res = await fetch("/api/auth/tiktok/exchange", {
           method: "POST",
@@ -79,9 +69,6 @@ export default function TikTokCallback() {
       <h2>TikTok Authentication</h2>
       <p>Status: {status}</p>
       <pre style={{ whiteSpace: "pre-wrap", color: status === "error" ? "#a00" : "#333" }}>{message}</pre>
-      {status === "success" && <p>Success — redirecting or ready to use your session.</p>}
-      {status === "error" && <p>Check console and server logs. Ensure your TikTok redirect URI is registered correctly.</p>}
-      {status === "processing" && <p>Working…</p>}
     </div>
   );
 }
