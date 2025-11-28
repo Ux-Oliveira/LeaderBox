@@ -1,76 +1,45 @@
 import React from "react";
+import { v4 as uuidv4 } from "uuid";
 
-function getRuntimeEnv(varName, fallback = "") {
-  if (typeof window !== "undefined" && window.__ENV && window.__ENV[varName]) {
-    return window.__ENV[varName];
-  }
-  return fallback;
+function base64urlencode(str) {
+  return btoa(String.fromCharCode.apply(null, new Uint8Array(str)))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
 }
 
-export default function Login() {
-  const CLIENT_KEY = getRuntimeEnv("VITE_TIKTOK_CLIENT_KEY");
-  const REDIRECT_URI = getRuntimeEnv("VITE_TIKTOK_REDIRECT_URI");
-  const SCOPES = "user.info.basic";
+async function generateCodeChallenge(verifier) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(verifier);
+  const digest = await crypto.subtle.digest("SHA-256", data);
+  return base64urlencode(digest);
+}
 
-  function generateState(length = 32) {
-    const array = new Uint8Array(length);
-    window.crypto.getRandomValues(array);
-    return Array.from(array, dec => ("0" + dec.toString(16)).substr(-2)).join("");
-  }
+function generateCodeVerifier() {
+  const array = new Uint8Array(32);
+  crypto.getRandomValues(array);
+  return base64urlencode(array);
+}
 
-  function base64urlEncode(arrayBuffer) {
-    const bytes = new Uint8Array(arrayBuffer);
-    let binary = "";
-    for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
-    return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-  }
+export default function TikTokLoginButton() {
+  const handleLogin = async () => {
+    const codeVerifier = generateCodeVerifier();
+    const state = uuidv4();
 
-  function generateCodeVerifier(length = 64) {
-    const array = new Uint8Array(length);
-    window.crypto.getRandomValues(array);
-    return Array.from(array, b => ("0" + b.toString(16)).slice(-2)).join("");
-  }
-
-  async function createCodeChallenge(codeVerifier) {
-    const encoder = new TextEncoder();
-    const digest = await window.crypto.subtle.digest("SHA-256", encoder.encode(codeVerifier));
-    return base64urlEncode(digest);
-  }
-
-  async function startLogin() {
-    if (!CLIENT_KEY || !REDIRECT_URI) {
-      alert("TikTok config missing. Check console/env.");
-      return;
-    }
-
-    const state = generateState(24);
+    sessionStorage.setItem("tiktok_code_verifier", codeVerifier);
     sessionStorage.setItem("tiktok_oauth_state", state);
 
-    const codeVerifier = generateCodeVerifier(64);
-    sessionStorage.setItem("tiktok_code_verifier", codeVerifier);
+    const codeChallenge = await generateCodeChallenge(codeVerifier);
 
-    const codeChallenge = await createCodeChallenge(codeVerifier);
+    const CLIENT_KEY = import.meta.env.VITE_TIKTOK_CLIENT_KEY;
+    const REDIRECT_URI = import.meta.env.VITE_TIKTOK_REDIRECT_URI;
 
-    const params = new URLSearchParams({
-      client_key: CLIENT_KEY,
-      response_type: "code",
-      scope: SCOPES,
-      redirect_uri: REDIRECT_URI,
-      state,
-      code_challenge: codeChallenge,
-      code_challenge_method: "S256"
-    });
+    const authUrl = `https://www.tiktok.com/v2/auth/authorize?client_key=${CLIENT_KEY}&response_type=code&scope=user.info.basic&redirect_uri=${encodeURIComponent(
+      REDIRECT_URI
+    )}&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`;
 
-    // ✅ Correct endpoint
-    window.location.href = `https://www.tiktok.com/v2/auth/authorize?${params.toString()}`;
-  }
+    window.location.href = authUrl;
+  };
 
-  return (
-    <button
-      onClick={startLogin}
-      style={{ padding: "10px 16px", borderRadius: 6, background: "#010101", color: "#fff", cursor: "pointer" }}
-    >
-      Login with TikTok
-    </button>
-  );
+  return <button onClick={handleLogin}>Login with TikTok</button>;
 }
