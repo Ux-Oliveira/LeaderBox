@@ -1,17 +1,6 @@
 // src/pages/TikTokCallback.jsx
 import React, { useEffect, useState } from "react";
 
-/**
- * TikTok OAuth callback handler.
- * Place this component at the route you registered with TikTok as your redirect URI,
- * e.g., /auth/tiktok/callback
- *
- * Behavior:
- * - Parses `code`, `state`, `error` from query string.
- * - Verifies `state` against sessionStorage.
- * - Sends `code` + `code_verifier` to server endpoint /api/auth/tiktok/exchange for token exchange.
- */
-
 function getRuntimeEnv(varName, fallback = "") {
   if (typeof window !== "undefined" && window.__ENV && window.__ENV[varName]) {
     return window.__ENV[varName];
@@ -43,17 +32,16 @@ export default function TikTokCallback() {
       }
 
       const storedState = sessionStorage.getItem("tiktok_oauth_state");
-      if (!storedState || storedState !== returnedState) {
-        setStatus("error");
-        setMessage("Invalid or missing state (possible CSRF attack).");
-        return;
-      }
-
       const storedCodeVerifier = sessionStorage.getItem("tiktok_code_verifier");
 
-      // Clear session storage for security
       sessionStorage.removeItem("tiktok_oauth_state");
       sessionStorage.removeItem("tiktok_code_verifier");
+
+      if (!storedState || storedState !== returnedState || !storedCodeVerifier) {
+        setStatus("error");
+        setMessage("Invalid state or missing code_verifier. Cannot continue.");
+        return;
+      }
 
       setStatus("exchanging");
       setMessage("Exchanging code with server...");
@@ -76,10 +64,7 @@ export default function TikTokCallback() {
         const data = await res.json();
         setStatus("success");
         setMessage("Logged in successfully. Redirecting...");
-
-        if (data.redirectUrl) {
-          window.location.href = data.redirectUrl;
-        }
+        if (data.redirectUrl) window.location.href = data.redirectUrl;
       } catch (err) {
         setStatus("error");
         setMessage(err.message || "Unknown error during code exchange.");
@@ -93,11 +78,7 @@ export default function TikTokCallback() {
       <p>Status: {status}</p>
       <pre style={{ whiteSpace: "pre-wrap", color: status === "error" ? "#a00" : "#333" }}>{message}</pre>
       {status === "success" && <p>Success — redirecting or ready to use your session.</p>}
-      {status === "error" && (
-        <p>
-          There was a problem. Check console and server logs. Ensure your TikTok redirect URI is registered correctly.
-        </p>
-      )}
+      {status === "error" && <p>Check console and server logs. Ensure your TikTok redirect URI is registered correctly.</p>}
       {status === "processing" && <p>Working…</p>}
     </div>
   );
