@@ -66,7 +66,8 @@ export default function Signup() {
       code_challenge_method: "S256"
     });
 
-    window.location.href = `https://www.tiktok.com/v2/oauth/authorize?${params.toString()}`;
+    // ✅ Correct TikTok endpoint
+    window.location.href = `https://www.tiktok.com/v2/auth/authorize?${params.toString()}`;
   }
 
   return (
