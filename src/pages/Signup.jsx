@@ -1,23 +1,27 @@
 import React from "react";
 
-/**
- * Signup page using TikTok Login Kit (OAuth v2).
- * Safe runtime env access: checks window.__ENV first, then process.env only if defined.
- */
-
-function getRuntimeEnv(varName, fallback = "") {
+function getRuntimeEnv(varName) {
   if (typeof window !== "undefined" && window.__ENV && window.__ENV[varName]) {
     return window.__ENV[varName];
   }
-  if (typeof process !== "undefined" && process && process.env && process.env[varName]) {
+  if (typeof process !== "undefined" && process.env && process.env[varName]) {
     return process.env[varName];
   }
-  return fallback;
+  return "";
 }
 
 export default function Signup({ onSigned }) {
-  const CLIENT_KEY = getRuntimeEnv("REACT_APP_TIKTOK_CLIENT_KEY", "<YOUR_TIKTOK_CLIENT_KEY>");
-  const REDIRECT_URI = getRuntimeEnv("REACT_APP_TIKTOK_REDIRECT_URI", "http://localhost:4000/api/auth/tiktok/callback");
+  const CLIENT_KEY = getRuntimeEnv("REACT_APP_TIKTOK_CLIENT_KEY");
+  const REDIRECT_URI = getRuntimeEnv("REACT_APP_TIKTOK_REDIRECT_URI");
+
+  if (!CLIENT_KEY) {
+    console.error("❌ ERROR: REACT_APP_TIKTOK_CLIENT_KEY is NOT LOADED.");
+  }
+
+  if (!REDIRECT_URI) {
+    console.error("❌ ERROR: REACT_APP_TIKTOK_REDIRECT_URI is NOT LOADED.");
+  }
+
   const SCOPES = "user.info.basic";
 
   function generateState(length = 32) {
@@ -26,24 +30,19 @@ export default function Signup({ onSigned }) {
     return Array.from(array, dec => ("0" + dec.toString(16)).substr(-2)).join("");
   }
 
-  // helper: base64url encode an ArrayBuffer
   function base64urlEncode(arrayBuffer) {
     const bytes = new Uint8Array(arrayBuffer);
     let binary = "";
     for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
-    // btoa expects a binary string
     return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
   }
 
-  // generate a random code_verifier
   function generateCodeVerifier(length = 64) {
     const array = new Uint8Array(length);
     window.crypto.getRandomValues(array);
-    // hex-like string for storage
     return Array.from(array, (b) => ("0" + b.toString(16)).slice(-2)).join("");
   }
 
-  // create code_challenge from code_verifier using SHA-256 -> base64url
   async function createCodeChallenge(codeVerifier) {
     const encoder = new TextEncoder();
     const data = encoder.encode(codeVerifier);
@@ -65,19 +64,17 @@ export default function Signup({ onSigned }) {
       response_type: "code",
       scope: SCOPES,
       redirect_uri: REDIRECT_URI,
-      state: state,
-      // PKCE fields:
+      state,
       code_challenge: codeChallenge,
       code_challenge_method: "S256"
     });
 
-    const url = `https://www.tiktok.com/v2/auth/authorize/?${params.toString()}`;
-    window.location.href = url;
+    window.location.href = `https://www.tiktok.com/v2/auth/authorize/?${params.toString()}`;
   }
 
   return (
     <div style={{ maxWidth: 560, margin: "40px auto", padding: 24 }}>
-      <h2>Create an account.</h2>
+      <h2>Create an account</h2>
       <p>Click below to continue with TikTok</p>
 
       <button
@@ -95,15 +92,8 @@ export default function Signup({ onSigned }) {
           fontWeight: 600
         }}
       >
-        <svg width="20" height="20" viewBox="0 0 48 48" fill="none" aria-hidden>
-          <path d="M32 10v14a8 8 0 1 1-8-8V10c4 0 6 0 8 2z" fill="currentColor" />
-        </svg>
         Continue with TikTok
       </button>
-
-      <p style={{ marginTop: 12, color: "#666" }}>
-        After authorizing, you'll be returned to the app. If you already have an account, welcome back!
-      </p>
     </div>
   );
 }
