@@ -1,4 +1,3 @@
-// src/pages/Login.jsx
 import React from "react";
 
 function getRuntimeEnv(varName, fallback = "") {
@@ -62,11 +61,15 @@ export default function Login() {
       code_challenge_method: "S256"
     });
 
-    window.location.href = `https://www.tiktok.com/v2/oauth/authorize?${params.toString()}`;
+    // ✅ Correct endpoint
+    window.location.href = `https://www.tiktok.com/v2/auth/authorize?${params.toString()}`;
   }
 
   return (
-    <button onClick={startLogin} style={{ padding: "10px 16px", borderRadius: 6, background: "#010101", color: "#fff", cursor: "pointer" }}>
+    <button
+      onClick={startLogin}
+      style={{ padding: "10px 16px", borderRadius: 6, background: "#010101", color: "#fff", cursor: "pointer" }}
+    >
       Login with TikTok
     </button>
   );
