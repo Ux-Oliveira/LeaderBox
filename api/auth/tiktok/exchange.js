@@ -1,44 +1,49 @@
-// api/auth/tiktok/exchange.js
+// server/api/auth/tiktok/exchange.js
 import fetch from "node-fetch";
+import dotenv from "dotenv";
+
+dotenv.config();
+
+const {
+  TIKTOK_CLIENT_KEY,
+  TIKTOK_CLIENT_SECRET,
+  TIKTOK_REDIRECT_URI,
+  TIKTOK_TOKEN_URL = "https://open.tiktokapis.com/v2/oauth/token/"
+} = process.env;
 
 export default async function handler(req, res) {
-  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+  if (req.method !== "POST") return res.status(405).json({ error: "Method Not Allowed" });
 
   try {
-    const { code, code_verifier, redirect_uri } = req.body;
+    const { code, code_verifier } = req.body;
+    if (!code) return res.status(400).json({ error: "Missing code" });
 
-    if (!code || !code_verifier || !redirect_uri)
-      return res.status(400).json({ error: "Missing required parameters" });
+    const body = new URLSearchParams({
+      client_key: TIKTOK_CLIENT_KEY,
+      client_secret: TIKTOK_CLIENT_SECRET,
+      code,
+      grant_type: "authorization_code",
+      redirect_uri: TIKTOK_REDIRECT_URI,
+    });
 
-    const {
-      TIKTOK_CLIENT_KEY,
-      TIKTOK_CLIENT_SECRET,
-      TIKTOK_TOKEN_URL = "https://open.tiktokapis.com/v2/oauth/token"
-    } = process.env;
-
-    const params = new URLSearchParams();
-    params.append("client_key", TIKTOK_CLIENT_KEY);
-    params.append("client_secret", TIKTOK_CLIENT_SECRET);
-    params.append("grant_type", "authorization_code");
-    params.append("code", code);
-    params.append("redirect_uri", redirect_uri);
-    params.append("code_verifier", code_verifier);
+    if (code_verifier) body.append("code_verifier", code_verifier);
 
     const tokenRes = await fetch(TIKTOK_TOKEN_URL, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: params.toString()
+      body: body.toString(),
     });
 
-    const text = await tokenRes.text();
-    const tokenJson = tokenRes.ok ? JSON.parse(text) : null;
+    const data = await tokenRes.json();
 
-    if (!tokenRes.ok) return res.status(502).json({ error: "Token exchange failed", details: text });
+    if (!tokenRes.ok) {
+      console.error("TikTok token error:", data);
+      return res.status(tokenRes.status).json(data);
+    }
 
-    // TODO: create session, persist tokens, return user info
-    return res.status(200).json({ redirectUrl: "/", tokenData: tokenJson });
+    res.status(200).json(data);
   } catch (err) {
     console.error("Exchange error:", err);
-    return res.status(500).json({ error: "Server error", details: err.message });
+    res.status(500).json({ error: "Server error", details: err.message });
   }
 }
