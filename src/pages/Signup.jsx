@@ -12,7 +12,7 @@ function getRuntimeEnv(varName) {
 
 export default function Signup({ onSigned }) {
   const CLIENT_KEY = getRuntimeEnv("REACT_APP_TIKTOK_CLIENT_KEY",  "awh9zb8br82e9xxxxx");
-  const REDIRECT_URI = getRuntimeEnv("REACT_APP_TIKTOK_REDIRECT_URI");
+  const REDIRECT_URI = getRuntimeEnv("REACT_APP_TIKTOK_REDIRECT_URI", "https://www.leaderbox.co/auth/tiktok/callback");
 
   if (!CLIENT_KEY) {
     console.error("❌ ERROR: REACT_APP_TIKTOK_CLIENT_KEY is NOT LOADED.");
