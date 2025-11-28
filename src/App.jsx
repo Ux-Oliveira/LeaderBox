@@ -1,10 +1,24 @@
-import TikTokCallback from "./pages/TikTokCallback"; // <-- import it
+// src/App.jsx
+import React, { useState, useEffect } from "react";
+import { Routes, Route, useNavigate } from "react-router-dom";
+
+// Components
+import NavBar from "./components/NavBar";
+import Landing from "./components/Landing";
+import Signup from "./pages/Signup";
+import Login from "./pages/Login";
+import Duel from "./pages/Duel";
+import Rules from "./pages/Rules";
+import ProfilePage from "./pages/ProfilePage";
+import ProfileModal from "./components/ProfileModal";
+import TikTokCallback from "./pages/TikTokCallback"; // TikTok OAuth callback
 
 export default function App() {
-  const [user , setUser] = useState(null);
-  const [modalOpen , setModalOpen] = useState(false);
+  const [user, setUser] = useState(null);
+  const [modalOpen, setModalOpen] = useState(false);
   const nav = useNavigate();
 
+  // Try to fetch user profile if token exists
   useEffect(() => {
     const token = localStorage.getItem("md_token");
     if (!token) return;
@@ -12,15 +26,15 @@ export default function App() {
     fetch("/api/profile", {
       headers: {
         Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
       },
-      credentials: "include"
+      credentials: "include",
     })
-      .then(res => {
+      .then((res) => {
         if (!res.ok) throw new Error("Not authenticated");
         return res.json();
       })
-      .then(u => setUser(u.user))
+      .then((u) => setUser(u.user))
       .catch(() => localStorage.removeItem("md_token"));
   }, []);
 
@@ -47,7 +61,7 @@ export default function App() {
           <Route path="/rules" element={<Rules />} />
           <Route path="/profile" element={<ProfilePage user={user} />} />
 
-          {/* ✅ NEW ROUTE for TikTok callback */}
+          {/* TikTok OAuth callback */}
           <Route path="/auth/tiktok/callback" element={<TikTokCallback />} />
         </Routes>
       </div>
@@ -60,11 +74,23 @@ export default function App() {
         onUpdateUser={(u) => setUser(u)}
       />
 
-      <footer style={{ marginTop: "60px", padding: "20px", textAlign: "center", color: "#888", fontSize: "14px" }}>
+      <footer
+        style={{
+          marginTop: "60px",
+          padding: "20px",
+          textAlign: "center",
+          color: "#888",
+          fontSize: "14px",
+        }}
+      >
         <br />
-        <a href="/privacy.html" target="_blank" style={{ color: "#66aaff" }}>Privacy Policy</a>{" "}
+        <a href="/privacy.html" target="_blank" style={{ color: "#66aaff" }}>
+          Privacy Policy
+        </a>{" "}
         •{" "}
-        <a href="/terms.html" target="_blank" style={{ color: "#66aaff" }}>Terms of Service</a>
+        <a href="/terms.html" target="_blank" style={{ color: "#66aaff" }}>
+          Terms of Service
+        </a>
       </footer>
     </>
   );
