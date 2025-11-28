@@ -1,4 +1,3 @@
-// server/tiktok.js
 import fetch from "node-fetch";
 import dotenv from "dotenv";
 
@@ -27,20 +26,16 @@ export async function exchangeTikTokCode({ code, code_verifier, redirect_uri }) 
   const body = {
     client_key: TIKTOK_CLIENT_KEY,
     client_secret: TIKTOK_CLIENT_SECRET,
-    code: code,
+    code,
     grant_type: "authorization_code",
     redirect_uri: redirect_uri || TIKTOK_REDIRECT_URI
   };
 
-  if (code_verifier) {
-    body.code_verifier = code_verifier; // optional, if PKCE is used
-  }
+  if (code_verifier) body.code_verifier = code_verifier;
 
   const res = await fetch(TIKTOK_TOKEN_URL, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body)
   });
 
