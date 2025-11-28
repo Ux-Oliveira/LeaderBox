@@ -1,4 +1,3 @@
-// src/pages/Signup.jsx
 import React from "react";
 
 /**
@@ -27,16 +26,49 @@ export default function Signup({ onSigned }) {
     return Array.from(array, dec => ("0" + dec.toString(16)).substr(-2)).join("");
   }
 
-  function startTikTokLogin() {
+  // helper: base64url encode an ArrayBuffer
+  function base64urlEncode(arrayBuffer) {
+    const bytes = new Uint8Array(arrayBuffer);
+    let binary = "";
+    for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+    // btoa expects a binary string
+    return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+
+  // generate a random code_verifier
+  function generateCodeVerifier(length = 64) {
+    const array = new Uint8Array(length);
+    window.crypto.getRandomValues(array);
+    // hex-like string for storage
+    return Array.from(array, (b) => ("0" + b.toString(16)).slice(-2)).join("");
+  }
+
+  // create code_challenge from code_verifier using SHA-256 -> base64url
+  async function createCodeChallenge(codeVerifier) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(codeVerifier);
+    const digest = await window.crypto.subtle.digest("SHA-256", data);
+    return base64urlEncode(digest);
+  }
+
+  async function startTikTokLogin() {
     const state = generateState(24);
     sessionStorage.setItem("tiktok_oauth_state", state);
+
+    const codeVerifier = generateCodeVerifier(64);
+    sessionStorage.setItem("tiktok_code_verifier", codeVerifier);
+
+    const codeChallenge = await createCodeChallenge(codeVerifier);
 
     const params = new URLSearchParams({
       client_key: CLIENT_KEY,
       response_type: "code",
       scope: SCOPES,
       redirect_uri: REDIRECT_URI,
-      state: state
+      state: state,
+      // PKCE fields:
+      code_challenge: codeChallenge,
+      code_challenge_method: "S256"
     });
 
     const url = `https://www.tiktok.com/v2/auth/authorize/?${params.toString()}`;
