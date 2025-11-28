@@ -1,23 +1,23 @@
+// src/pages/Signup.jsx
 import React from "react";
 
-function getRuntimeEnv(varName) {
-  if (typeof window !== "undefined" && window.__ENV && window.__ENV[varName]) {
-    return window.__ENV[varName];
+function getRuntimeEnv(varName, fallback = "") {
+  if (typeof window !== "undefined" && window.__CONFIG__ && window.__CONFIG__[varName]) {
+    return window.__CONFIG__[varName];
   }
-  if (typeof process !== "undefined" && process.env && process.env[varName]) {
-    return process.env[varName];
+  if (typeof import !== "undefined" && import.meta && import.meta.env && import.meta.env[varName]) {
+    return import.meta.env[varName];
   }
-  return "";
+  return fallback;
 }
 
 export default function Signup({ onSigned }) {
-  const CLIENT_KEY = getRuntimeEnv("VITE_TIKTOK_CLIENT_KEY",  "awh9zb8br82e9xxxxx");
-  const REDIRECT_URI = getRuntimeEnv("VITE_TIKTOK_REDIRECT_URI", "https://www.leaderbox.co/auth/tiktok/callback");
+  const CLIENT_KEY = getRuntimeEnv("VITE_TIKTOK_CLIENT_KEY", "");
+  const REDIRECT_URI = getRuntimeEnv("VITE_TIKTOK_REDIRECT_URI", "");
 
   if (!CLIENT_KEY) {
     console.error("❌ ERROR: VITE_TIKTOK_CLIENT_KEY is NOT LOADED.");
   }
-
   if (!REDIRECT_URI) {
     console.error("❌ ERROR: VITE_TIKTOK_REDIRECT_URI is NOT LOADED.");
   }
@@ -51,6 +51,11 @@ export default function Signup({ onSigned }) {
   }
 
   async function startTikTokLogin() {
+    if (!CLIENT_KEY || !REDIRECT_URI) {
+      alert("TikTok config not loaded. Check console and environment variables.");
+      return;
+    }
+
     const state = generateState(24);
     sessionStorage.setItem("tiktok_oauth_state", state);
 
