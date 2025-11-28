@@ -12,6 +12,9 @@ import fs from "fs";
 
 import { getTikTokAuthURL, exchangeTikTokCode } from "./tiktok.js";
 
+// NEW: import the callback router you created
+import tiktokCallbackRouter from "./api/auth/tiktok/callback.js";
+
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
@@ -66,20 +69,23 @@ app.get("/config.js", (req, res) => {
 });
 
 // ---------------------------
+// Mount the callback router so TikTok can redirect server-side if needed
+// e.g. https://leaderbox.co/auth/tiktok/callback
+// This lets you support both flows: server-callback and frontend PKCE.
+// ---------------------------
+app.use("/auth/tiktok", tiktokCallbackRouter);
+
+// ---------------------------
 // Optional: server-side login entrypoint
 // ---------------------------
-// Redirect to TikTok authorize URL. (Note: this helper does not generate PKCE code_challenge;
-// your frontend should implement PKCE, or extend this to do server-side PKCE.)
 app.get("/auth/tiktok/login", (req, res) => {
   const url = getTikTokAuthURL();
   return res.redirect(url);
 });
 
 // ---------------------------
-// Exchange endpoint
+// Exchange endpoint (frontend PKCE -> server exchange)
 // ---------------------------
-// Receives { code, code_verifier, redirect_uri? } from the frontend and exchanges it server-side.
-// The server must use client_secret. We do NOT leak client_secret to browser.
 app.post("/api/auth/tiktok/exchange", async (req, res) => {
   try {
     const { code, code_verifier, redirect_uri } = req.body || {};
@@ -88,13 +94,11 @@ app.post("/api/auth/tiktok/exchange", async (req, res) => {
       return res.status(400).json({ error: "Missing code in request body" });
     }
 
-    // Use provided redirect_uri from frontend if present, otherwise fall back to env value
     const effectiveRedirectUri = redirect_uri || TIKTOK_REDIRECT_URI;
     if (!effectiveRedirectUri) {
       return res.status(400).json({ error: "Missing redirect_uri (server-side fallback not configured)" });
     }
 
-    // Exchange with helper
     let tokenJson;
     try {
       tokenJson = await exchangeTikTokCode({ code, code_verifier, redirect_uri: effectiveRedirectUri });
@@ -108,12 +112,8 @@ app.post("/api/auth/tiktok/exchange", async (req, res) => {
       });
     }
 
-    // tokenJson should contain access token, refresh token, open_id, etc.
-    // TODO: validate and look up/create user in DB based on open_id.
-    // For demo we set a simple session cookie and return success.
     const sessionId = randomUUID();
 
-    // You should store sessionId -> user data in DB. Here we just set cookie.
     res.cookie("sessionId", sessionId, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -121,12 +121,10 @@ app.post("/api/auth/tiktok/exchange", async (req, res) => {
       maxAge: 1000 * 60 * 60 * 24 * 7
     });
 
-    // Send client whatever minimal data needed. A typical server would create a user,
-    // save tokens, and return a redirect URL or a JWT.
     return res.json({
       ok: true,
       tokens: tokenJson,
-      redirectUrl: "/" // change to where you want users redirected after login
+      redirectUrl: "/"
     });
   } catch (err) {
     console.error("Exchange error:", err);
@@ -144,7 +142,6 @@ if (fs.existsSync(buildCandidate)) {
 
   // SPA fallback
   app.get("*", (req, res, next) => {
-    // avoid catching API routes
     if (req.path.startsWith("/api/") || req.path === "/config.js") return next();
     res.sendFile(path.join(buildCandidate, "index.html"));
   });
