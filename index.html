@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-     <link rel="icon" type="image/png" href="/ldr_logo.png" />
+    <link rel="icon" type="image/png" href="/ldr_logo.png" />
     <title>Leaderbox</title>
     <meta name="description" content="The World's Next Biggest Boyband!" />
 
@@ -23,9 +23,15 @@
     <meta name="twitter:title" content="Leader Box" />
     <meta name="twitter:description" content="Your movie taste sucks! And we can Prove it." />
     <meta name="twitter:image" content="/ldr.gif" />
+
+    <!-- Load runtime config BEFORE React -->
+    <script src="/api/config.js"></script>
   </head>
+
   <body>
     <div id="root"></div>
-    <script type="module" src="/api/config.js"></script>
+
+    <!-- Load your React app -->
+    <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
