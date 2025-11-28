@@ -68,36 +68,46 @@ app.get("/config.js", (req, res) => {
 // ---------------------------
 // Exchange endpoint
 // ---------------------------
-// This receives { code } from the frontend and exchanges it server-side with TikTok
+// This receives { code, code_verifier, redirect_uri? } from the frontend and exchanges it server-side with TikTok
 // The server must use the client_secret. We do NOT leak client_secret to browser.
 app.post("/api/auth/tiktok/exchange", async (req, res) => {
   try {
-    const { code } = req.body;
+    const { code, code_verifier, redirect_uri } = req.body || {};
+
     if (!code) {
       return res.status(400).json({ error: "Missing code in request body" });
     }
 
-    // Build token exchange payload.
-    // NOTE: TikTok may require either JSON or application/x-www-form-urlencoded.
-    // Many TikTok docs show JSON body for v2 endpoints. If TikTok requires form-encoded,
-    // replace with URLSearchParams and set Content-Type accordingly.
+    // Use provided redirect_uri from frontend if present, otherwise fall back to env value
+    const effectiveRedirectUri = redirect_uri || TIKTOK_REDIRECT_URI;
+    if (!effectiveRedirectUri) {
+      return res.status(400).json({ error: "Missing redirect_uri (server-side fallback not configured)" });
+    }
+
+    // Build token exchange payload as application/x-www-form-urlencoded (common for OAuth token endpoints)
+    const params = new URLSearchParams();
+    params.append("client_key", TIKTOK_CLIENT_KEY);
+    params.append("client_secret", TIKTOK_CLIENT_SECRET);
+    params.append("grant_type", "authorization_code");
+    params.append("code", code);
+    params.append("redirect_uri", effectiveRedirectUri);
+
+    // Include code_verifier for PKCE if provided
+    if (code_verifier) {
+      params.append("code_verifier", code_verifier);
+    } else {
+      // warn but continue — some TikTok apps may not require PKCE server-side (but modern flows do)
+      console.warn("No code_verifier provided by frontend. If your TikTok app requires PKCE, exchanges will fail.");
+    }
+
     const tokenUrl = TIKTOK_TOKEN_URL;
 
-    const payload = {
-      client_key: TIKTOK_CLIENT_KEY,
-      client_secret: TIKTOK_CLIENT_SECRET,
-      grant_type: "authorization_code",
-      code: code,
-      redirect_uri: TIKTOK_REDIRECT_URI
-    };
-
-    // POST to TikTok token endpoint
     const tokenRes = await fetch(tokenUrl, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json"
+        "Content-Type": "application/x-www-form-urlencoded"
       },
-      body: JSON.stringify(payload)
+      body: params.toString()
     });
 
     const tokenText = await tokenRes.text();
