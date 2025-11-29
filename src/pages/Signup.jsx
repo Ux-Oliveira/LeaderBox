@@ -17,6 +17,9 @@ export default function Signup() {
   const REDIRECT_URI = getRuntimeEnv("VITE_TIKTOK_REDIRECT_URI", "");
   const SCOPES = "user.info.basic";
 
+  if (!CLIENT_KEY) console.error("❌ ERROR: VITE_TIKTOK_CLIENT_KEY not loaded.");
+  if (!REDIRECT_URI) console.error("❌ ERROR: VITE_TIKTOK_REDIRECT_URI not loaded.");
+
   function generateState(length = 32) {
     const array = new Uint8Array(length);
     window.crypto.getRandomValues(array);
@@ -37,7 +40,8 @@ export default function Signup() {
   }
 
   async function createCodeChallenge(codeVerifier) {
-    const digest = await window.crypto.subtle.digest("SHA-256", new TextEncoder().encode(codeVerifier));
+    const encoder = new TextEncoder();
+    const digest = await window.crypto.subtle.digest("SHA-256", encoder.encode(codeVerifier));
     return base64urlEncode(digest);
   }
 
@@ -47,12 +51,20 @@ export default function Signup() {
       return;
     }
 
+    // Generate PKCE state & verifier
     const state = generateState(24);
     const codeVerifier = generateCodeVerifier(64);
     const codeChallenge = await createCodeChallenge(codeVerifier);
 
+    // store for callback verification
     sessionStorage.setItem("tiktok_oauth_state", state);
     sessionStorage.setItem("tiktok_code_verifier", codeVerifier);
+
+    // LOG the values so you can inspect before redirecting
+    console.log("PKCE state (stored):", state);
+    console.log("PKCE code_verifier (stored):", codeVerifier);
+    console.log("PKCE code_challenge (sent):", codeChallenge);
+    console.log("Redirect URI (sent):", REDIRECT_URI);
 
     const params = new URLSearchParams({
       client_key: CLIENT_KEY,
@@ -64,7 +76,7 @@ export default function Signup() {
       code_challenge_method: "S256"
     });
 
-    // ✅ Correct TikTok endpoint (auth)
+    // Use the correct TikTok endpoint (/v2/auth/authorize)
     window.location.href = `https://www.tiktok.com/v2/auth/authorize?${params.toString()}`;
   }
 
@@ -72,10 +84,21 @@ export default function Signup() {
     <div style={{ maxWidth: 560, margin: "40px auto", padding: 24 }}>
       <h2>Create an account</h2>
       <p>Click below to continue with TikTok</p>
-      <button onClick={startTikTokLogin} style={{
-        display: "inline-flex", alignItems: "center", gap: 12, padding: "10px 16px",
-        borderRadius: 8, border: "none", cursor: "pointer", background: "#010101", color: "white", fontWeight: 600
-      }}>
+      <button
+        onClick={startTikTokLogin}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 12,
+          padding: "10px 16px",
+          borderRadius: 8,
+          border: "none",
+          cursor: "pointer",
+          background: "#010101",
+          color: "white",
+          fontWeight: 600
+        }}
+      >
         Continue with TikTok
       </button>
     </div>
