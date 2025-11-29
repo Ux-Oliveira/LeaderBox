@@ -1,78 +1,67 @@
-// /api/auth/tiktok/exchange.js
-// Vercel serverless function - ESM
-import dotenv from "dotenv";
-dotenv.config();
-
-const {
-  TIKTOK_CLIENT_KEY,
-  TIKTOK_CLIENT_SECRET,
-  TIKTOK_REDIRECT_URI,
-  TIKTOK_TOKEN_URL = "https://open.tiktokapis.com/v2/oauth/token"
-} = process.env;
-
+// api/auth/tiktok/exchange.js
 export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    res.setHeader("Allow", "POST");
-    return res.status(405).json({ error: "Method Not Allowed" });
-  }
-
   try {
-    const body = req.body || {};
-    const { code, code_verifier, redirect_uri } = body;
+    console.log("=== exchange function invoked ===");
+    console.log("Method:", req.method);
+    console.log("Headers:", Object.keys(req.headers).slice(0,50));
+    console.log("Body keys:", req.body ? Object.keys(req.body) : "NO BODY");
 
-    console.log("Exchange handler incoming:", { hasCode: !!code, hasVerifier: !!code_verifier });
+    // Quick env snapshot (do NOT log secrets in production; this is temporary)
+    console.log("Env present:", {
+      TIKTOK_CLIENT_KEY: !!process.env.TIKTOK_CLIENT_KEY,
+      TIKTOK_CLIENT_SECRET: !!process.env.TIKTOK_CLIENT_SECRET,
+      TIKTOK_REDIRECT_URI: !!process.env.TIKTOK_REDIRECT_URI,
+      TIKTOK_TOKEN_URL: process.env.TIKTOK_TOKEN_URL
+    });
 
-    if (!code) return res.status(400).json({ error: "Missing authorization code" });
-
-    const effectiveRedirectUri = redirect_uri || TIKTOK_REDIRECT_URI;
-    if (!effectiveRedirectUri) {
-      console.error("Missing redirect URI in env or request");
-      return res.status(400).json({ error: "Missing redirect_uri (server not configured)" });
+    if (req.method !== "POST") {
+      res.setHeader("Allow", "POST");
+      return res.status(405).json({ error: "Method Not Allowed" });
     }
 
-    if (!TIKTOK_CLIENT_KEY || !TIKTOK_CLIENT_SECRET) {
-      console.error("Missing TikTok credentials in env", { TIKTOK_CLIENT_KEY: !!TIKTOK_CLIENT_KEY, TIKTOK_CLIENT_SECRET: !!TIKTOK_CLIENT_SECRET });
-      return res.status(500).json({ error: "TikTok configuration missing on server" });
-    }
+    const { code, code_verifier, redirect_uri } = req.body || {};
+    if (!code) return res.status(400).json({ error: "Missing code" });
+    if (!code_verifier) return res.status(400).json({ error: "Missing code_verifier" });
 
-    // Build x-www-form-urlencoded body
+    // Build form body
     const params = new URLSearchParams();
-    params.append("client_key", TIKTOK_CLIENT_KEY);
-    params.append("client_secret", TIKTOK_CLIENT_SECRET);
+    params.append("client_key", process.env.TIKTOK_CLIENT_KEY || "");
+    params.append("client_secret", process.env.TIKTOK_CLIENT_SECRET || "");
     params.append("grant_type", "authorization_code");
     params.append("code", code);
-    params.append("redirect_uri", effectiveRedirectUri);
-    if (code_verifier) params.append("code_verifier", code_verifier);
+    params.append("redirect_uri", redirect_uri || process.env.TIKTOK_REDIRECT_URI || "");
+    params.append("code_verifier", code_verifier);
 
-    console.log("Posting to TikTok token url:", TIKTOK_TOKEN_URL);
-    console.log("Request params:", params.toString().slice(0, 400)); // safe length
+    console.log("Calling TikTok token endpoint:", process.env.TIKTOK_TOKEN_URL);
+    console.log("Outgoing params (first 400 chars):", params.toString().slice(0,400));
 
-    // Use global fetch (Vercel/Node 18+). No node-fetch required.
-    const tokenRes = await fetch(TIKTOK_TOKEN_URL, {
+    // use global fetch (Node 18+ on Vercel)
+    const tokenRes = await fetch(process.env.TIKTOK_TOKEN_URL || "https://open.tiktokapis.com/v2/oauth/token", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: params.toString(),
     });
 
-    const text = await tokenRes.text();
-    let tokenData;
-    try {
-      tokenData = JSON.parse(text);
-    } catch (e) {
-      tokenData = { raw: text };
-    }
+    const text = await tokenRes.text().catch(e => {
+      console.error("Failed to read token response text:", e);
+      return "";
+    });
+
+    console.log("TikTok status:", tokenRes.status);
+    console.log("TikTok raw response (first 800 chars):", text.slice(0,800));
+
+    let tokenJson;
+    try { tokenJson = JSON.parse(text); } catch(e) { tokenJson = { raw: text }; }
 
     if (!tokenRes.ok) {
-      console.error("TikTok token exchange failed:", tokenRes.status, tokenData);
-      return res.status(tokenRes.status || 502).json({ error: "TikTok token exchange failed", body: tokenData });
+      console.error("TikTok returned error:", tokenJson);
+      return res.status(tokenRes.status || 502).json({ error: "TikTok token exchange failed", body: tokenJson });
     }
 
-    console.log("TikTok token success:", Object.keys(tokenData).join(", "));
-
-    // Optionally: create cookie/session here.
-    return res.status(200).json({ ok: true, tokens: tokenData, redirectUrl: "/" });
+    console.log("Token exchange ok, keys:", Object.keys(tokenJson));
+    return res.status(200).json({ ok: true, tokens: tokenJson, redirectUrl: "/" });
   } catch (err) {
-    console.error("Exchange error:", err);
+    console.error("Exchange handler fatal error:", err);
     return res.status(500).json({ error: "Internal server error", details: String(err) });
   }
 }
