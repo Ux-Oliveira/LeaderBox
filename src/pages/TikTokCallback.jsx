@@ -1,4 +1,15 @@
+// src/pages/TikTokCallback.jsx
 import React, { useEffect, useState } from "react";
+
+function getRuntimeEnv(varName, fallback = "") {
+  if (typeof window !== "undefined" && window.__ENV && window.__ENV[varName]) {
+    return window.__ENV[varName];
+  }
+  if (typeof window !== "undefined" && typeof import.meta !== "undefined" && import.meta.env && import.meta.env[varName]) {
+    return import.meta.env[varName];
+  }
+  return fallback;
+}
 
 export default function TikTokCallback() {
   const [status, setStatus] = useState("processing");
@@ -26,6 +37,7 @@ export default function TikTokCallback() {
       const storedState = sessionStorage.getItem("tiktok_oauth_state");
       const storedCodeVerifier = sessionStorage.getItem("tiktok_code_verifier");
 
+      // Clear session storage for security
       sessionStorage.removeItem("tiktok_oauth_state");
       sessionStorage.removeItem("tiktok_code_verifier");
 
@@ -39,7 +51,7 @@ export default function TikTokCallback() {
       setMessage("Exchanging code with server...");
 
       try {
-        const REDIRECT_URI = import.meta.env.VITE_TIKTOK_REDIRECT_URI;
+        const REDIRECT_URI = getRuntimeEnv("VITE_TIKTOK_REDIRECT_URI", window.location.origin + "/auth/tiktok/callback");
 
         const res = await fetch("/api/auth/tiktok/exchange", {
           method: "POST",
