@@ -1,3 +1,4 @@
+// src/pages/Signup.jsx
 import React from "react";
 
 // Safe runtime environment helper
@@ -15,9 +16,6 @@ export default function Signup() {
   const CLIENT_KEY = getRuntimeEnv("VITE_TIKTOK_CLIENT_KEY", "");
   const REDIRECT_URI = getRuntimeEnv("VITE_TIKTOK_REDIRECT_URI", "");
   const SCOPES = "user.info.basic";
-
-  if (!CLIENT_KEY) console.error("❌ ERROR: VITE_TIKTOK_CLIENT_KEY not loaded.");
-  if (!REDIRECT_URI) console.error("❌ ERROR: VITE_TIKTOK_REDIRECT_URI not loaded.");
 
   function generateState(length = 32) {
     const array = new Uint8Array(length);
@@ -66,7 +64,7 @@ export default function Signup() {
       code_challenge_method: "S256"
     });
 
-    // ✅ Correct TikTok endpoint
+    // ✅ Correct TikTok endpoint (auth)
     window.location.href = `https://www.tiktok.com/v2/auth/authorize?${params.toString()}`;
   }
 
@@ -74,21 +72,10 @@ export default function Signup() {
     <div style={{ maxWidth: 560, margin: "40px auto", padding: 24 }}>
       <h2>Create an account</h2>
       <p>Click below to continue with TikTok</p>
-      <button
-        onClick={startTikTokLogin}
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 12,
-          padding: "10px 16px",
-          borderRadius: 8,
-          border: "none",
-          cursor: "pointer",
-          background: "#010101",
-          color: "white",
-          fontWeight: 600
-        }}
-      >
+      <button onClick={startTikTokLogin} style={{
+        display: "inline-flex", alignItems: "center", gap: 12, padding: "10px 16px",
+        borderRadius: 8, border: "none", cursor: "pointer", background: "#010101", color: "white", fontWeight: 600
+      }}>
         Continue with TikTok
       </button>
     </div>
