@@ -1,6 +1,13 @@
 {
+  "version": 3,
+  "functions": {
+    "api/**/*.js": {
+      "runtime": "nodejs18.x",
+      "maxDuration": 10
+    }
+  },
   "rewrites": [
     { "source": "/privacy", "destination": "/privacy.html" },
-    { "source": "/terms", "destination": "/terms.html" },
+    { "source": "/terms", "destination": "/terms.html" }
   ]
 }
