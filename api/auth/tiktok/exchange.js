@@ -1,5 +1,5 @@
 // api/auth/tiktok/exchange.js
-import fetch from "node-fetch";
+// Vercel-friendly serverless handler — uses global fetch (Node 18+)
 import { randomUUID } from "node:crypto";
 
 const {
@@ -9,14 +9,6 @@ const {
   TIKTOK_TOKEN_URL = "https://open.tiktokapis.com/v2/oauth/token"
 } = process.env;
 
-/**
- * POST /api/auth/tiktok/exchange
- * Body: { code, code_verifier, redirect_uri? }
- *
- * Notes:
- * - TikTok expects application/x-www-form-urlencoded for the token exchange.
- * - We do not print secrets to logs. We do log existence of env values and non-sensitive info.
- */
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
@@ -24,27 +16,35 @@ export default async function handler(req, res) {
   }
 
   try {
-    const body = typeof req.body === "object" ? req.body : JSON.parse(req.body || "{}");
-    const { code, code_verifier, redirect_uri } = body || {};
+    // parse JSON body (Vercel should already parse, but be defensive)
+    const contentType = req.headers["content-type"] || "";
+    let payload;
+    if (contentType.includes("application/json")) {
+      payload = req.body;
+    } else {
+      // fallback: try to parse text
+      const text = typeof req.body === "string" ? req.body : "";
+      payload = text ? JSON.parse(text) : {};
+    }
+
+    const { code, code_verifier, redirect_uri } = payload || {};
 
     if (!code) return res.status(400).json({ error: "Missing 'code' in request body" });
-    // code_verifier is required if you used PKCE on the client
     if (!code_verifier) return res.status(400).json({ error: "Missing 'code_verifier' in request body" });
 
-    // Basic env checks (do not log secrets)
     if (!TIKTOK_CLIENT_KEY || !TIKTOK_CLIENT_SECRET || !TIKTOK_REDIRECT_URI) {
-      console.error("TikTok environment not configured. One of the required env vars is missing.");
+      console.error("[tiktok/exchange] Missing TikTok env vars.");
       return res.status(500).json({
-        error: "TikTok server configuration missing. Ensure TIKTOK_CLIENT_KEY, TIKTOK_CLIENT_SECRET, TIKTOK_REDIRECT_URI are set."
+        error: "Server misconfiguration. Ensure TIKTOK_CLIENT_KEY, TIKTOK_CLIENT_SECRET, TIKTOK_REDIRECT_URI are set."
       });
     }
 
     const effectiveRedirectUri = redirect_uri || TIKTOK_REDIRECT_URI;
 
-    // Debugging log (safe): show which redirect URI is being used and that code was received
-    console.log("[tiktok/exchange] Received code. Using redirect_uri:", effectiveRedirectUri);
+    // Log safe info for debugging
+    console.log("[tiktok/exchange] exchanging code for tokens. redirect_uri:", effectiveRedirectUri);
 
-    // Build URL-encoded payload for TikTok
+    // build url-encoded body for TikTok
     const params = new URLSearchParams();
     params.append("client_key", TIKTOK_CLIENT_KEY);
     params.append("client_secret", TIKTOK_CLIENT_SECRET);
@@ -53,9 +53,7 @@ export default async function handler(req, res) {
     params.append("redirect_uri", effectiveRedirectUri);
     params.append("code_verifier", code_verifier);
 
-    // Post to TikTok token endpoint
-    console.log("[tiktok/exchange] Posting to TikTok token URL:", TIKTOK_TOKEN_URL);
-    const tokenRes = await fetch(TIKTOK_TOKEN_URL, {
+    const resp = await fetch(TIKTOK_TOKEN_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
@@ -64,55 +62,32 @@ export default async function handler(req, res) {
       body: params.toString()
     });
 
-    const text = await tokenRes.text();
+    const raw = await resp.text();
     let data;
     try {
-      data = text ? JSON.parse(text) : {};
-    } catch (err) {
-      console.error("[tiktok/exchange] Failed parsing token response as JSON:", err.message);
-      // include raw response to help debugging, but keep it in response body (not in logs)
-      return res.status(502).json({ error: "TikTok returned invalid JSON", raw: text });
+      data = raw ? JSON.parse(raw) : {};
+    } catch (e) {
+      console.error("[tiktok/exchange] Could not parse TikTok response as JSON:", e.message);
+      return res.status(502).json({ error: "Invalid JSON from TikTok", raw });
     }
 
-    if (!tokenRes.ok) {
-      // TikTok returned an error (4xx/5xx). Forward useful details to the client.
-      console.error("[tiktok/exchange] TikTok token exchange failed:", tokenRes.status, data?.error || data);
-      return res.status(tokenRes.status || 502).json({
-        error: "TikTok token exchange failed",
-        status: tokenRes.status,
-        body: data
-      });
+    if (!resp.ok) {
+      console.error("[tiktok/exchange] TikTok returned error:", resp.status, data);
+      return res.status(resp.status || 502).json({ error: "TikTok token exchange failed", body: data });
     }
 
-    // Success. data should contain access_token, refresh_token, open_id, etc.
-    console.log("[tiktok/exchange] Token exchange OK. open_id:", data.open_id || "unknown");
-
-    // Create a session cookie (example). Adjust name and value to your needs.
+    // Success: set a session cookie (example) and return tokens
     const sessionId = randomUUID();
     const isProd = process.env.NODE_ENV === "production";
-
-    // Build cookie options string
-    const cookieParts = [
-      `sessionId=${sessionId}`,
-      "HttpOnly",
-      "SameSite=Lax",
-      `Max-Age=${60 * 60 * 24 * 7}` // one week
-    ];
+    // Set cookie securely in prod
+    const cookieParts = [`sessionId=${sessionId}`, "HttpOnly", "SameSite=Lax", `Max-Age=${60 * 60 * 24 * 7}`];
     if (isProd) cookieParts.push("Secure");
-
-    // Set cookie header (Vercel will propagate this)
     res.setHeader("Set-Cookie", cookieParts.join("; "));
 
-    // Optionally: persist sessionId -> tokens mapping in DB here
-
-    // Return token payload to client (you can filter secrets if you want)
-    return res.status(200).json({
-      ok: true,
-      tokens: data,
-      redirectUrl: "/"
-    });
+    console.log("[tiktok/exchange] success, open_id:", data.open_id || "(none)");
+    return res.status(200).json({ ok: true, tokens: data, redirectUrl: "/" });
   } catch (err) {
-    console.error("[tiktok/exchange] Handler error:", err);
+    console.error("[tiktok/exchange] handler error:", err);
     return res.status(500).json({ error: "Internal server error", details: String(err?.message || err) });
   }
 }
