@@ -3,12 +3,12 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/png" href="/ldr_logo.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Leaderbox</title>
     <meta name="description" content="The World's Next Biggest Boyband!" />
 
-    <!--meta tags-->
+    <!-- Open Graph -->
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Leader Box" />
     <meta property="og:description" content="Your movie taste sucks! And we can Prove it." />
@@ -18,22 +18,18 @@
     <meta property="og:image:height" content="512" />
     <meta property="og:url" content="https://leaderbox.co/" />
 
-    <!--twitter and tiktok tags -->
+    <!-- Twitter / TikTok -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Leader Box" />
     <meta name="twitter:description" content="Your movie taste sucks! And we can Prove it." />
     <meta name="twitter:image" content="/ldr.gif" />
+
+    <!-- Runtime config -->
+    <script src="/config.js"></script>
   </head>
 
   <body>
     <div id="root"></div>
-
-    <script src="/config.js"></script>
-     <div id="root"></div>
-     <script type="module" src="/server/index.js"></script>
-
-    
-    <!-- Load your React app -->
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
