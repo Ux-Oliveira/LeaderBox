@@ -21,21 +21,45 @@ export default function App() {
   // Try to fetch user profile if token exists
   useEffect(() => {
     const token = localStorage.getItem("md_token");
-    if (!token) return;
 
-    fetch("/api/profile", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      credentials: "include",
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error("Not authenticated");
-        return res.json();
+    if (token) {
+      fetch("/api/profile", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
       })
-      .then((u) => setUser(u.user))
-      .catch(() => localStorage.removeItem("md_token"));
+        .then((res) => {
+          if (!res.ok) throw new Error("Not authenticated");
+          return res.json();
+        })
+        .then((u) => setUser(u.user))
+        .catch(() => localStorage.removeItem("md_token"));
+
+      return;
+    }
+
+    // Fallback: load tiktok_profile from localStorage (saved by TikTokCallback)
+    try {
+      const raw = localStorage.getItem("tiktok_profile");
+      if (raw) {
+        const p = JSON.parse(raw);
+
+        const normalized = {
+          nickname:
+            p.nickname ||
+            p.raw?.data?.user?.display_name ||
+            "TikTok user",
+          pfp: p.pfp || p.raw?.data?.user?.avatar_large || null,
+          raw: p.raw || p,
+        };
+
+        setUser(normalized);
+      }
+    } catch (e) {
+      // ignore
+    }
   }, []);
 
   function handleLogin(userObj, token) {
@@ -52,6 +76,7 @@ export default function App() {
   return (
     <>
       <NavBar user={user} onOpenProfile={() => setModalOpen(true)} />
+
       <div className="app-container">
         <Routes>
           <Route path="/" element={<Landing />} />
