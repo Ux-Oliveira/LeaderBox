@@ -1,20 +1,10 @@
 // src/pages/Signup.jsx
 import React from "react";
 
-// Safe runtime environment helper
-function getRuntimeEnv(varName, fallback = "") {
-  if (typeof window !== "undefined" && window.__ENV && window.__ENV[varName]) {
-    return window.__ENV[varName];
-  }
-  if (typeof window !== "undefined" && typeof import.meta !== "undefined" && import.meta.env && import.meta.env[varName]) {
-    return import.meta.env[varName];
-  }
-  return fallback;
-}
-
 export default function Signup() {
-  const CLIENT_KEY = getRuntimeEnv("VITE_TIKTOK_CLIENT_KEY", "");
-  const REDIRECT_URI = getRuntimeEnv("VITE_TIKTOK_REDIRECT_URI", "");
+  // Use window.__ENV provided by /config.js at runtime
+  const CLIENT_KEY = window.__ENV?.VITE_TIKTOK_CLIENT_KEY || "";
+  const REDIRECT_URI = window.__ENV?.VITE_TIKTOK_REDIRECT_URI || "";
   const SCOPES = "user.info.basic";
 
   if (!CLIENT_KEY) console.error("❌ ERROR: VITE_TIKTOK_CLIENT_KEY not loaded.");
@@ -56,11 +46,10 @@ export default function Signup() {
     const codeVerifier = generateCodeVerifier(64);
     const codeChallenge = await createCodeChallenge(codeVerifier);
 
-    // store for callback verification
+    // Store for callback verification
     sessionStorage.setItem("tiktok_oauth_state", state);
     sessionStorage.setItem("tiktok_code_verifier", codeVerifier);
 
-    // LOG the values so you can inspect before redirecting
     console.log("PKCE state (stored):", state);
     console.log("PKCE code_verifier (stored):", codeVerifier);
     console.log("PKCE code_challenge (sent):", codeChallenge);
@@ -76,7 +65,7 @@ export default function Signup() {
       code_challenge_method: "S256"
     });
 
-    // Use the correct TikTok endpoint (/v2/auth/authorize)
+    // Redirect to TikTok login
     window.location.href = `https://www.tiktok.com/v2/auth/authorize?${params.toString()}`;
   }
 
