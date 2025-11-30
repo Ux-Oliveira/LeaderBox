@@ -1,46 +1,35 @@
 // server/api/auth/tiktok/callback.js
-
 import express from "express";
-import fetch from "node-fetch";
-import dotenv from "dotenv";
+import { exchangeTikTokCode } from "../../../tiktok.js";
 
-dotenv.config();
 const router = express.Router();
 
 router.get("/callback", async (req, res) => {
   const { code, state } = req.query;
   if (!code || !state) return res.status(400).send("Missing code or state");
 
+  // Retrieve code_verifier from cookie
+  const code_verifier = req.cookies[`tiktok_cv_${state}`];
+  if (!code_verifier) return res.status(400).send("Missing code_verifier (expired or invalid)");
+
   try {
-    // state contains the original code_verifier from frontend PKCE flow
-    const codeVerifier = state;
-
-    const params = new URLSearchParams();
-    params.append("client_key", process.env.TIKTOK_CLIENT_KEY);
-    params.append("client_secret", process.env.TIKTOK_CLIENT_SECRET);
-    params.append("grant_type", "authorization_code");
-    params.append("code", code);
-    params.append("redirect_uri", process.env.TIKTOK_REDIRECT_URI);
-    params.append("code_verifier", codeVerifier);
-
-    const response = await fetch(process.env.TIKTOK_TOKEN_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: params,
+    const tokens = await exchangeTikTokCode({
+      code,
+      code_verifier,
+      redirect_uri: process.env.TIKTOK_REDIRECT_URI
     });
 
-    const data = await response.json();
-    console.log("TikTok token:", data);
+    // Clear code_verifier cookie after use
+    res.clearCookie(`tiktok_cv_${state}`);
 
-    if (!data.access_token) {
-      return res.status(400).send("No access_token returned from exchange");
-    }
+    // Store tokens in a secure cookie
+    res.cookie("tiktok_tokens", JSON.stringify(tokens), {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+    });
 
-    // Store tokens in cookie
-    res.cookie("tiktok_tokens", JSON.stringify(data), { httpOnly: true, sameSite: "lax" });
-
-    // Redirect back to frontend
-    res.redirect("/");
+    res.redirect("/"); // frontend home
   } catch (err) {
     console.error("TikTok callback exchange error:", err);
     res.status(500).send("TikTok exchange failed");
