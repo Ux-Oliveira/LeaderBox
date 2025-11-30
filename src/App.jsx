@@ -18,7 +18,7 @@ export default function App() {
   const [modalOpen, setModalOpen] = useState(false);
   const nav = useNavigate();
 
-  // Try to fetch user profile if token exists
+  // Try to fetch user profile if token exists; otherwise try localStorage-saved profile
   useEffect(() => {
     const token = localStorage.getItem("md_token");
 
@@ -40,9 +40,9 @@ export default function App() {
       return;
     }
 
-    // Fallback: load tiktok_profile from localStorage (saved by TikTokCallback)
+    // Fallback: load stored profile from localStorage (saved by TikTokCallback or ProfileModal)
     try {
-      const raw = localStorage.getItem("tiktok_profile");
+      const raw = localStorage.getItem("stored_profile") || localStorage.getItem("tiktok_profile");
       if (raw) {
         const p = JSON.parse(raw);
 
@@ -50,26 +50,35 @@ export default function App() {
           nickname:
             p.nickname ||
             p.raw?.data?.user?.display_name ||
+            p.raw?.data?.display_name ||
             "TikTok user",
-          pfp: p.pfp || p.raw?.data?.user?.avatar_large || null,
+          pfp: p.pfp || p.raw?.data?.user?.avatar_large || p.raw?.data?.user?.avatar || null,
+          email: p.email || "",
+          wins: p.wins || 0,
+          losses: p.losses || 0,
           raw: p.raw || p,
         };
 
         setUser(normalized);
       }
     } catch (e) {
-      // ignore
+      // ignore parse errors
+      console.warn("Failed to parse stored profile:", e);
     }
   }, []);
 
   function handleLogin(userObj, token) {
     setUser(userObj);
-    localStorage.setItem("md_token", token);
+    if (token) localStorage.setItem("md_token", token);
   }
 
   function handleLogout() {
     setUser(null);
     localStorage.removeItem("md_token");
+    // clear our profile storage keys too
+    localStorage.removeItem("tiktok_profile");
+    localStorage.removeItem("stored_profile");
+    localStorage.removeItem("tiktok_tokens");
     nav("/");
   }
 
