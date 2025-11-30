@@ -1,5 +1,5 @@
-// api/auth/tiktok/exchange.js
-// Vercel serverless handler — no Express, uses global fetch (Node 18+)
+console.log("[exchange] TIKTOK_TOKEN_URL =", process.env.TIKTOK_TOKEN_URL);
+
 export default async function handler(req, res) {
   try {
     if (req.method !== "POST") {
