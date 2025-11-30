@@ -1,140 +1,77 @@
-// server/index.js
-import express from "express";
+// server/tiktok.js
+import fetch from "node-fetch";
 import dotenv from "dotenv";
-import path from "node:path";
-import { fileURLToPath } from "url";
-import bodyParser from "body-parser";
-import cookieParser from "cookie-parser";
-import cors from "cors";
-import { randomUUID } from "node:crypto";
-import fs from "fs";
-
-import { getTikTokAuthURL, exchangeTikTokCode } from "./tiktok.js";
-import tiktokCallbackRouter from "./api/auth/tiktok/callback.js";
+import crypto from "node:crypto";
 
 dotenv.config();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const app = express();
-const PORT = process.env.PORT || 4000;
-
-// Env vars
 const {
   TIKTOK_CLIENT_KEY,
   TIKTOK_CLIENT_SECRET,
   TIKTOK_REDIRECT_URI,
-  FRONTEND_BUILD_PATH = "../client/build"
+  TIKTOK_TOKEN_URL = "https://open.tiktokapis.com/v2/oauth/token"
 } = process.env;
 
-// Basic checks
-if (!TIKTOK_CLIENT_KEY || !TIKTOK_CLIENT_SECRET || !TIKTOK_REDIRECT_URI) {
-  console.warn("Warning: Missing TikTok env vars. Set TIKTOK_CLIENT_KEY, TIKTOK_CLIENT_SECRET, TIKTOK_REDIRECT_URI in .env");
+/**
+ * Returns the frontend TikTok authorization URL
+ * @param {Object} options
+ * @param {string} options.state - random state string (CSRF protection)
+ * @param {string} options.code_challenge - PKCE challenge
+ */
+export function getTikTokAuthURL({ state = "", code_challenge } = {}) {
+  const url = new URL("https://www.tiktok.com/v2/auth/authorize");
+  url.searchParams.set("client_key", TIKTOK_CLIENT_KEY);
+  url.searchParams.set("response_type", "code");
+  url.searchParams.set("scope", "user.info.basic");
+  url.searchParams.set("redirect_uri", TIKTOK_REDIRECT_URI);
+  if (state) url.searchParams.set("state", state);
+  if (code_challenge) url.searchParams.set("code_challenge", code_challenge);
+  if (code_challenge) url.searchParams.set("code_challenge_method", "S256");
+  return url.toString();
 }
 
-// Middlewares
-app.use(cors({ origin: true, credentials: true }));
-app.use(bodyParser.json());
-app.use(cookieParser());
+/**
+ * Exchanges TikTok code for access_token using PKCE
+ */
+export async function exchangeTikTokCode({ code, code_verifier, redirect_uri }) {
+  if (!code || !code_verifier) throw new Error("Missing code or code_verifier for PKCE");
 
-// ---------------------------
-// Serve runtime config to browser
-// ---------------------------
-app.get("/config.js", (req, res) => {
-  const publicEnv = {
-    REACT_APP_TIKTOK_CLIENT_KEY: TIKTOK_CLIENT_KEY || "",
-    REACT_APP_TIKTOK_REDIRECT_URI: TIKTOK_REDIRECT_URI || ""
-  };
-  const js = `
-    window.__ENV = ${JSON.stringify(publicEnv, null, 2)};
-    if (typeof window.process === "undefined") {
-      window.process = { env: ${JSON.stringify(publicEnv, null, 2)} };
-    } else {
-      window.process.env = Object.assign({}, window.process.env || {}, ${JSON.stringify(publicEnv, null, 2)});
-    }
-  `;
-  res.setHeader("Content-Type", "application/javascript");
-  res.send(js);
-});
+  const params = new URLSearchParams();
+  params.append("client_key", TIKTOK_CLIENT_KEY);
+  params.append("client_secret", TIKTOK_CLIENT_SECRET);
+  params.append("grant_type", "authorization_code");
+  params.append("code", code);
+  params.append("redirect_uri", redirect_uri || TIKTOK_REDIRECT_URI);
+  params.append("code_verifier", code_verifier);
 
-// ---------------------------
-// TikTok server-side callback router
-// ---------------------------
-app.use("/auth/tiktok", tiktokCallbackRouter);
+  const res = await fetch(TIKTOK_TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: params.toString(),
+  });
 
-// ---------------------------
-// Optional login entrypoint
-// ---------------------------
-app.get("/auth/tiktok/login", (req, res) => {
-  const url = getTikTokAuthURL();
-  return res.redirect(url);
-});
-
-// ---------------------------
-// Exchange endpoint (frontend PKCE -> server exchange)
-// ---------------------------
-app.post("/api/auth/tiktok/exchange", async (req, res) => {
+  const text = await res.text();
+  let json;
   try {
-    const { code, code_verifier, redirect_uri } = req.body || {};
-
-    if (!code) return res.status(400).json({ error: "Missing code in request body" });
-
-    const effectiveRedirectUri = redirect_uri || TIKTOK_REDIRECT_URI;
-    if (!effectiveRedirectUri) return res.status(400).json({ error: "Missing redirect_uri (server-side fallback not configured)" });
-
-    let tokenJson;
-    try {
-      tokenJson = await exchangeTikTokCode({ code, code_verifier, redirect_uri: effectiveRedirectUri });
-    } catch (err) {
-      console.error("TikTok token exchange failed:", err.status || "", err.body || err.message || err);
-      return res.status(err.status || 502).json({
-        error: "TikTok token exchange failed",
-        status: err.status || 502,
-        body: err.body || err.message || null
-      });
-    }
-
-    const sessionId = randomUUID();
-    res.cookie("sessionId", sessionId, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 1000 * 60 * 60 * 24 * 7
-    });
-
-    return res.json({ ok: true, tokens: tokenJson, redirectUrl: "/" });
-  } catch (err) {
-    console.error("Exchange error:", err);
-    return res.status(500).json({ error: "Internal server error", details: String(err) });
+    json = JSON.parse(text);
+  } catch (e) {
+    throw new Error(`TikTok returned non-JSON: ${text}`);
   }
-});
 
-// ---------------------------
-// Serve frontend static files
-// ---------------------------
-const buildCandidate = path.resolve(__dirname, FRONTEND_BUILD_PATH);
-if (fs.existsSync(buildCandidate)) {
-  console.log("Serving static frontend from:", buildCandidate);
-  app.use(express.static(buildCandidate));
+  if (!res.ok || !json.access_token) {
+    console.error("TikTok exchange failed:", json);
+    throw new Error("No access_token returned from exchange");
+  }
 
-  // SPA fallback
-  app.get("*", (req, res, next) => {
-    if (req.path.startsWith("/api/") || req.path === "/config.js") return next();
-    res.sendFile(path.join(buildCandidate, "index.html"));
-  });
-} else {
-  console.warn("Frontend build folder not found at", buildCandidate);
-  app.get("/", (req, res) => {
-    res.setHeader("Content-Type", "text/html");
-    res.send(`<html><head><script src="/config.js"></script></head><body>
-      <h1>Server running</h1>
-      <p>No frontend build found at ${buildCandidate}.</p>
-    </body></html>`);
-  });
+  return json;
 }
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`Server listening on http://localhost:${PORT}`);
-});
+/**
+ * Helper: generate PKCE code_verifier and code_challenge
+ */
+export function generatePKCEPair() {
+  const code_verifier = crypto.randomBytes(64).toString("hex");
+  const hash = crypto.createHash("sha256").update(code_verifier).digest();
+  const code_challenge = hash.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  return { code_verifier, code_challenge };
+}
