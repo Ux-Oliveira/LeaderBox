@@ -11,8 +11,7 @@ router.get("/callback", async (req, res) => {
   const { code, state } = req.query;
   if (!code || !state) return res.status(400).send("Missing code or state");
 
-  // code_verifier must come from the frontend PKCE flow
-  const codeVerifier = state; // assuming you sent it as 'state'
+  const codeVerifier = state; // assume frontend sent code_verifier as state
 
   const params = new URLSearchParams();
   params.append("client_key", process.env.TIKTOK_CLIENT_KEY);
@@ -35,8 +34,9 @@ router.get("/callback", async (req, res) => {
       return res.status(400).send("No access_token returned from exchange");
     }
 
+    // Store tokens in cookie or session
     res.cookie("tiktok_tokens", JSON.stringify(data), { httpOnly: true });
-    res.redirect("/");
+    res.redirect("/"); // back to frontend
   } catch (err) {
     console.error("TikTok callback exchange error:", err);
     res.status(500).send("TikTok exchange failed");
