@@ -1,4 +1,4 @@
-// /api/auth/tiktok/exchange.js  (diagnostic version)
+// server/api/auth/tiktok/exchange.js
 import fetch from "node-fetch";
 
 const PRIMARY_TOKEN_URL = process.env.TIKTOK_TOKEN_URL || "https://open.tiktokapis.com/v2/oauth/token";
@@ -34,7 +34,6 @@ export default async function handler(req, res) {
     const CLIENT_KEY_PRESENT = !!(process.env.VITE_TIKTOK_CLIENT_KEY || process.env.TIKTOK_CLIENT_KEY);
     const CLIENT_SECRET_PRESENT = !!process.env.TIKTOK_CLIENT_SECRET;
     const REDIRECT_ENV = process.env.VITE_TIKTOK_REDIRECT_URI || process.env.TIKTOK_REDIRECT_URI || null;
-    console.log("[EXCHANGE] env snapshot:", { CLIENT_KEY_PRESENT, CLIENT_SECRET_PRESENT, REDIRECT_ENV, PRIMARY_TOKEN_URL, FALLBACK_TOKEN_URL });
 
     const CLIENT_KEY = process.env.VITE_TIKTOK_CLIENT_KEY || process.env.TIKTOK_CLIENT_KEY;
     const CLIENT_SECRET = process.env.TIKTOK_CLIENT_SECRET;
@@ -60,65 +59,80 @@ export default async function handler(req, res) {
 
     // Try primary
     const primary = await doTokenRequest(PRIMARY_TOKEN_URL, tokenParams.toString(), headers);
-    console.log("[EXCHANGE] primary status:", primary.resp.status);
-    console.log("[EXCHANGE] primary body (first 1200 chars):", String(primary.text).slice(0, 1200));
 
     const primaryParsed = safeJSONParse(primary.text);
     if (!primaryParsed.ok) {
-      // Return the primary raw body so you can inspect HTML/error message.
-      // Also attempt fallback automatically so we gather more data.
+      // Primary returned non-JSON — attempt fallback and return both raw responses for debugging
       const fallback = await doTokenRequest(FALLBACK_TOKEN_URL, tokenParams.toString(), headers);
-      console.log("[EXCHANGE] fallback status:", fallback.resp.status);
-      console.log("[EXCHANGE] fallback body (first 1200 chars):", String(fallback.text).slice(0, 1200));
-
-      const fallbackParsed = safeJSONParse(fallback.text);
-
       return res.status(502).json({
-        error: "Token endpoints returned non-JSON (see raw) — usually redirect_uri or credentials issue",
+        error: "Token endpoints returned non-JSON (usually redirect_uri mismatch or provider HTML error)",
         primary: { status: primary.resp.status, raw: primary.text },
         fallback: { status: fallback.resp.status, raw: fallback.text },
         env_snapshot: { CLIENT_KEY_PRESENT, CLIENT_SECRET_PRESENT, REDIRECT_ENV },
-        debug_hint: "Paste the 'primary.raw' value here (or its first ~2000 chars) and I will parse it.",
+        debug_hint: "Paste the 'primary.raw' here (or its first ~2000 chars).",
       });
     }
 
-    // Primary returned JSON — inspect fields
+    // Primary returned JSON — use it
     const tokenJson = primaryParsed.json;
-    if (!tokenJson.access_token) {
-      console.log("[EXCHANGE] token JSON missing access_token:", tokenJson);
+    if (!tokenJson || !tokenJson.access_token) {
+      // JSON but missing access_token
       return res.status(502).json({
         error: "Token JSON returned but missing access_token",
-        tokenJson,
+        tokenResponse: tokenJson,
         env_snapshot: { CLIENT_KEY_PRESENT, CLIENT_SECRET_PRESENT, REDIRECT_ENV },
       });
     }
 
-    // Success: fetch user info server-side (best-effort)
+    // We have access_token — attempt server-side userinfo fetch
     const accessToken = tokenJson.access_token || tokenJson.data?.access_token;
     const openId = tokenJson.open_id || tokenJson.data?.open_id || tokenJson.openid || null;
+
+    if (!accessToken) {
+      return res.status(502).json({ error: "No access_token present in token response", tokenResponse: tokenJson });
+    }
 
     const userUrl = new URL(USERINFO_URL);
     userUrl.searchParams.set("access_token", accessToken);
     if (openId) userUrl.searchParams.set("open_id", openId);
 
-    const userResp = await fetch(userUrl.toString(), { method: "GET" });
-    const userText = await userResp.text();
-    const userParsed = safeJSONParse(userText);
+    // Fetch user info (best-effort)
+    try {
+      const userResp = await fetch(userUrl.toString(), { method: "GET" });
+      const userText = await userResp.text();
+      const userParsed = safeJSONParse(userText);
+      if (!userParsed.ok) {
+        return res.status(200).json({
+          tokens: tokenJson,
+          profile: null,
+          userinfo_error: { status: userResp.status, raw: userText },
+          env_snapshot: { CLIENT_KEY_PRESENT, CLIENT_SECRET_PRESENT, REDIRECT_ENV },
+        });
+      }
+      if (!userResp.ok) {
+        return res.status(200).json({
+          tokens: tokenJson,
+          profile: null,
+          userinfo_error: { status: userResp.status, body: userParsed.json },
+          env_snapshot: { CLIENT_KEY_PRESENT, CLIENT_SECRET_PRESENT, REDIRECT_ENV },
+        });
+      }
 
-    if (!userParsed.ok) {
+      // Success
+      return res.status(200).json({
+        tokens: tokenJson,
+        profile: userParsed.json,
+        env_snapshot: { CLIENT_KEY_PRESENT, CLIENT_SECRET_PRESENT, REDIRECT_ENV },
+      });
+
+    } catch (err) {
       return res.status(200).json({
         tokens: tokenJson,
         profile: null,
-        userinfo_error: { status: userResp.status, raw: userText },
+        userinfo_error: String(err),
         env_snapshot: { CLIENT_KEY_PRESENT, CLIENT_SECRET_PRESENT, REDIRECT_ENV },
       });
     }
-
-    return res.status(200).json({
-      tokens: tokenJson,
-      profile: userParsed.json,
-      env_snapshot: { CLIENT_KEY_PRESENT, CLIENT_SECRET_PRESENT, REDIRECT_ENV },
-    });
 
   } catch (err) {
     console.error("[EXCHANGE] exception:", err);
