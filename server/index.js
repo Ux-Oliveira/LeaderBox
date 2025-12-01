@@ -37,7 +37,6 @@ app.post("/api/auth/tiktok/exchange", async (req, res) => {
     return res.status(500).json({ error: "Exchange failed", details: String(err) });
   }
 });
-
 // Serve frontend
 const buildPath = path.resolve(__dirname, "../client/build");
 if (fs.existsSync(buildPath)) {
@@ -51,3 +50,4 @@ if (fs.existsSync(buildPath)) {
 }
 
 app.listen(PORT, () => console.log(`Server listening on http://localhost:${PORT}`));
+
