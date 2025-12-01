@@ -33,8 +33,8 @@ app.use(cookieParser());
 // Serve runtime config to browser
 app.get("/config.js", (req, res) => {
   const publicEnv = {
-    REACT_APP_TIKTOK_CLIENT_KEY: TIKTOK_CLIENT_KEY || "",
-    REACT_APP_TIKTOK_REDIRECT_URI: TIKTOK_REDIRECT_URI || ""
+    VITE_TIKTOK_CLIENT_KEY: TIKTOK_CLIENT_KEY || "",
+    VITE_TIKTOK_REDIRECT_URI: TIKTOK_REDIRECT_URI || ""
   };
   const js = `window.__ENV = ${JSON.stringify(publicEnv, null, 2)};`;
   res.setHeader("Content-Type", "application/javascript");
@@ -97,3 +97,4 @@ if (fs.existsSync(buildCandidate)) {
 }
 
 app.listen(PORT, () => console.log(`Server listening on http://localhost:${PORT}`));
+
