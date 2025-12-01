@@ -2,8 +2,12 @@
 import React from "react";
 
 function getRuntimeEnv(varName, fallback = "") {
-  if (typeof window !== "undefined" && window.__ENV && window.__ENV[varName]) return window.__ENV[varName];
-  if (typeof window !== "undefined" && import.meta && import.meta.env && import.meta.env[varName]) return import.meta.env[varName];
+  if (typeof window !== "undefined" && window.__ENV && window.__ENV[varName]) {
+    return window.__ENV[varName];
+  }
+  if (typeof window !== "undefined" && typeof import.meta !== "undefined" && import.meta.env && import.meta.env[varName]) {
+    return import.meta.env[varName];
+  }
   return fallback;
 }
 
@@ -18,7 +22,7 @@ export default function Signup() {
   function generateState(length = 32) {
     const array = new Uint8Array(length);
     window.crypto.getRandomValues(array);
-    return Array.from(array, dec => ("0" + dec.toString(16)).slice(-2)).join("");
+    return Array.from(array, (dec) => ("0" + dec.toString(16)).slice(-2)).join("");
   }
 
   function base64urlEncode(arrayBuffer) {
@@ -31,7 +35,8 @@ export default function Signup() {
   function generateCodeVerifier(length = 64) {
     const array = new Uint8Array(length);
     window.crypto.getRandomValues(array);
-    return Array.from(array, b => ("0" + b.toString(16)).slice(-2)).join("");
+    // use random bytes hex -> good entropy
+    return Array.from(array, (b) => ("0" + b.toString(16)).slice(-2)).join("");
   }
 
   async function createCodeChallenge(codeVerifier) {
@@ -42,7 +47,7 @@ export default function Signup() {
 
   async function startTikTokLogin() {
     if (!CLIENT_KEY || !REDIRECT_URI) {
-      alert("TikTok configuration missing. Check console.");
+      alert("TikTok configuration missing. Check console for details.");
       return;
     }
 
@@ -50,8 +55,14 @@ export default function Signup() {
     const codeVerifier = generateCodeVerifier(64);
     const codeChallenge = await createCodeChallenge(codeVerifier);
 
+    // store for callback verification
     sessionStorage.setItem("tiktok_oauth_state", state);
     sessionStorage.setItem("tiktok_code_verifier", codeVerifier);
+
+    console.log("PKCE state (stored):", state);
+    console.log("PKCE code_verifier (stored):", codeVerifier);
+    console.log("PKCE code_challenge (sent):", codeChallenge);
+    console.log("Redirect URI (sent):", REDIRECT_URI);
 
     const params = new URLSearchParams({
       client_key: CLIENT_KEY,
@@ -60,7 +71,7 @@ export default function Signup() {
       redirect_uri: REDIRECT_URI,
       state,
       code_challenge: codeChallenge,
-      code_challenge_method: "S256"
+      code_challenge_method: "S256",
     });
 
     window.location.href = `https://www.tiktok.com/v2/auth/authorize?${params.toString()}`;
@@ -70,7 +81,21 @@ export default function Signup() {
     <div style={{ maxWidth: 560, margin: "40px auto", padding: 24 }}>
       <h2>Create an account</h2>
       <p>Click below to continue with TikTok</p>
-      <button onClick={startTikTokLogin} style={{ display: "inline-flex", gap: 12, padding: "10px 16px", borderRadius: 8, border: "none", cursor: "pointer", background: "#010101", color: "white", fontWeight: 600 }}>
+      <button
+        onClick={startTikTokLogin}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 12,
+          padding: "10px 16px",
+          borderRadius: 8,
+          border: "none",
+          cursor: "pointer",
+          background: "#010101",
+          color: "white",
+          fontWeight: 600,
+        }}
+      >
         Continue with TikTok
       </button>
     </div>
