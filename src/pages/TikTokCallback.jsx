@@ -18,7 +18,6 @@ export default function TikTokCallback() {
       const error = params.get("error");
 
       if (error) return setStatus("error") || setMessage(`Authorization error: ${error}`);
-
       if (!code) return setStatus("error") || setMessage("No authorization code received from TikTok.");
 
       const storedState = sessionStorage.getItem("tiktok_oauth_state");
@@ -47,7 +46,25 @@ export default function TikTokCallback() {
         sessionStorage.removeItem("tiktok_oauth_state");
         sessionStorage.removeItem("tiktok_code_verifier");
 
-        if (data.tokens) localStorage.setItem("tiktok_tokens", JSON.stringify(data.tokens));
+        if (data.tokens) {
+          localStorage.setItem("tiktok_tokens", JSON.stringify(data.tokens));
+
+          // -----------------------------
+          // FETCH TIKTOK USER INFO
+          // -----------------------------
+          try {
+            const accessToken = data.tokens.access_token;
+            const userRes = await fetch(
+              `https://open.tiktokapis.com/v2/user/info/?access_token=${encodeURIComponent(accessToken)}`,
+              { method: "GET" }
+            );
+            const userJson = await userRes.json();
+            console.log("TikTok user info:", userJson);
+            localStorage.setItem("tiktok_profile", JSON.stringify(userJson));
+          } catch (userErr) {
+            console.error("Failed to fetch TikTok user info:", userErr);
+          }
+        }
 
         setStatus("success");
         setMessage("Logged in successfully. Redirecting...");
