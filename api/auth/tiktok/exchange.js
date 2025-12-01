@@ -1,10 +1,8 @@
 // api/auth/tiktok/exchange.js
-// Vercel serverless handler — robustly handles TikTok token endpoint variants
-// (uses global fetch, Node 18+ on Vercel)
+// Robust TikTok token exchange with automatic payload-variant retries and clear debug output.
 
 async function parseBody(req) {
   if (req.body && Object.keys(req.body).length) return req.body;
-  // parse raw JSON body (some serverless setups)
   return new Promise((resolve, reject) => {
     let data = "";
     req.on("data", (c) => (data += c));
@@ -19,6 +17,26 @@ async function parseBody(req) {
   });
 }
 
+function buildForm(params) {
+  const p = new URLSearchParams();
+  Object.entries(params).forEach(([k, v]) => {
+    if (v !== undefined && v !== null) p.append(k, String(v));
+  });
+  return p.toString();
+}
+
+async function callToken(url, bodyString) {
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: bodyString,
+  });
+  const text = await resp.text();
+  let json = null;
+  try { json = JSON.parse(text); } catch (e) { /* non-json */ }
+  return { ok: resp.ok, status: resp.status, json, raw: text };
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
@@ -28,127 +46,122 @@ export default async function handler(req, res) {
   try {
     const body = await parseBody(req);
     const { code, code_verifier, redirect_uri } = body || {};
-
     if (!code || !code_verifier) {
       return res.status(400).json({ error: "Missing code or code_verifier in request body" });
     }
 
-    // Allow multiple env var names (be lenient)
-    const CLIENT_KEY = process.env.VITE_TIKTOK_CLIENT_KEY || process.env.TIKTOK_CLIENT_KEY || process.env.TIKTOK_CLIENT || null;
-    const CLIENT_SECRET = process.env.TIKTOK_CLIENT_SECRET || process.env.VITE_TIKTOK_CLIENT_SECRET || null;
-    const DEFAULT_TOKEN_URL = "https://open.tiktokapis.com/v2/oauth/token";
-    const ALT_TOKEN_URL = "https://open-api.tiktok.com/oauth/access_token";
-    const TOKEN_URL = process.env.TIKTOK_TOKEN_URL || DEFAULT_TOKEN_URL;
-    const USERINFO_URL = process.env.TIKTOK_USERINFO_URL || "https://open.tiktokapis.com/v2/user/info/";
+    // env fallbacks
+    const CLIENT_KEY = process.env.VITE_TIKTOK_CLIENT_KEY || process.env.TIKTOK_CLIENT_KEY || null;
+    const CLIENT_SECRET = process.env.TIKTOK_CLIENT_SECRET || null;
     const REDIRECT_URI = redirect_uri || process.env.VITE_TIKTOK_REDIRECT_URI || process.env.TIKTOK_REDIRECT_URI || null;
+    const TOKEN_URL = process.env.TIKTOK_TOKEN_URL || "https://open.tiktokapis.com/v2/oauth/token";
+    const ALT_TOKEN_URL = "https://open-api.tiktok.com/oauth/access_token";
+    const USERINFO_URL = process.env.TIKTOK_USERINFO_URL || "https://open.tiktokapis.com/v2/user/info/";
 
-    if (!CLIENT_KEY || !CLIENT_SECRET) {
-      console.error("Missing TikTok credentials. Env presence:", {
-        VITE_TIKTOK_CLIENT_KEY: !!process.env.VITE_TIKTOK_CLIENT_KEY,
-        TIKTOK_CLIENT_SECRET: !!process.env.TIKTOK_CLIENT_SECRET
-      });
-      return res.status(500).json({ error: "Server missing TikTok credentials (set VITE_TIKTOK_CLIENT_KEY and TIKTOK_CLIENT_SECRET in env)" });
+    if (!CLIENT_KEY && !process.env.TIKTOK_CLIENT_KEY) {
+      return res.status(500).json({ error: "Server missing client key env (VITE_TIKTOK_CLIENT_KEY or TIKTOK_CLIENT_KEY)" });
+    }
+    if (!CLIENT_SECRET) {
+      // OK — some flows omit client_secret; handler will try variants without it
+      console.warn("No TIKTOK_CLIENT_SECRET in env; handler will attempt PKCE public-client variants.");
     }
     if (!REDIRECT_URI) {
-      console.error("Missing redirect URI.", { redirect_uri_provided: !!redirect_uri });
-      return res.status(500).json({ error: "Server missing redirect URI (set VITE_TIKTOK_REDIRECT_URI in env)" });
+      return res.status(500).json({ error: "Server missing redirect URI (set VITE_TIKTOK_REDIRECT_URI or send redirect_uri in payload)" });
     }
 
-    // helper to call token endpoint and normalize response
-    async function callTokenEndpoint(urlToCall) {
-      const tokenParams = new URLSearchParams();
-      tokenParams.append("client_key", CLIENT_KEY);
-      tokenParams.append("client_secret", CLIENT_SECRET);
-      tokenParams.append("grant_type", "authorization_code");
-      tokenParams.append("code", code);
-      tokenParams.append("redirect_uri", REDIRECT_URI);
-      tokenParams.append("code_verifier", code_verifier);
+    const tokenUrlsToTry = Array.from(new Set([TOKEN_URL, ALT_TOKEN_URL])); // try both
+    const attempts = [];
 
-      console.log("Calling token endpoint:", urlToCall);
+    // variants to try (ordered). Each entry describes the form fields to send.
+    const variants = [
+      { name: "A_client_key+client_secret+code_verifier", params: { client_key: CLIENT_KEY, client_secret: CLIENT_SECRET, grant_type: "authorization_code", code, redirect_uri: REDIRECT_URI, code_verifier } },
+      { name: "B_client_key+code_verifier (PKCE no secret)", params: { client_key: CLIENT_KEY, grant_type: "authorization_code", code, redirect_uri: REDIRECT_URI, code_verifier } },
+      { name: "C_client_id+client_secret+code_verifier", params: { client_id: CLIENT_KEY, client_secret: CLIENT_SECRET, grant_type: "authorization_code", code, redirect_uri: REDIRECT_URI, code_verifier } },
+      { name: "D_client_id+client_secret (confidential no pkce)", params: { client_id: CLIENT_KEY, client_secret: CLIENT_SECRET, grant_type: "authorization_code", code, redirect_uri: REDIRECT_URI } }
+    ];
 
-      const resp = await fetch(urlToCall, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: tokenParams.toString(),
-      });
+    let successful = null;
+    let finalTokenJson = null;
+    let finalProfile = null;
 
-      const text = await resp.text();
-      // try parse JSON
-      try {
-        const json = JSON.parse(text);
-        return { ok: resp.ok, status: resp.status, json, raw: text };
-      } catch (e) {
-        return { ok: resp.ok, status: resp.status, json: null, raw: text };
-      }
-    }
-
-    // 1) try configured/default token URL
-    let tokenResult = await callTokenEndpoint(TOKEN_URL);
-
-    // 2) If non-JSON OR 404 with "Unsupported path" (Janus), try alternate endpoint
-    const needRetry =
-      !tokenResult.json &&
-      (tokenResult.status === 404 || (tokenResult.raw && tokenResult.raw.includes("Unsupported path")));
-
-    if (needRetry && TOKEN_URL !== ALT_TOKEN_URL) {
-      console.warn("Token endpoint returned non-JSON or unsupported path — retrying alternative endpoint:", ALT_TOKEN_URL);
-      tokenResult = await callTokenEndpoint(ALT_TOKEN_URL);
-    }
-
-    // If still no JSON, return helpful debug to client
-    if (!tokenResult.json) {
-      console.error("Token exchange returned non-JSON after retry:", tokenResult.status, tokenResult.raw?.slice?.(0, 1000));
-      return res.status(502).json({
-        error: "TikTok token exchange returned non-JSON",
-        status: tokenResult.status,
-        raw: tokenResult.raw,
-        tried: [TOKEN_URL, ALT_TOKEN_URL].filter(Boolean),
-        debug_hint:
-          "Check TIKTOK_TOKEN_URL, client_key, client_secret, and that your app's redirect URI in TikTok App settings exactly matches the redirect used here.",
-      });
-    }
-
-    if (!tokenResult.ok || !tokenResult.json.access_token) {
-      console.error("TikTok token exchange failed (json):", tokenResult.status, tokenResult.json);
-      return res.status(tokenResult.status || 502).json({
-        error: "TikTok token exchange failed",
-        status: tokenResult.status,
-        body: tokenResult.json,
-        tried: [TOKEN_URL, ALT_TOKEN_URL]
-      });
-    }
-
-    // 3) fetch user profile server-side (best-effort)
-    const accessToken = tokenResult.json.access_token || tokenResult.json.data?.access_token;
-    const openId = tokenResult.json.open_id || tokenResult.json.data?.open_id || tokenResult.json.openid || null;
-
-    if (!accessToken) {
-      console.error("No access_token present in token response", tokenResult.json);
-      return res.status(502).json({ error: "No access_token present in token response", tokens: tokenResult.json });
-    }
-
-    const userUrl = new URL(USERINFO_URL);
-    userUrl.searchParams.set("access_token", accessToken);
-    if (openId) userUrl.searchParams.set("open_id", openId);
-
-    try {
-      const userResp = await fetch(userUrl.toString(), { method: "GET" });
-      const userText = await userResp.text();
-      try {
-        const userJson = JSON.parse(userText);
-        if (!userResp.ok) {
-          console.warn("Userinfo fetch failed:", userResp.status, userJson);
-          return res.status(200).json({ tokens: tokenResult.json, profile: null, userinfo_error: { status: userResp.status, body: userJson }, redirectUrl: "/" });
+    // Iterate token URLs and variants
+    for (const url of tokenUrlsToTry) {
+      for (const variant of variants) {
+        // skip variants that require client_secret if none present
+        if (!CLIENT_SECRET && variant.params.client_secret) {
+          attempts.push({ url, variant: variant.name, skipped_reason: "missing client_secret in env" });
+          continue;
         }
-        return res.status(200).json({ tokens: tokenResult.json, profile: userJson, redirectUrl: "/" });
+
+        const bodyString = buildForm(variant.params);
+        let tokenResult;
+        try {
+          tokenResult = await callToken(url, bodyString);
+        } catch (callErr) {
+          attempts.push({ url, variant: variant.name, error: String(callErr) });
+          continue;
+        }
+
+        attempts.push({
+          url,
+          variant: variant.name,
+          status: tokenResult.status,
+          ok: tokenResult.ok,
+          rawSnippet: tokenResult.raw?.slice?.(0, 120),
+          jsonBody: tokenResult.json ? (typeof tokenResult.json === "object" ? tokenResult.json : null) : null
+        });
+
+        // success criteria: JSON with access_token
+        if (tokenResult.json && (tokenResult.json.access_token || tokenResult.json.data?.access_token)) {
+          successful = { url, variant: variant.name, status: tokenResult.status };
+          finalTokenJson = tokenResult.json;
+          break;
+        }
+
+        // if endpoint returned a parameter error, keep trying other variants
+        // continue loop
+      }
+      if (successful) break;
+    }
+
+    if (!finalTokenJson) {
+      // nothing worked — return full attempts for debugging
+      return res.status(400).json({
+        error: "TikTok token exchange failed",
+        reason: "no variant produced an access_token",
+        attempts,
+        triedUrls: tokenUrlsToTry,
+        hint: "If you see 'Parameter error' try changing which parameters you send (client_secret vs not), or set TIKTOK_TOKEN_URL to the endpoint your TikTok app expects."
+      });
+    }
+
+    // got tokens — normalize access_token & open_id
+    const accessToken = finalTokenJson.access_token || finalTokenJson.data?.access_token;
+    const openId = finalTokenJson.open_id || finalTokenJson.data?.open_id || finalTokenJson.openid || null;
+
+    // Attempt server-side user info fetch (best-effort)
+    try {
+      const uUrl = new URL(USERINFO_URL);
+      uUrl.searchParams.set("access_token", accessToken);
+      if (openId) uUrl.searchParams.set("open_id", openId);
+      const uResp = await fetch(uUrl.toString(), { method: "GET" });
+      const uText = await uResp.text();
+      try {
+        finalProfile = JSON.parse(uText);
       } catch (e) {
-        console.warn("Userinfo returned non-JSON:", userText?.slice?.(0, 1000));
-        return res.status(200).json({ tokens: tokenResult.json, profile: null, userinfo_error: { status: userResp.status, raw: userText }, redirectUrl: "/" });
+        finalProfile = { nonJson: uText?.slice?.(0, 1000) || uText };
       }
     } catch (userinfoErr) {
-      console.error("Fetching userinfo error:", String(userinfoErr));
-      return res.status(200).json({ tokens: tokenResult.json, profile: null, userinfo_error: String(userinfoErr), redirectUrl: "/" });
+      finalProfile = { error: String(userinfoErr) };
     }
+
+    return res.status(200).json({
+      ok: true,
+      tokens: finalTokenJson,
+      profile: finalProfile,
+      successful,
+      attempts
+    });
   } catch (err) {
     console.error("Exchange handler exception:", err);
     return res.status(500).json({ error: "Internal server error", details: String(err) });
