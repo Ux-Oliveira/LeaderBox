@@ -17,6 +17,8 @@ export default function TikTokCallback() {
       const returnedState = params.get("state");
       const error = params.get("error");
 
+      console.log("Callback params:", Object.fromEntries(params.entries()));
+
       if (error) return setStatus("error") || setMessage(`Authorization error: ${error}`);
       if (!code) return setStatus("error") || setMessage("No authorization code received from TikTok.");
 
@@ -28,7 +30,7 @@ export default function TikTokCallback() {
       }
 
       setStatus("exchanging");
-      setMessage("Exchanging code for tokens...");
+      setMessage("Exchanging code for tokens on server...");
 
       try {
         const REDIRECT_URI = getRuntimeEnv("VITE_TIKTOK_REDIRECT_URI", window.location.origin + "/auth/tiktok/callback");
@@ -41,38 +43,39 @@ export default function TikTokCallback() {
         });
 
         const data = await res.json();
-        if (!res.ok) throw new Error(JSON.stringify(data));
+        console.log("/api/auth/tiktok/exchange response:", data);
 
+        if (!res.ok) {
+          throw new Error(JSON.stringify(data));
+        }
+
+        // Clean PKCE temp storage
         sessionStorage.removeItem("tiktok_oauth_state");
         sessionStorage.removeItem("tiktok_code_verifier");
 
+        // Save tokens
         if (data.tokens) {
           localStorage.setItem("tiktok_tokens", JSON.stringify(data.tokens));
+        }
 
-          // -----------------------------
-          // FETCH TIKTOK USER INFO
-          // -----------------------------
-          try {
-            const accessToken = data.tokens.access_token;
-            const userRes = await fetch(
-              `https://open.tiktokapis.com/v2/user/info/?access_token=${encodeURIComponent(accessToken)}`,
-              { method: "GET" }
-            );
-            const userJson = await userRes.json();
-            console.log("TikTok user info:", userJson);
-            localStorage.setItem("tiktok_profile", JSON.stringify(userJson));
-          } catch (userErr) {
-            console.error("Failed to fetch TikTok user info:", userErr);
-          }
+        // Save profile returned from server (profile shape depends on TikTok response)
+        if (data.profile) {
+          localStorage.setItem("tiktok_profile", JSON.stringify(data.profile));
+          console.log("Saved profile:", data.profile);
+        } else if (data.userinfo_error) {
+          console.warn("Userinfo error from server:", data.userinfo_error);
+        } else {
+          console.warn("No profile returned from server.");
         }
 
         setStatus("success");
         setMessage("Logged in successfully. Redirecting...");
         window.location.href = data.redirectUrl || "/";
+
       } catch (err) {
-        console.error(err);
+        console.error("Exchange exception:", err);
         setStatus("error");
-        setMessage("Token exchange failed: " + err.message);
+        setMessage("Token exchange failed: " + (err.message || JSON.stringify(err)));
       }
     })();
   }, []);
@@ -82,6 +85,7 @@ export default function TikTokCallback() {
       <h2>TikTok Authentication</h2>
       <p>Status: {status}</p>
       <pre style={{ whiteSpace: "pre-wrap", color: status === "error" ? "#a00" : "#333" }}>{message}</pre>
+      {status === "processing" && <p>Working… (check console for diagnostic logs)</p>}
     </div>
   );
 }
