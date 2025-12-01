@@ -1,17 +1,6 @@
 // /api/auth/tiktok/exchange.js
 import fetch from "node-fetch";
 
-/**
- * Serverless handler: exchanges TikTok OAuth code for tokens then fetches user profile.
- * Expects POST JSON body: { code, code_verifier, redirect_uri }
- *
- * Environment variables required:
- * - VITE_TIKTOK_CLIENT_KEY (client_key)
- * - TIKTOK_CLIENT_SECRET
- * - VITE_TIKTOK_REDIRECT_URI (fallback redirect uri)
- * - TIKTOK_TOKEN_URL (optional; default: https://open.tiktokapis.com/v2/oauth/token)
- * - TIKTOK_USERINFO_URL (optional; default: https://open.tiktokapis.com/v2/user/info/)
- */
 const TOKEN_URL = process.env.TIKTOK_TOKEN_URL || "https://open.tiktokapis.com/v2/oauth/token";
 const USERINFO_URL = process.env.TIKTOK_USERINFO_URL || "https://open.tiktokapis.com/v2/user/info/";
 
@@ -23,10 +12,7 @@ export default async function handler(req, res) {
 
   try {
     const { code, code_verifier, redirect_uri } = req.body || {};
-
-    if (!code || !code_verifier) {
-      return res.status(400).json({ error: "Missing code or code_verifier in request body" });
-    }
+    if (!code || !code_verifier) return res.status(400).json({ error: "Missing code or code_verifier" });
 
     const CLIENT_KEY = process.env.VITE_TIKTOK_CLIENT_KEY || process.env.TIKTOK_CLIENT_KEY;
     const CLIENT_SECRET = process.env.TIKTOK_CLIENT_SECRET;
@@ -55,34 +41,39 @@ export default async function handler(req, res) {
     });
 
     const tokenText = await tokenResp.text();
-    let tokenJson;
+
+    // Try parse JSON; if not JSON, return helpful debug info
+    let tokenJson = null;
     try {
       tokenJson = JSON.parse(tokenText);
     } catch (err) {
       console.error("TikTok token exchange returned non-JSON:", tokenText);
-      return res.status(502).json({ error: "TikTok returned non-JSON on token exchange", raw: tokenText });
-    }
-
-    if (!tokenResp.ok || !tokenJson.access_token) {
-      console.error("TikTok token exchange failed:", tokenJson);
-      return res.status(tokenResp.status || 502).json({
-        error: "TikTok token exchange failed",
+      // Return raw response for debugging on the client
+      return res.status(502).json({
+        error: "TikTok token exchange returned non-JSON",
         status: tokenResp.status,
-        body: tokenJson,
+        raw: tokenText,
+        debug_hint: "Check TIKTOK_TOKEN_URL, client_key, client_secret, redirect_uri; TikTok may have returned an HTML error page."
       });
     }
 
-    // 2) Fetch user info server-side to avoid CORS + ensure correct auth
-    // Try to use access_token and open_id if present
+    if (!tokenResp.ok || !tokenJson.access_token) {
+      console.error("TikTok token exchange failed (json):", tokenJson);
+      return res.status(tokenResp.status || 502).json({
+        error: "TikTok token exchange failed",
+        status: tokenResp.status,
+        body: tokenJson
+      });
+    }
+
+    // 2) Fetch user info server-side (avoid CORS)
     const accessToken = tokenJson.access_token || tokenJson.data?.access_token;
     const openId = tokenJson.open_id || tokenJson.data?.open_id || tokenJson.openid || null;
 
     if (!accessToken) {
-      // Shouldn't happen because we checked access_token above, but guard anyway
       return res.status(502).json({ error: "No access_token present in token response", tokens: tokenJson });
     }
 
-    // Build user-info URL with query params (TikTok v2 commonly accepts access_token + open_id)
     const userUrl = new URL(USERINFO_URL);
     userUrl.searchParams.set("access_token", accessToken);
     if (openId) userUrl.searchParams.set("open_id", openId);
@@ -93,19 +84,24 @@ export default async function handler(req, res) {
       const userText = await userResp.text();
       try {
         profileJson = JSON.parse(userText);
-      } catch (err) {
+      } catch (e) {
         console.warn("TikTok userinfo returned non-JSON:", userText);
-        // Keep profileJson null and return debug info below
-        profileJson = null;
-      }
-      if (!userResp.ok) {
-        console.warn("TikTok userinfo fetch not ok:", userResp.status, profileJson);
-        // We'll still return tokens but include userinfo error details
+        // return tokens with debug info
         return res.status(200).json({
           tokens: tokenJson,
           profile: null,
-          userinfo_error: { status: userResp.status, body: profileJson || userText },
-          redirectUrl: "/",
+          userinfo_error: { status: userResp.status, raw: userText },
+          redirectUrl: "/"
+        });
+      }
+
+      if (!userResp.ok) {
+        console.warn("TikTok userinfo fetch failed:", userResp.status, profileJson);
+        return res.status(200).json({
+          tokens: tokenJson,
+          profile: null,
+          userinfo_error: { status: userResp.status, body: profileJson },
+          redirectUrl: "/"
         });
       }
     } catch (err) {
@@ -114,15 +110,15 @@ export default async function handler(req, res) {
         tokens: tokenJson,
         profile: null,
         userinfo_error: String(err),
-        redirectUrl: "/",
+        redirectUrl: "/"
       });
     }
 
-    // Success: return tokens and profile
+    // Success
     return res.status(200).json({
       tokens: tokenJson,
       profile: profileJson,
-      redirectUrl: "/",
+      redirectUrl: "/"
     });
 
   } catch (err) {
