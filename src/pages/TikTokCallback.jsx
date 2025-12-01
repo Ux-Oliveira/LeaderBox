@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 
 function getRuntimeEnv(varName, fallback = "") {
   if (typeof window !== "undefined" && window.__ENV && window.__ENV[varName]) return window.__ENV[varName];
-  if (typeof window !== "undefined" && import.meta && import.meta.env && import.meta.env[varName]) return import.meta.env[varName];
+  if (typeof window !== "undefined" && import.meta.env && import.meta.env[varName]) return import.meta.env[varName];
   return fallback;
 }
 
@@ -20,8 +20,16 @@ export default function TikTokCallback() {
 
       console.log("Callback URL params:", Object.fromEntries(params.entries()));
 
-      if (error) { setStatus("error"); setMessage(`Authorization error: ${error}`); return; }
-      if (!code) { setStatus("error"); setMessage("No authorization code received from TikTok."); return; }
+      if (error) {
+        setStatus("error");
+        setMessage(`Authorization error: ${error} ${params.get("error_description") || ""}`);
+        return;
+      }
+      if (!code) {
+        setStatus("error");
+        setMessage("No authorization code received from TikTok.");
+        return;
+      }
 
       const storedState = sessionStorage.getItem("tiktok_oauth_state");
       const storedCodeVerifier = sessionStorage.getItem("tiktok_code_verifier");
@@ -32,7 +40,7 @@ export default function TikTokCallback() {
 
       if (!storedState || storedState !== returnedState || !storedCodeVerifier) {
         setStatus("error");
-        setMessage("Invalid state or missing code_verifier. Cannot continue.");
+        setMessage("Invalid state or missing code_verifier. Cannot continue. (Check console logs)");
         return;
       }
 
@@ -41,6 +49,7 @@ export default function TikTokCallback() {
 
       try {
         const REDIRECT_URI = getRuntimeEnv("VITE_TIKTOK_REDIRECT_URI", window.location.origin + "/auth/tiktok/callback");
+
         const payload = { code, code_verifier: storedCodeVerifier, redirect_uri: REDIRECT_URI };
         console.log("Exchange payload (sent):", payload);
 
@@ -48,34 +57,46 @@ export default function TikTokCallback() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
-          credentials: "include"
+          credentials: "same-origin",
         });
 
-        const text = await res.text();
-        let data;
-        try { data = JSON.parse(text); } catch (e) { data = { raw: text }; }
-
-        console.log("Exchange response (parsed):", data);
-
-        if (!res.ok) {
+        // read raw text first for robust debugging
+        const raw = await res.text();
+        let data = null;
+        try {
+          data = JSON.parse(raw);
+        } catch (e) {
+          // Not JSON — show server response for debugging
+          console.error("Exchange returned non-JSON:", raw);
           setStatus("error");
-          setMessage(`Server exchange failed: ${res.status} — check console for response. (first 1000 chars shown)`);
-          console.error("Exchange response (raw):", data);
+          setMessage(`Exchange returned non-JSON: ${raw.slice(0, 1000)}`);
           return;
         }
 
-        // Clean PKCE artifacts
+        console.log("Exchange response (parsed):", data);
+        if (!res.ok) {
+          setStatus("error");
+          setMessage(`Server exchange failed: ${res.status} ${JSON.stringify(data).slice(0, 500)}`);
+          return;
+        }
+
+        // success path
         sessionStorage.removeItem("tiktok_oauth_state");
         sessionStorage.removeItem("tiktok_code_verifier");
 
-        // Save tokens/profile (structure depends on server)
-        const tokens = data.tokens || data.token || data.tokens || data;
-        if (tokens) localStorage.setItem("tiktok_tokens", JSON.stringify(tokens));
-        if (data.profile) localStorage.setItem("tiktok_profile", JSON.stringify(data.profile));
+        const tokens = data.tokens || data?.tokens || data;
+        if (tokens) {
+          localStorage.setItem("tiktok_tokens", JSON.stringify(tokens));
+        }
+        if (data.profile) {
+          localStorage.setItem("tiktok_profile", JSON.stringify(data.profile));
+        }
 
         setStatus("success");
-        setMessage("Logged in successfully. Redirecting to /");
-        window.location.href = data.redirectUrl || "/";
+        setMessage("Logged in successfully. Redirecting...");
+        setTimeout(() => {
+          window.location.href = data.redirectUrl || "/";
+        }, 700);
       } catch (err) {
         console.error("Exchange exception:", err);
         setStatus("error");
@@ -90,6 +111,7 @@ export default function TikTokCallback() {
       <p>Status: {status}</p>
       <pre style={{ whiteSpace: "pre-wrap", color: status === "error" ? "#a00" : "#333" }}>{message}</pre>
       {status === "processing" && <p>Working… (check console for diagnostic logs)</p>}
+      {status === "error" && <p>See console logs. Keep this page open to copy logs & retry after fixes.</p>}
     </div>
   );
 }
