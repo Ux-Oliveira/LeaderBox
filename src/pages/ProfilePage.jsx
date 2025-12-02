@@ -1,4 +1,3 @@
-// src/pages/ProfilePage.jsx
 import React, { useEffect, useState } from "react";
 
 export default function ProfilePage({ user: userProp = null }) {
@@ -16,8 +15,17 @@ export default function ProfilePage({ user: userProp = null }) {
         const parsed = JSON.parse(raw);
         // normalize fields if needed
         const normalized = {
-          nickname: parsed.nickname || parsed.name || (parsed.raw && parsed.raw.data && parsed.raw.data.user && parsed.raw.data.user.display_name) || "TikTok user",
-          pfp: parsed.pfp || (parsed.raw && parsed.raw.data && parsed.raw.data.user && parsed.raw.data.user.avatar_large) || null,
+          nickname:
+            parsed.nickname ||
+            parsed.name ||
+            (parsed.raw && parsed.raw.data && parsed.raw.data.user && parsed.raw.data.user.display_name) ||
+            "TikTok user",
+          // accept either pfp or avatar (server returns `avatar`, older code expected `pfp`)
+          pfp:
+            parsed.pfp ||
+            parsed.avatar ||
+            (parsed.raw && parsed.raw.data && parsed.raw.data.user && parsed.raw.data.user.avatar_large) ||
+            null,
           raw: parsed.raw || parsed
         };
         setUser(normalized);
@@ -82,4 +90,3 @@ export default function ProfilePage({ user: userProp = null }) {
     </div>
   );
 }
-
