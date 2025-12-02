@@ -1,4 +1,3 @@
-// src/components/ProfileModal.jsx
 import React, { useEffect, useState } from "react";
 
 const LEVELS = [
@@ -28,14 +27,28 @@ function getLevelByWins(wins) {
 const LOCAL_KEY = "stored_profile";
 export function saveProfileToLocal(p) {
   try {
-    localStorage.setItem(LOCAL_KEY, JSON.stringify(p));
+    // prefer avatar (server) or pfp (client)
+    const safe = {
+      open_id: p.open_id || (p.raw && p.raw.data && p.raw.data.open_id) || null,
+      handle: p.handle || (p.raw && p.raw.data && p.raw.data.user && (p.raw.data.user.unique_id || p.raw.data.user.display_name)) || p.nickname || null,
+      nickname: p.nickname || (p.handle && p.handle.replace(/^@/, "")) || "TikTok user",
+      pfp: p.pfp || p.avatar || null,
+      wins: Number.isFinite(p.wins) ? p.wins : 0,
+      losses: Number.isFinite(p.losses) ? p.losses : 0,
+      level: Number.isFinite(p.level) ? p.level : 1,
+      deck: Array.isArray(p.deck) ? p.deck : [],
+      raw: p.raw || p,
+    };
+    localStorage.setItem(LOCAL_KEY, JSON.stringify(safe));
+    // also keep tiktok_profile used by other parts
+    localStorage.setItem("tiktok_profile", JSON.stringify(safe));
   } catch (e) {
     console.warn("Failed saving profile:", e);
   }
 }
 export function loadProfileFromLocal() {
   try {
-    const raw = localStorage.getItem(LOCAL_KEY);
+    const raw = localStorage.getItem(LOCAL_KEY) || localStorage.getItem("tiktok_profile");
     if (!raw) return null;
     return JSON.parse(raw);
   } catch (e) {
