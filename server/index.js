@@ -1,10 +1,11 @@
+// server/index.js
 import express from "express";
 import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
 import bodyParser from "body-parser";
 import fs from "fs";
-import { exchangeTikTokCode } from "./tiktok.js";
+import cookieParser from "cookie-parser";
 import profileRoutes from "./routes/profile.js";
 
 dotenv.config();
@@ -15,62 +16,39 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 4000;
 
+// basic middlewares
 app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(cookieParser());
 
-/* -------------------------------------------------
-   REQUEST LOGGER (shows every route while debugging)
---------------------------------------------------- */
+// request logger (very helpful)
 app.use((req, res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
   next();
 });
 
-/* -------------------------------------------------
-   RUNTIME ENV → FRONTEND
---------------------------------------------------- */
+// health / quick test route
+app.get("/api/_health", (req, res) => {
+  return res.json({ ok: true, msg: "server-up", time: Date.now() });
+});
+
+// mount profile router
+app.use("/api/profile", profileRoutes);
+console.log(">>> mounted profileRoutes at /api/profile");
+
+// runtime config for client (if used)
 app.get("/config.js", (req, res) => {
   const js = `window.__ENV = ${JSON.stringify({
     VITE_TIKTOK_CLIENT_KEY: process.env.VITE_TIKTOK_CLIENT_KEY || "",
     VITE_TIKTOK_REDIRECT_URI: process.env.VITE_TIKTOK_REDIRECT_URI || "",
+    LEADERBOX_SERVER_BASE: process.env.LEADERBOX_SERVER_BASE || "",
   })};`;
-
   res.setHeader("Content-Type", "application/javascript");
   res.send(js);
 });
 
-/* -------------------------------------------------
-   PKCE CODE EXCHANGE
---------------------------------------------------- */
-app.post("/api/auth/tiktok/exchange", async (req, res) => {
-  try {
-    const { code, code_verifier, redirect_uri } = req.body;
-    if (!code || !code_verifier) {
-      return res.status(400).json({ error: "Missing code or code_verifier" });
-    }
-
-    const tokens = await exchangeTikTokCode({ code, code_verifier, redirect_uri });
-
-    return res.json({ tokens, redirectUrl: "/" });
-  } catch (err) {
-    console.error("Exchange error:", err);
-    return res.status(500).json({
-      error: "Exchange failed",
-      details: String(err),
-    });
-  }
-});
-
-/* -------------------------------------------------
-   PROFILE ROUTES (IMPORTANT)
---------------------------------------------------- */
-app.use("/api/profile", profileRoutes);
-console.log(">>> mounted profileRoutes at /api/profile");
-
-/* -------------------------------------------------
-   FRONTEND BUILD
---------------------------------------------------- */
+// static frontend build (if present)
 const buildPath = path.resolve(__dirname, "../client/build");
-
 if (fs.existsSync(buildPath)) {
   app.use(express.static(buildPath));
 
@@ -79,15 +57,9 @@ if (fs.existsSync(buildPath)) {
     res.sendFile(path.join(buildPath, "index.html"));
   });
 } else {
-  // fallback
   app.get("/", (req, res) => {
-    res.send("<h1>Server running</h1><p>No frontend build found.</p>");
+    res.send("Server running — no frontend build found.");
   });
 }
 
-/* -------------------------------------------------
-   START SERVER
---------------------------------------------------- */
-app.listen(PORT, () =>
-  console.log(`Server listening on http://localhost:${PORT}`)
-);
+app.listen(PORT, () => console.log(`Server listening on http://localhost:${PORT}`));
