@@ -1,22 +1,31 @@
-const express = require("express");
-const fs = require("fs");
-const path = require("path");
+// server/profile.js
+import express from "express";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 
-const router = express.Router();
-const USERS_PATH = path.join(__dirname, "..", "users.json");
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const USERS_PATH = path.join(__dirname, "users.json"); // expects server/users.json
 
 function loadUsers() {
-  return JSON.parse(fs.readFileSync(USERS_PATH, "utf8"));
+  try {
+    return JSON.parse(fs.readFileSync(USERS_PATH, "utf8"));
+  } catch (e) {
+    return [];
+  }
 }
-
 function saveUsers(users) {
   fs.writeFileSync(USERS_PATH, JSON.stringify(users, null, 2));
 }
 
+const router = express.Router();
+
 router.post("/", (req, res) => {
   const { open_id, nickname, avatar } = req.body;
+  if (!open_id) return res.status(400).json({ error: "Missing open_id" });
 
-  let users = loadUsers();
+  const users = loadUsers();
   let user = users.find(u => u.open_id === open_id);
 
   if (!user) {
@@ -28,16 +37,16 @@ router.post("/", (req, res) => {
       losses: 0,
       level: 1,
       deck: [],
+      created_at: Date.now()
     };
     users.push(user);
   } else {
-    // Update only TikTok info
     user.nickname = nickname;
     user.avatar = avatar;
   }
 
   saveUsers(users);
-  res.json(user);
+  return res.json(user);
 });
 
-module.exports = router;
+export default router;
