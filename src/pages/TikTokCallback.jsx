@@ -88,34 +88,64 @@ export default function TikTokCallback() {
           localStorage.setItem("tiktok_tokens", JSON.stringify(tokens));
         }
         if (data.profile) {
+          // if server already returned profile in exchange response
           localStorage.setItem("tiktok_profile", JSON.stringify(data.profile));
         }
 
         // ======================
         // SAVE PROFILE TO SERVER
         // ======================
-        // (added block — posts minimal profile info to /api/profile and overwrites local tiktok_profile with server response)
-        if (tokens?.open_id) {
+        // Use serverBase so dev and prod work reliably.
+        // DEV: http://localhost:4000  PROD: your server domain (change below if needed)
+        const serverBase = process.env.NODE_ENV === "development" ? "http://localhost:4000" : (getRuntimeEnv("LEADERBOX_SERVER_BASE") || window.location.origin);
+        // Only attempt if we have something that looks like an open_id
+        const openId = tokens?.open_id || tokens?.data?.open_id || data?.profile?.open_id;
+        if (openId) {
           try {
-            const profileRes = await fetch("/api/profile", {
+            const profilePayload = {
+              open_id: openId,
+              // prefer display_name fields from token/profile, fallback to null
+              nickname: tokens?.display_name || data?.profile?.nickname || null,
+              avatar: tokens?.avatar_url || data?.profile?.avatar || null,
+            };
+
+            console.log("Posting profile to server:", serverBase + "/api/profile", profilePayload);
+
+            const profileRes = await fetch(`${serverBase}/api/profile`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                open_id: tokens.open_id,
-                nickname: tokens.display_name,
-                avatar: tokens.avatar_url
-              })
+              body: JSON.stringify(profilePayload),
             });
 
-            const profileData = await profileRes.json();
-            // **FIX**: store profileData.profile if server wrapped it (server returns { ok: true, profile: user })
-            const serverProfile = profileData?.profile || profileData;
-            // store the server-returned profile (if any) in localStorage for the UI
-            localStorage.setItem("tiktok_profile", JSON.stringify(serverProfile));
+            // handle non-JSON safely
+            const text = await profileRes.text();
+            let profileData = null;
+            try {
+              profileData = JSON.parse(text);
+            } catch (err) {
+              console.warn("Profile POST returned non-JSON. Body:", text);
+              // If server returns non-JSON HTML it will be logged — but we won't crash
+            }
+
+            if (!profileRes.ok) {
+              console.warn("Profile save responded not-ok:", profileRes.status, profileData || text);
+            } else {
+              // server returns { ok:true, profile:... } per routes — prefer profile field
+              const serverProfile = profileData && profileData.profile ? profileData.profile : profileData;
+              if (serverProfile) {
+                localStorage.setItem("tiktok_profile", JSON.stringify(serverProfile));
+                console.log("Saved server profile to localStorage:", serverProfile);
+              } else {
+                // still keep tokens/profile we already stored
+                console.log("Profile saved but server returned no profile object (saved tokens/local profile remains).");
+              }
+            }
           } catch (err) {
-            console.error("Failed to save profile:", err);
-            // keep existing local profile if server save fails
+            console.error("Failed to save profile to server:", err);
+            // do not block login — already saved tokens/local profile above
           }
+        } else {
+          console.warn("No open_id found in tokens/profile — skipping server profile save.");
         }
 
         setStatus("success");
