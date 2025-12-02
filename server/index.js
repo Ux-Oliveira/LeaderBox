@@ -1,4 +1,4 @@
-// server/index.js  -- diagnostic version
+// server/index.js
 import express from "express";
 import dotenv from "dotenv";
 import path from "path";
@@ -6,94 +6,76 @@ import { fileURLToPath } from "url";
 import bodyParser from "body-parser";
 import fs from "fs";
 import cookieParser from "cookie-parser";
+import profileRoutes from "./routes/profile.js";
+import { exchangeTikTokCode } from "./tiktok.js";
 
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-console.log("==== STARTING SERVER (diagnostic index.js) ====");
-console.log("Working directory:", process.cwd());
+console.log("Starting Leaderbox server index.js");
+console.log("cwd:", process.cwd());
 console.log("__dirname:", __dirname);
-console.log("NODE version:", process.version);
-console.log("ENV PORT:", process.env.PORT);
-console.log("Listing files in current folder:");
-try {
-  console.log(fs.readdirSync(__dirname).join(" | "));
-} catch (e) {
-  console.log("Could not list files:", e);
-}
 
 const app = express();
 const PORT = Number(process.env.PORT || 4000);
-const BIND_ADDR = process.env.BIND_ADDR || "127.0.0.1"; // explicit
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// request logger - verbose
+// Request logger
 app.use((req, res, next) => {
-  console.log(`[REQ] ${new Date().toISOString()}  ${req.method} ${req.originalUrl}  (headers: ${Object.keys(req.headers).join(",")})`);
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
   next();
 });
 
-// very small inline profile router fallback (if ./routes/profile.js fails to import)
-let profileRouterMounted = false;
-try {
-  // attempt to import your router if present
-  const profilePath = path.join(__dirname, "routes", "profile.js");
-  if (fs.existsSync(profilePath)) {
-    console.log("Found routes/profile.js — attempting to import it");
-    // dynamic import so errors don't totally crash
-    const imported = await import(`./routes/profile.js`);
-    const profileRoutes = imported.default || imported;
-    app.use("/api/profile", profileRoutes);
-    profileRouterMounted = true;
-    console.log(">>> mounted profileRoutes at /api/profile (from routes/profile.js)");
-  } else {
-    console.warn("routes/profile.js NOT FOUND. mounting fallback minimal router at /api/profile");
+// runtime env for frontend
+app.get("/config.js", (req, res) => {
+  const js = `window.__ENV = ${JSON.stringify({
+    VITE_TIKTOK_CLIENT_KEY: process.env.VITE_TIKTOK_CLIENT_KEY || "",
+    VITE_TIKTOK_REDIRECT_URI: process.env.VITE_TIKTOK_REDIRECT_URI || "",
+    LEADERBOX_SERVER_BASE: process.env.LEADERBOX_SERVER_BASE || "",
+  })};`;
+  res.setHeader("Content-Type", "application/javascript");
+  res.send(js);
+});
+
+// simple health routes
+app.get("/api/_health", (req, res) => res.json({ ok: true, msg: "server-up", time: Date.now() }));
+app.get("/api/_whoami", (req, res) => res.json({ ok: true, cwd: process.cwd(), dirname: __dirname }));
+
+// mount the profile router (THIS IS THE KEY LINE)
+app.use("/api/profile", profileRoutes);
+console.log(">>> mounted profileRoutes at /api/profile");
+
+// PKCE exchange endpoint (keeps your existing logic)
+app.post("/api/auth/tiktok/exchange", async (req, res) => {
+  try {
+    const { code, code_verifier, redirect_uri } = req.body;
+    if (!code || !code_verifier) return res.status(400).json({ error: "Missing code or code_verifier" });
+
+    const tokens = await exchangeTikTokCode({ code, code_verifier, redirect_uri });
+    return res.json({ tokens, redirectUrl: "/" });
+  } catch (err) {
+    console.error("Exchange error:", err);
+    return res.status(500).json({ error: "Exchange failed", details: String(err) });
   }
-} catch (err) {
-  console.error("Error importing routes/profile.js — mounting fallback router. Error:", err && err.stack ? err.stack : err);
-}
-
-// fallback minimal router (always mounted) — lets us test server reachability even if your router fails
-import { Router } from "express";
-const fallback = Router();
-fallback.get("/", (req, res) => {
-  res.json({ ok: true, profiles: [], note: profileRouterMounted ? "real router mounted" : "fallback router responding" });
-});
-fallback.get("/_health", (req, res) => {
-  res.json({ ok: true, msg: "server-up", time: Date.now(), profileRouterMounted });
-});
-app.use("/api/profile-fallback", fallback);
-
-// explicit health + test routes
-app.get("/api/_health", (req, res) => {
-  res.json({ ok: true, msg: "server-up", time: Date.now(), profileRouterMounted });
-});
-app.get("/api/_whoami", (req, res) => {
-  res.json({ ok: true, cwd: process.cwd(), dirname: __dirname, profileRouterMounted });
 });
 
-// serve simple root when no frontend build
+// serve frontend build if present
 const buildPath = path.resolve(__dirname, "../client/build");
 if (fs.existsSync(buildPath)) {
-  console.log("Frontend build found at", buildPath);
   app.use(express.static(buildPath));
   app.get("*", (req, res, next) => {
     if (req.path.startsWith("/api/") || req.path === "/config.js") return next();
     res.sendFile(path.join(buildPath, "index.html"));
   });
 } else {
-  console.log("No frontend build found. root will show a plain message.");
-  app.get("/", (req, res) => {
-    res.send("Server running — no frontend build found (diagnostic).");
-  });
+  app.get("/", (req, res) => res.send("Server running — no frontend build found."));
 }
 
-app.listen(PORT, BIND_ADDR, () => {
-  console.log(`Server listening at http://${BIND_ADDR}:${PORT}`);
-  console.log("profileRouterMounted:", profileRouterMounted ? "YES" : "NO");
+app.listen(PORT, "127.0.0.1", () => {
+  console.log(`Server listening on http://127.0.0.1:${PORT}`);
 });
