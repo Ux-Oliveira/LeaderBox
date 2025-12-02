@@ -1,3 +1,5 @@
+console.log(">>> profileRoutes loaded");
+
 // server/routes/profile.js
 import express from "express";
 import fs from "fs";
