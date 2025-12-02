@@ -5,7 +5,7 @@ import { fileURLToPath } from "url";
 import bodyParser from "body-parser";
 import fs from "fs";
 import { exchangeTikTokCode } from "./tiktok.js";
-import profileRoutes from "./profile.js";
+import profileRoutes from "./routes/profile.js";
 
 dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
@@ -54,5 +54,6 @@ if (fs.existsSync(buildPath)) {
 }
 
 app.listen(PORT, () => console.log(`Server listening on http://localhost:${PORT}`));
+
 
 
