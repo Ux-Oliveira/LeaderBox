@@ -1,4 +1,3 @@
-// src/pages/TikTokCallback.jsx
 import React, { useEffect, useState } from "react";
 
 function getRuntimeEnv(varName, fallback = "") {
@@ -90,6 +89,31 @@ export default function TikTokCallback() {
         }
         if (data.profile) {
           localStorage.setItem("tiktok_profile", JSON.stringify(data.profile));
+        }
+
+        // ======================
+        // SAVE PROFILE TO SERVER
+        // ======================
+        // (added block — posts minimal profile info to /api/profile and overwrites local tiktok_profile with server response)
+        if (tokens?.open_id) {
+          try {
+            const profileRes = await fetch("/api/profile", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                open_id: tokens.open_id,
+                nickname: tokens.display_name,
+                avatar: tokens.avatar_url
+              })
+            });
+
+            const profileData = await profileRes.json();
+            // store the server-returned profile (if any) in localStorage for the UI
+            localStorage.setItem("tiktok_profile", JSON.stringify(profileData));
+          } catch (err) {
+            console.error("Failed to save profile:", err);
+            // keep existing local profile if server save fails
+          }
         }
 
         setStatus("success");
