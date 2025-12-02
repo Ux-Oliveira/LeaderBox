@@ -5,6 +5,7 @@ import { fileURLToPath } from "url";
 import bodyParser from "body-parser";
 import fs from "fs";
 import { exchangeTikTokCode } from "./tiktok.js";
+import profileRoutes from "./profile.js";
 
 dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
@@ -37,6 +38,9 @@ app.post("/api/auth/tiktok/exchange", async (req, res) => {
     return res.status(500).json({ error: "Exchange failed", details: String(err) });
   }
 });
+
+app.use("/api/profile", profileRoutes);
+
 // Serve frontend
 const buildPath = path.resolve(__dirname, "../client/build");
 if (fs.existsSync(buildPath)) {
@@ -50,4 +54,5 @@ if (fs.existsSync(buildPath)) {
 }
 
 app.listen(PORT, () => console.log(`Server listening on http://localhost:${PORT}`));
+
 
