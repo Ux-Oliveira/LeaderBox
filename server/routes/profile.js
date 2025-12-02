@@ -1,4 +1,7 @@
 // server/profile.js
+console.log(">>> RUNNING server.js");
+
+
 import express from "express";
 import fs from "fs";
 import path from "path";
