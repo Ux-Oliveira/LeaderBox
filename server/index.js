@@ -26,7 +26,7 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// request logger (very visible)
+// request logger
 app.use((req, res, next) => {
   console.log(`[REQ] ${new Date().toISOString()} ${req.method} ${req.originalUrl}`);
   next();
@@ -47,11 +47,15 @@ app.get("/config.js", (req, res) => {
 app.get("/api/_health", (req, res) => res.json({ ok: true, msg: "server-up", time: Date.now() }));
 app.get("/api/_whoami", (req, res) => res.json({ ok: true, cwd: process.cwd(), dirname: __dirname }));
 
-// mount profile router
-app.use("/api/profile", profileRoutes);
-console.log(">>> mounted profileRoutes at /api/profile");
+// mount profile router with try/catch for visibility
+try {
+  app.use("/api/profile", profileRoutes);
+  console.log(">>> mounted profileRoutes at /api/profile");
+} catch (err) {
+  console.error("Failed to mount profileRoutes:", err);
+}
 
-// PKCE exchange endpoint (keeps your existing logic)
+// PKCE exchange endpoint
 app.post("/api/auth/tiktok/exchange", async (req, res) => {
   try {
     const { code, code_verifier, redirect_uri } = req.body;
@@ -77,6 +81,8 @@ if (fs.existsSync(buildPath)) {
   app.get("/", (req, res) => res.send("<h1>Leaderbox server running</h1><p>No frontend build found.</p>"));
 }
 
+// start server
 app.listen(PORT, "127.0.0.1", () => {
   console.log(`Server listening on http://127.0.0.1:${PORT}  (PID ${process.pid})`);
+  console.log(">>> Server ready, test: curl http://127.0.0.1:4000/api/profile");
 });
