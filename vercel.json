@@ -8,5 +8,9 @@
       "source": "/terms",
       "destination": "/terms.html"
     },
+    {
+      "source": "/auth/tiktok/callback",
+      "destination": "/"
+    }
   ]
 }
