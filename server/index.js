@@ -9,6 +9,9 @@ import cookieParser from "cookie-parser";
 import profileRoutes from "./routes/profile.js";
 import { exchangeTikTokCode } from "./tiktok.js";
 
+// >>> ADD THIS IMPORT <<<
+import tiktokCallbackRouter from "./api/auth/tiktok/callback.js";
+
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
@@ -55,11 +58,20 @@ try {
   console.error("Failed to mount profileRoutes:", err);
 }
 
+// >>> ADD THIS BLOCK — TikTok callback router <<<
+try {
+  app.use("/api/auth/tiktok", tiktokCallbackRouter);
+  console.log(">>> mounted TikTok callback router at /api/auth/tiktok");
+} catch (err) {
+  console.error("Failed to mount tiktokCallbackRouter:", err);
+}
+
 // PKCE exchange endpoint
 app.post("/api/auth/tiktok/exchange", async (req, res) => {
   try {
     const { code, code_verifier, redirect_uri } = req.body;
-    if (!code || !code_verifier) return res.status(400).json({ error: "Missing code or code_verifier" });
+    if (!code || !code_verifier)
+      return res.status(400).json({ error: "Missing code or code_verifier" });
 
     const tokens = await exchangeTikTokCode({ code, code_verifier, redirect_uri });
     return res.json({ tokens, redirectUrl: "/" });
