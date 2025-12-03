@@ -1,14 +1,8 @@
 // api/profile/index.js
 import fs from "fs";
 import path from "path";
-import os from "os";
 
-const IS_DEV = (process.env.NODE_ENV || "development") === "development";
-
-// Use local ./data during dev; use OS temp dir in production (Vercel)
-const DATA_DIR = IS_DEV
-  ? path.resolve("./data")
-  : path.join(os.tmpdir(), "leaderbox_data"); // writable on serverless platforms
+const DATA_DIR = path.resolve("./data"); // ephemeral on Vercel
 const USERS_PATH = path.join(DATA_DIR, "users.json");
 
 function ensureDataFile() {
@@ -39,19 +33,30 @@ function saveUsers(users) {
   fs.renameSync(tmp, USERS_PATH);
 }
 
-// Robust parse — works if req.body is already object, string JSON, etc.
 function parseJsonSafely(body, headers = {}) {
-  if (body && typeof body === "object" && !Buffer.isBuffer(body)) return body;
+  // If already an object, return it
+  if (body && typeof body === "object" && !Array.isArray(body)) return body;
+
+  // If it's a string, try to parse
   if (typeof body === "string") {
-    try { return JSON.parse(body); } catch (e) {
-      try { return JSON.parse(body.trim()); } catch (e2) { throw new Error("Invalid JSON"); }
+    try {
+      return JSON.parse(body);
+    } catch (e) {
+      // Try trimming (PowerShell sometimes adds stray chars)
+      try {
+        return JSON.parse(body.trim());
+      } catch (e2) {
+        throw new Error("Invalid JSON");
+      }
     }
   }
-  // Some environments provide rawBody under req.rawBody or similar; ignore here.
+
+  // Some runtimes put rawBody on request (rare)
   if (headers && headers["content-type"] && headers["content-type"].includes("application/json")) {
-    // we expected JSON but got something else
     throw new Error("Invalid JSON");
   }
+
+  // Nothing to parse — return empty object
   return {};
 }
 
@@ -62,11 +67,13 @@ export default function handler(req, res) {
     res.setHeader("Access-Control-Allow-Methods", "GET,POST,DELETE,OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-    if (req.method === "OPTIONS") return res.status(204).end();
+    if (req.method === "OPTIONS") {
+      return res.status(204).end();
+    }
 
-    console.log(`[api/profile] ${req.method} ${req.url} on DATA_DIR=${DATA_DIR}`);
+    console.log(`[api/profile] ${req.method} ${req.url}`);
 
-    // parse body defensively
+    // Robust body parsing (works for Vercel serverless + simple Express-like env)
     let body = {};
     try {
       body = parseJsonSafely(req.body, req.headers || {});
@@ -87,6 +94,7 @@ export default function handler(req, res) {
     }
 
     if (req.method === "POST") {
+      // use parsed body (fall back to req.body if empty)
       const payload = (Object.keys(body).length ? body : (req.body || {}));
       console.log("[api/profile] POST body:", payload);
 
@@ -120,7 +128,7 @@ export default function handler(req, res) {
       }
 
       saveUsers(users);
-      console.log("[api/profile] saved open_id=", open_id, "path=", USERS_PATH);
+      console.log("[api/profile] saved open_id=", open_id);
       return res.json({ ok: true, profile: user });
     }
 
