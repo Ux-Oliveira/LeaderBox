@@ -1,5 +1,7 @@
+// src/components/ProfileModal.jsx
 import React, { useEffect, useState } from "react";
 
+// level helpers omitted for brevity if you keep them elsewhere
 const LEVELS = [
   { level: 1, name: "Noob", threshold: 0 },
   { level: 2, name: "Casual Viewer", threshold: 5 },
@@ -23,14 +25,17 @@ function getLevelByWins(wins) {
   return current;
 }
 
-// helper localStorage helpers
 const LOCAL_KEY = "stored_profile";
+
 export function saveProfileToLocal(p) {
   try {
-    // prefer avatar (server) or pfp (client)
     const safe = {
       open_id: p.open_id || (p.raw && p.raw.data && p.raw.data.open_id) || null,
-      handle: p.handle || (p.raw && p.raw.data && p.raw.data.user && (p.raw.data.user.unique_id || p.raw.data.user.display_name)) || p.nickname || null,
+      handle:
+        p.handle ||
+        (p.raw && p.raw.data && p.raw.data.user && (p.raw.data.user.unique_id || p.raw.data.user.display_name)) ||
+        p.nickname ||
+        null,
       nickname: p.nickname || (p.handle && p.handle.replace(/^@/, "")) || "TikTok user",
       pfp: p.pfp || p.avatar || null,
       wins: Number.isFinite(p.wins) ? p.wins : 0,
@@ -40,12 +45,12 @@ export function saveProfileToLocal(p) {
       raw: p.raw || p,
     };
     localStorage.setItem(LOCAL_KEY, JSON.stringify(safe));
-    // also keep tiktok_profile used by other parts
     localStorage.setItem("tiktok_profile", JSON.stringify(safe));
   } catch (e) {
     console.warn("Failed saving profile:", e);
   }
 }
+
 export function loadProfileFromLocal() {
   try {
     const raw = localStorage.getItem(LOCAL_KEY) || localStorage.getItem("tiktok_profile");
@@ -55,6 +60,7 @@ export function loadProfileFromLocal() {
     return null;
   }
 }
+
 export function clearLocalProfile() {
   try {
     localStorage.removeItem(LOCAL_KEY);
@@ -62,20 +68,37 @@ export function clearLocalProfile() {
   } catch (e) {}
 }
 
-export default function ProfileModal({ open = false, onClose = () => {}, user = null, onLogout = () => {}, onUpdateUser = () => {} }) {
+export default function ProfileModal({
+  open = false,
+  onClose = () => {},
+  user = null,
+  onLogout = () => {},
+  onUpdateUser = () => {}
+}) {
+  // --- ALL hooks MUST be declared at the top-level, unconditionally ---
   const [isOpen, setOpen] = useState(open);
+
+  // mirror `open` prop
   useEffect(() => setOpen(open), [open]);
 
-  useEffect(() => {}, []);
+  // always keep server-sourced user saved into localStorage when it changes
+  useEffect(() => {
+    if (user) saveProfileToLocal(user);
+  }, [user]);
 
+  // (optional) placeholder effect — kept minimal and not conditional
+  useEffect(() => {
+    // no-op or debug only
+  }, []);
+
+  // --- component helpers (no hooks below) ---
   async function doLogout() {
-    // if you have an API logout, call it here; otherwise clear local storage
     clearLocalProfile();
     onLogout();
     onUpdateUser(null);
   }
 
-  // If no user, show login/signup CTA inside modal
+  // If no user — show login/signup CTA
   if (!user) {
     const localProfile = loadProfileFromLocal();
     return (
@@ -89,7 +112,6 @@ export default function ProfileModal({ open = false, onClose = () => {}, user = 
             <div style={{ fontWeight: 900, color: "var(--accent)" }}>Profile</div>
             <div className="small">You must login to view profile</div>
 
-            {/* If there's a stored local profile, allow loading it */}
             {localProfile ? (
               <>
                 <div className="small">Found a saved profile. Use it to preview your account locally.</div>
@@ -129,11 +151,7 @@ export default function ProfileModal({ open = false, onClose = () => {}, user = 
     );
   }
 
-  // have a user; ensure it's saved locally whenever modal opens
-  useEffect(() => {
-    if (user) saveProfileToLocal(user);
-  }, [user]);
-
+  // Have a user — normal UI
   const level = getLevelByWins(user.wins || 0);
 
   return (
@@ -143,7 +161,7 @@ export default function ProfileModal({ open = false, onClose = () => {}, user = 
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
             <div className="pfp" style={{ width: 64, height: 64, overflow: "hidden", borderRadius: 12 }}>
-              {user.pfp ? <img src={user.pfp} alt="pfp" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{padding:12}}>{(user.nickname||"U").slice(0,1).toUpperCase()}</div>}
+              {user.pfp ? <img src={user.pfp} alt="pfp" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ padding: 12 }}>{(user.nickname || "U").slice(0, 1).toUpperCase()}</div>}
             </div>
             <div>
               <div style={{ fontWeight: 900, color: "var(--accent)" }}>{user.nickname}</div>
@@ -169,7 +187,6 @@ export default function ProfileModal({ open = false, onClose = () => {}, user = 
           <button
             className="modal-btn"
             onClick={() => {
-              // Example: change pfp locally (for demo)
               const newUser = { ...user, nickname: user.nickname || "User" };
               saveProfileToLocal(newUser);
               onUpdateUser(newUser);
