@@ -14,20 +14,21 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-console.log("Starting Leaderbox server index.js");
-console.log("cwd:", process.cwd());
-console.log("__dirname:", __dirname);
+console.log(">>> STARTING leaderbox/server/index.js — PID", process.pid);
+console.log(">>> index.js loaded from", __filename);
+console.log(">>> cwd:", process.cwd());
 
 const app = express();
 const PORT = Number(process.env.PORT || 4000);
 
+// middlewares
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// Request logger
+// request logger (very visible)
 app.use((req, res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
+  console.log(`[REQ] ${new Date().toISOString()} ${req.method} ${req.originalUrl}`);
   next();
 });
 
@@ -42,11 +43,11 @@ app.get("/config.js", (req, res) => {
   res.send(js);
 });
 
-// simple health routes
+// health routes
 app.get("/api/_health", (req, res) => res.json({ ok: true, msg: "server-up", time: Date.now() }));
 app.get("/api/_whoami", (req, res) => res.json({ ok: true, cwd: process.cwd(), dirname: __dirname }));
 
-// mount the profile router (THIS IS THE KEY LINE)
+// mount profile router
 app.use("/api/profile", profileRoutes);
 console.log(">>> mounted profileRoutes at /api/profile");
 
@@ -59,7 +60,7 @@ app.post("/api/auth/tiktok/exchange", async (req, res) => {
     const tokens = await exchangeTikTokCode({ code, code_verifier, redirect_uri });
     return res.json({ tokens, redirectUrl: "/" });
   } catch (err) {
-    console.error("Exchange error:", err);
+    console.error("Exchange error:", err && (err.stack || err));
     return res.status(500).json({ error: "Exchange failed", details: String(err) });
   }
 });
@@ -73,9 +74,9 @@ if (fs.existsSync(buildPath)) {
     res.sendFile(path.join(buildPath, "index.html"));
   });
 } else {
-  app.get("/", (req, res) => res.send("Server running — no frontend build found."));
+  app.get("/", (req, res) => res.send("<h1>Leaderbox server running</h1><p>No frontend build found.</p>"));
 }
 
 app.listen(PORT, "127.0.0.1", () => {
-  console.log(`Server listening on http://127.0.0.1:${PORT}`);
+  console.log(`Server listening on http://127.0.0.1:${PORT}  (PID ${process.pid})`);
 });
