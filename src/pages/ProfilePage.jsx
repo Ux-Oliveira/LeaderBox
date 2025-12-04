@@ -20,10 +20,10 @@ export default function ProfilePage({ user: userProp = null }) {
             parsed.name ||
             (parsed.raw && parsed.raw.data && parsed.raw.data.user && parsed.raw.data.user.display_name) ||
             "TikTok user",
-          // accept either pfp or avatar (server returns `avatar`, older code expected `pfp`)
+          // prefer avatar then pfp
           pfp:
-            parsed.pfp ||
             parsed.avatar ||
+            parsed.pfp ||
             (parsed.raw && parsed.raw.data && parsed.raw.data.user && parsed.raw.data.user.avatar_large) ||
             null,
           raw: parsed.raw || parsed
@@ -51,8 +51,8 @@ export default function ProfilePage({ user: userProp = null }) {
           width: 96, height: 96, borderRadius: 12, overflow: "hidden", background: "#111",
           display: "flex", alignItems: "center", justifyContent: "center"
         }}>
-          {user.pfp ? (
-            <img src={user.pfp} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          {(user.avatar || user.pfp) ? (
+            <img src={user.avatar || user.pfp} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           ) : (
             <div style={{ color: "#ddd" }}>{(user.nickname || "U").slice(0,1).toUpperCase()}</div>
           )}
@@ -82,8 +82,12 @@ export default function ProfilePage({ user: userProp = null }) {
         <div style={{ padding: 12, borderRadius: 8, background: "rgba(255,255,255,0.02)" }}>
           <div className="small" style={{ color: "#999" }}>Quick actions</div>
           <div style={{ marginTop: 8 }}>
-            <button className="modal-btn">Edit display name</button>
-            <button className="modal-btn" style={{ marginLeft: 8 }}>Change avatar</button>
+            <button className="modal-btn" onClick={() => { localStorage.removeItem("tiktok_profile"); localStorage.removeItem("tiktok_tokens"); window.location.reload(); }}>
+              Log out (local)
+            </button>
+            <button className="modal-btn" style={{ marginLeft: 8 }} onClick={() => navigator.clipboard?.writeText(JSON.stringify(user.raw || user))}>
+              Copy raw profile
+            </button>
           </div>
         </div>
       </div>
