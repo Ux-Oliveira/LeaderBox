@@ -87,26 +87,63 @@ export default function TikTokCallback() {
         if (tokens) {
           localStorage.setItem("tiktok_tokens", JSON.stringify(tokens));
         }
-        if (data.profile) {
-          // if server already returned profile in exchange response
-          localStorage.setItem("tiktok_profile", JSON.stringify(data.profile));
+
+        // === NEW: robust profile normalization & server save ===
+        let serverProfileCandidate = null;
+
+        // If server returned a normalized profile object, prefer it
+        if (data.profile && (data.profile.open_id || data.profile.raw)) {
+          serverProfileCandidate = {
+            open_id:
+              data.profile.open_id ||
+              (data.profile.raw && (data.profile.raw.open_id || data.profile.raw.data?.open_id)) ||
+              null,
+            nickname: data.profile.display_name || data.profile.nickname || null,
+            avatar: data.profile.avatar || null,
+            raw: data.profile.raw || data.profile,
+          };
         }
 
-        // ======================
-        // SAVE PROFILE TO SERVER
-        // ======================
-        // Use serverBase so dev and prod work reliably.
-        // DEV: http://localhost:4000  PROD: your server domain (change below if needed)
-        const serverBase = process.env.NODE_ENV === "development" ? "http://localhost:4000" : (getRuntimeEnv("LEADERBOX_SERVER_BASE") || window.location.origin);
-        // Only attempt if we have something that looks like an open_id
-        const openId = tokens?.open_id || tokens?.data?.open_id || data?.profile?.open_id;
-        if (openId) {
+        // Fallback to tokens or nested data if no profile from server
+        if (!serverProfileCandidate) {
+          const open_id =
+            tokens?.open_id ||
+            tokens?.data?.open_id ||
+            (data.profile && data.profile.raw && data.profile.raw.data && data.profile.raw.data.open_id) ||
+            null;
+          const nickname =
+            tokens?.display_name ||
+            tokens?.nickname ||
+            (data.profile && (data.profile.display_name || data.profile.nickname)) ||
+            null;
+          const avatar =
+            tokens?.avatar_url ||
+            tokens?.avatar ||
+            (data.profile && data.profile.avatar) ||
+            null;
+
+          if (open_id) {
+            serverProfileCandidate = { open_id, nickname, avatar, raw: data.profile || tokens || {} };
+          }
+        }
+
+        // store client-side immediately (so UI can update even if server save fails)
+        if (serverProfileCandidate) {
+          localStorage.setItem("tiktok_profile", JSON.stringify(serverProfileCandidate));
+        }
+
+        // Save minimal profile to your server-side /api/profile
+        const serverBase =
+          process.env.NODE_ENV === "development"
+            ? "http://localhost:4000"
+            : (getRuntimeEnv("LEADERBOX_SERVER_BASE") || window.location.origin);
+
+        if (serverProfileCandidate && serverProfileCandidate.open_id) {
           try {
             const profilePayload = {
-              open_id: openId,
-              // prefer display_name fields from token/profile, fallback to null
-              nickname: tokens?.display_name || data?.profile?.nickname || null,
-              avatar: tokens?.avatar_url || data?.profile?.avatar || null,
+              open_id: serverProfileCandidate.open_id,
+              nickname: serverProfileCandidate.nickname,
+              avatar: serverProfileCandidate.avatar,
             };
 
             console.log("Posting profile to server:", serverBase + "/api/profile", profilePayload);
@@ -117,35 +154,27 @@ export default function TikTokCallback() {
               body: JSON.stringify(profilePayload),
             });
 
-            // handle non-JSON safely
             const text = await profileRes.text();
             let profileData = null;
             try {
               profileData = JSON.parse(text);
             } catch (err) {
+              // non-JSON OK — just log it
               console.warn("Profile POST returned non-JSON. Body:", text);
-              // If server returns non-JSON HTML it will be logged — but we won't crash
             }
 
-            if (!profileRes.ok) {
-              console.warn("Profile save responded not-ok:", profileRes.status, profileData || text);
+            if (profileRes.ok && profileData && profileData.profile) {
+              localStorage.setItem("tiktok_profile", JSON.stringify(profileData.profile));
+              console.log("Saved server profile to localStorage:", profileData.profile);
             } else {
-              // server returns { ok:true, profile:... } per routes — prefer profile field
-              const serverProfile = profileData && profileData.profile ? profileData.profile : profileData;
-              if (serverProfile) {
-                localStorage.setItem("tiktok_profile", JSON.stringify(serverProfile));
-                console.log("Saved server profile to localStorage:", serverProfile);
-              } else {
-                // still keep tokens/profile we already stored
-                console.log("Profile saved but server returned no profile object (saved tokens/local profile remains).");
-              }
+              console.warn("Profile save responded not-ok:", profileRes.status, profileData || text);
             }
           } catch (err) {
             console.error("Failed to save profile to server:", err);
-            // do not block login — already saved tokens/local profile above
+            // do not block login — profile still stored client-side
           }
         } else {
-          console.warn("No open_id found in tokens/profile — skipping server profile save.");
+          console.warn("No open_id found — skipping server profile save.");
         }
 
         setStatus("success");
