@@ -1,7 +1,4 @@
 // server/routes/profile.js
-// Express router for /api/profile
-// Writes to server/data/users.json (deterministic path relative to this file)
-
 import express from "express";
 import fs from "fs";
 import path from "path";
@@ -12,8 +9,8 @@ const router = express.Router();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Put users.json in server/data/users.json (deterministic, not process.cwd())
-const DATA_DIR = path.join(__dirname, "..", "data");
+// put users.json in server/data/users.json
+const DATA_DIR = path.resolve(__dirname, "../data");
 const USERS_PATH = path.join(DATA_DIR, "users.json");
 
 function ensureDataFile() {
@@ -43,9 +40,6 @@ function saveUsers(users) {
   fs.writeFileSync(tmp, JSON.stringify(users, null, 2), "utf8");
   fs.renameSync(tmp, USERS_PATH);
 }
-
-// Helpful startup log so you can confirm which file is used
-console.log("[profile-route] USING USERS_PATH =", USERS_PATH);
 
 /**
  * GET /api/profile           -> list all
