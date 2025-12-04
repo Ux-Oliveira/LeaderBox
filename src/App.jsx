@@ -13,6 +13,9 @@ import ProfilePage from "./pages/ProfilePage";
 import ProfileModal from "./components/ProfileModal";
 import TikTokCallback from "./pages/TikTokCallback"; // TikTok OAuth callback
 
+// NEW: ChooseProfile page (create src/pages/ChooseProfile.jsx as I gave earlier)
+import ChooseProfile from "./pages/ChooseProfile";
+
 export default function App() {
   const [user, setUser] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -97,6 +100,9 @@ export default function App() {
 
           {/* TikTok OAuth callback */}
           <Route path="/auth/tiktok/callback" element={<TikTokCallback />} />
+
+          {/* NEW: ChooseProfile route — user completes nickname + avatar here */}
+          <Route path="/choose-profile" element={<ChooseProfile />} />
         </Routes>
       </div>
 
