@@ -1,0 +1,140 @@
+// src/pages/ChooseProfile.jsx
+import React, { useEffect, useState } from "react";
+
+const AVATAR_COUNT = 8;
+const AVATAR_BASE = "/assets/avatars"; // ensure you add avatar1..avatar8 here
+
+function isNicknameValid(n) {
+  if (!n) return false;
+  const cleaned = String(n).trim().replace(/^@/, "");
+  return /^[A-Za-z0-9_\-]{3,30}$/.test(cleaned);
+}
+
+export default function ChooseProfile({ navigate }) {
+  const [openId, setOpenId] = useState(null);
+  const [nickname, setNickname] = useState("");
+  const [selectedAvatar, setSelectedAvatar] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("tiktok_profile");
+      const parsed = raw ? JSON.parse(raw) : null;
+      if (!parsed || !parsed.open_id) {
+        setError("Missing open_id — please log in again.");
+        return;
+      }
+      setOpenId(parsed.open_id);
+      if (parsed.nickname) setNickname(parsed.nickname.replace(/^@/, ""));
+      if (parsed.avatar) setSelectedAvatar(parsed.avatar);
+    } catch (e) {
+      setError("Failed reading local profile. Please log in again.");
+    }
+  }, []);
+
+  const avatars = Array.from({ length: AVATAR_COUNT }, (_, i) => `${AVATAR_BASE}/avatar${i + 1}.png`);
+
+  async function submit() {
+    setError("");
+    if (!openId) return setError("Missing open_id");
+    if (!isNicknameValid(nickname)) return setError("Invalid nickname (3-30 chars: letters, numbers, -, _).");
+    if (!selectedAvatar) return setError("Please choose an avatar.");
+    setBusy(true);
+
+    try {
+      const payload = {
+        open_id: openId,
+        nickname: nickname,
+        avatar: selectedAvatar,
+      };
+      const res = await fetch("/api/profile/complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const text = await res.text();
+      let data = null;
+      try { data = JSON.parse(text); } catch (e) { data = null; }
+
+      if (!res.ok) {
+        // show server error if available
+        const msg = (data && (data.error || data.message)) || text || `Server error ${res.status}`;
+        setError(String(msg));
+        setBusy(false);
+        return;
+      }
+
+      const profile = (data && data.profile) ? data.profile : (data);
+      if (profile) {
+        localStorage.setItem("tiktok_profile", JSON.stringify(profile));
+        // redirect to home
+        window.location.href = "/";
+      } else {
+        setError("No profile returned from server.");
+        setBusy(false);
+      }
+    } catch (err) {
+      console.error("Complete profile failed:", err);
+      setError(String(err.message || err));
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div style={{ maxWidth: 740, margin: "40px auto", padding: 20 }}>
+      <h2>Complete your account</h2>
+      <p>Please choose a unique nickname and pick one avatar. You can't change your nickname later.</p>
+
+      {error && <div style={{ color: "#a00", marginBottom: 12 }}>{error}</div>}
+
+      <div style={{ marginBottom: 16 }}>
+        <label style={{ display: "block", marginBottom: 6 }}>Nickname</label>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div style={{ background: "#222", padding: "8px 12px", borderRadius: 6, color: "#ddd" }}>@</div>
+          <input
+            value={nickname}
+            onChange={(e) => setNickname(e.target.value.replace(/\s+/g, ""))}
+            placeholder="Choose a unique name (3-30 chars, letters/numbers/_/-)"
+            disabled={busy}
+            style={{ flex: 1, padding: 10, borderRadius: 6, border: "1px solid #333", background: "#0f0f0f", color: "#fff" }}
+          />
+        </div>
+      </div>
+
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: 8 }}>Choose an avatar</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+          {avatars.map((src) => (
+            <div
+              key={src}
+              onClick={() => setSelectedAvatar(src)}
+              style={{
+                border: selectedAvatar === src ? "3px solid #ffd166" : "2px solid rgba(255,255,255,0.04)",
+                borderRadius: 8,
+                padding: 6,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "#0b0b0b"
+              }}
+            >
+              <img src={src} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 6 }} />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ display: "flex", gap: 8 }}>
+        <button onClick={submit} disabled={busy} className="modal-btn">
+          {busy ? "Saving…" : "Complete account"}
+        </button>
+        <button onClick={() => { localStorage.removeItem("tiktok_profile"); localStorage.removeItem("tiktok_tokens"); window.location.href = "/"; }} className="modal-btn" style={{ background: "#333" }}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
