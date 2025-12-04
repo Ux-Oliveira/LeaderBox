@@ -1,4 +1,3 @@
-// src/components/ProfileModal.jsx
 import React, { useEffect, useState } from "react";
 
 // level helpers omitted for brevity if you keep them elsewhere
@@ -161,7 +160,11 @@ export default function ProfileModal({
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
             <div className="pfp" style={{ width: 64, height: 64, overflow: "hidden", borderRadius: 12 }}>
-              {user.pfp ? <img src={user.pfp} alt="pfp" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ padding: 12 }}>{(user.nickname || "U").slice(0, 1).toUpperCase()}</div>}
+              {(user.avatar || user.pfp) ? (
+                <img src={user.avatar || user.pfp} alt="pfp" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              ) : (
+                <div style={{ padding: 12 }}>{(user.nickname || "U").slice(0, 1).toUpperCase()}</div>
+              )}
             </div>
             <div>
               <div style={{ fontWeight: 900, color: "var(--accent)" }}>{user.nickname}</div>
@@ -184,19 +187,10 @@ export default function ProfileModal({
             </div>
           </div>
 
-          <button
-            className="modal-btn"
-            onClick={() => {
-              const newUser = { ...user, nickname: user.nickname || "User" };
-              saveProfileToLocal(newUser);
-              onUpdateUser(newUser);
-            }}
-          >
-            Change pfp
+          {/* removed Change pfp & Change Password - kept Delete Profile only */}
+          <button className="modal-btn" onClick={() => { clearLocalProfile(); onUpdateUser(null); }}>
+            Delete Profile
           </button>
-
-          <button className="modal-btn">Change Password</button>
-          <button className="modal-btn" onClick={() => { clearLocalProfile(); onUpdateUser(null); }}>Delete Profile</button>
 
           <hr style={{ borderColor: "rgba(255,255,255,0.04)" }} />
 
