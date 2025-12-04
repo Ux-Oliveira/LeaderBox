@@ -1,7 +1,3 @@
-// server/tiktok.js
-// Robust token exchange + userinfo helpers for TikTok Login Kit (v2-ish).
-// Uses node-fetch (Node 18+ native fetch ok). Returns parsed JSON or throws.
-
 import fetch from "node-fetch";
 import dotenv from "dotenv";
 dotenv.config();
@@ -16,17 +12,15 @@ const {
 
 export async function exchangeTikTokCode({ code, code_verifier, redirect_uri }) {
   if (!code || !code_verifier) throw new Error("Missing code or code_verifier");
-  const CLIENT_KEY = VITE_TIKTOK_CLIENT_KEY || process.env.TIKTOK_CLIENT_KEY;
-  const CLIENT_SECRET = TIKTOK_CLIENT_SECRET || process.env.TIKTOK_CLIENT_SECRET;
-  if (!CLIENT_KEY || !CLIENT_SECRET) throw new Error("TikTok credentials missing");
+  if (!VITE_TIKTOK_CLIENT_KEY || !TIKTOK_CLIENT_SECRET) throw new Error("TikTok credentials missing");
 
   const params = new URLSearchParams();
-  params.append("client_key", CLIENT_KEY);
-  params.append("client_secret", CLIENT_SECRET);
+  params.append("client_key", VITE_TIKTOK_CLIENT_KEY);
+  params.append("client_secret", TIKTOK_CLIENT_SECRET);
   params.append("grant_type", "authorization_code");
   params.append("code", code);
-  if (redirect_uri) params.append("redirect_uri", redirect_uri);
-  if (code_verifier) params.append("code_verifier", code_verifier);
+  params.append("redirect_uri", redirect_uri || VITE_TIKTOK_REDIRECT_URI);
+  params.append("code_verifier", code_verifier);
 
   const res = await fetch(TIKTOK_TOKEN_URL, {
     method: "POST",
@@ -36,98 +30,46 @@ export async function exchangeTikTokCode({ code, code_verifier, redirect_uri }) 
 
   const text = await res.text();
   let json;
-  try { json = text ? JSON.parse(text) : {}; } catch (e) {
-    const err = new Error("TikTok returned non-JSON from token exchange");
-    err.raw = text;
-    throw err;
+  try { json = JSON.parse(text); } catch (e) {
+    throw new Error(`TikTok returned non-JSON from token exchange: ${text}`);
   }
 
   if (!res.ok || !json.access_token) {
-    const err = new Error("Token exchange failed");
-    err.status = res.status;
+    // return the JSON so caller can log it
+    const err = new Error("No access_token returned from TikTok token exchange");
     err.body = json;
+    err.status = res.status;
     throw err;
   }
 
-  // Return the raw token JSON (may include open_id)
-  return json;
+  return json; // includes access_token, maybe open_id, etc.
 }
 
 /**
- * fetchTikTokUserInfo(tokenResponse)
- * - Tries Authorization: Bearer first, then query param fallback.
- * - Normalizes shape into { raw, open_id, display_name, avatar } or returns null if not obtainable.
+ * Utility: fetch user info server-side
+ * Accepts tokenResponse (the json returned from exchangeTikTokCode)
  */
 export async function fetchTikTokUserInfo(tokenResponse) {
-  if (!tokenResponse) return null;
-  const accessToken = tokenResponse.access_token || tokenResponse.data?.access_token || null;
+  // Preferred: TikTok v2 expects access_token (or Authorization header + open_id)
+  const accessToken = tokenResponse.access_token || tokenResponse.data?.access_token;
   const openId = tokenResponse.open_id || tokenResponse.data?.open_id || tokenResponse.openid || null;
 
-  const base = TIKTOK_USERINFO_URL;
+  // Try query param first (common for some TikTok endpoints)
+  const url = new URL(TIKTOK_USERINFO_URL);
+  if (accessToken) url.searchParams.set("access_token", accessToken);
+  if (openId) url.searchParams.set("open_id", openId);
 
-  // Helper: normalize many possible shapes
-  function normalizeUserJson(uiJson) {
-    if (!uiJson) return null;
-    const candidate = (uiJson.data && (uiJson.data.user || uiJson.data)) || uiJson.user || uiJson || {};
-    const open_id =
-      candidate.open_id ||
-      candidate.openId ||
-      candidate.openid ||
-      openId ||
-      tokenResponse.open_id ||
-      tokenResponse.data?.open_id ||
-      null;
-
-    const display_name =
-      candidate.display_name ||
-      candidate.nickname ||
-      candidate.unique_id ||
-      candidate.displayName ||
-      candidate.name ||
-      candidate.username ||
-      null;
-
-    const avatar =
-      candidate.avatar ||
-      candidate.avatar_large ||
-      candidate.avatar_url ||
-      candidate.avatarUrl ||
-      candidate.profile_image_url ||
-      candidate.profile_pic ||
-      null;
-
-    return { raw: uiJson, open_id, display_name, avatar };
+  const res = await fetch(url.toString(), { method: "GET" });
+  const text = await res.text();
+  let json;
+  try { json = JSON.parse(text); } catch (e) {
+    throw new Error(`TikTok returned non-JSON from user info: ${text}`);
   }
-
-  // Try header method
-  try {
-    const hdrRes = await fetch(base, {
-      method: "GET",
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" } : { "Content-Type": "application/json" },
-    });
-    const txt = await hdrRes.text();
-    let json = null;
-    try { json = txt ? JSON.parse(txt) : {}; } catch (e) { json = null; }
-    if (hdrRes.ok && json) {
-      return normalizeUserJson(json);
-    }
-  } catch (err) {
-    // console.warn and fallthrough to query param approach
+  if (!res.ok) {
+    const err = new Error("TikTok user info fetch failed");
+    err.body = json;
+    err.status = res.status;
+    throw err;
   }
-
-  // Query param fallback
-  try {
-    const url = new URL(base);
-    if (accessToken) url.searchParams.set("access_token", accessToken);
-    if (openId) url.searchParams.set("open_id", openId);
-    const qRes = await fetch(url.toString(), { method: "GET" });
-    const txt = await qRes.text();
-    let json = null;
-    try { json = txt ? JSON.parse(txt) : {}; } catch (e) { json = null; }
-    if (qRes.ok && json) return normalizeUserJson(json);
-  } catch (err) {
-    // give up
-  }
-
-  return null;
+  return json;
 }
