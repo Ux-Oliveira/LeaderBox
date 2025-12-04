@@ -6,10 +6,12 @@ import { fileURLToPath } from "url";
 import bodyParser from "body-parser";
 import fs from "fs";
 import cookieParser from "cookie-parser";
-import profileRoutes from "./routes/profile.js";
-import { exchangeTikTokCode } from "./tiktok.js";
 
-// >>> ADD THIS IMPORT <<<
+// NOTE: import both exchange and fetchTikTokUserInfo from tiktok.js
+import { exchangeTikTokCode, fetchTikTokUserInfo } from "./tiktok.js";
+import profileRoutes from "./routes/profile.js";
+
+// optional: mount express-style callback router if present (server/api/auth/tiktok/callback.js)
 import tiktokCallbackRouter from "./api/auth/tiktok/callback.js";
 
 dotenv.config();
@@ -48,7 +50,9 @@ app.get("/config.js", (req, res) => {
 
 // health routes
 app.get("/api/_health", (req, res) => res.json({ ok: true, msg: "server-up", time: Date.now() }));
-app.get("/api/_whoami", (req, res) => res.json({ ok: true, cwd: process.cwd(), dirname: __dirname }));
+app.get("/api/_whoami", (req, res) =>
+  res.json({ ok: true, cwd: process.cwd(), dirname: __dirname })
+);
 
 // mount profile router with try/catch for visibility
 try {
@@ -58,26 +62,106 @@ try {
   console.error("Failed to mount profileRoutes:", err);
 }
 
-// >>> ADD THIS BLOCK — TikTok callback router <<<
+// mount tiktok callback router if present
 try {
   app.use("/api/auth/tiktok", tiktokCallbackRouter);
   console.log(">>> mounted TikTok callback router at /api/auth/tiktok");
 } catch (err) {
-  console.error("Failed to mount tiktokCallbackRouter:", err);
+  console.warn("tiktokCallbackRouter not mounted (maybe missing):", err);
 }
 
-// PKCE exchange endpoint
+/**
+ * PKCE exchange endpoint (server-side)
+ *
+ * Steps:
+ *  - Exchange code -> tokens via exchangeTikTokCode
+ *  - Best-effort: fetch user info via fetchTikTokUserInfo(tokens)
+ *  - Normalize common shapes into { open_id, display_name, avatar, raw }
+ *  - Return { tokens, profile, redirectUrl }
+ *
+ * This keeps secrets on the server and gives the frontend a normalized profile object.
+ */
 app.post("/api/auth/tiktok/exchange", async (req, res) => {
   try {
-    const { code, code_verifier, redirect_uri } = req.body;
-    if (!code || !code_verifier)
+    const { code, code_verifier, redirect_uri } = req.body || {};
+    if (!code || !code_verifier) {
       return res.status(400).json({ error: "Missing code or code_verifier" });
+    }
 
-    const tokens = await exchangeTikTokCode({ code, code_verifier, redirect_uri });
-    return res.json({ tokens, redirectUrl: "/" });
+    // 1) Exchange authorization code for tokens
+    let tokens;
+    try {
+      tokens = await exchangeTikTokCode({ code, code_verifier, redirect_uri });
+    } catch (err) {
+      console.error("exchangeTikTokCode failed:", err && (err.body || err.message || err));
+      // Surface vendor response if available
+      return res.status(502).json({ error: "token_exchange_failed", detail: err && (err.body || String(err)) });
+    }
+
+    // 2) Attempt to fetch user info (best-effort)
+    let profile = null;
+    try {
+      const ui = await fetchTikTokUserInfo(tokens);
+
+      // ui shapes differ across TikTok APIs. Normalize:
+      // Common shapes:
+      //  - { data: { user: { ... } } }
+      //  - { data: { ... } }
+      //  - { user: { ... } }
+      //  - { ... }
+      const userObj =
+        (ui && (ui.data || ui.user || ui.data === null))
+          ? (ui.data?.user || ui.user || ui.data)
+          : ui || {};
+
+      const open_id =
+        tokens?.open_id ||
+        tokens?.data?.open_id ||
+        userObj?.open_id ||
+        userObj?.openId ||
+        userObj?.id ||
+        userObj?.openid ||
+        null;
+
+      // display_name / nickname / unique_id / displayName
+      const display_name =
+        userObj?.display_name ||
+        userObj?.nickname ||
+        userObj?.unique_id ||
+        userObj?.displayName ||
+        userObj?.name ||
+        null;
+
+      // avatar might be nested or have several variants
+      const avatar =
+        userObj?.avatar ||
+        userObj?.avatar_large ||
+        userObj?.avatar_url ||
+        userObj?.avatarUrl ||
+        userObj?.avatar_larger ||
+        null;
+
+      profile = {
+        raw: ui,
+        open_id,
+        display_name,
+        avatar,
+      };
+    } catch (uiErr) {
+      // Non-fatal — log and continue returning tokens so frontend can still function
+      console.warn("fetchTikTokUserInfo failed (continuing):", uiErr && (uiErr.body || uiErr.message || uiErr));
+    }
+
+    // 3) Return tokens + profile (profile may be null if fetch failed)
+    return res.status(200).json({
+      tokens,
+      profile,
+      redirectUrl: "/",
+      message: "token_exchange_successful",
+    });
   } catch (err) {
-    console.error("Exchange error:", err && (err.stack || err));
-    return res.status(500).json({ error: "Exchange failed", details: String(err) });
+    console.error("Unhandled /api/auth/tiktok/exchange error:", err && (err.stack || err));
+    return res.status(500).json({ error: "internal_server_error", message: String(err) });
   }
 });
 
@@ -93,8 +177,8 @@ if (fs.existsSync(buildPath)) {
   app.get("/", (req, res) => res.send("<h1>Leaderbox server running</h1><p>No frontend build found.</p>"));
 }
 
-// start server
-app.listen(PORT, "127.0.0.1", () => {
-  console.log(`Server listening on http://127.0.0.1:${PORT}  (PID ${process.pid})`);
+// start server; listen on all interfaces so other tools (ngrok) can hit it if you want
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Server listening on http://0.0.0.0:${PORT}  (PID ${process.pid})`);
   console.log(">>> Server ready, test: curl http://127.0.0.1:4000/api/profile");
 });
