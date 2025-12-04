@@ -1,5 +1,4 @@
-// /api/auth/tiktok/exchange.js
-// Vercel serverless (Node 18+). Drop into /api/auth/tiktok/exchange.js
+// /api/auth/tiktok/exchange.js (serverless)
 export default async function handler(req, res) {
   try {
     if (req.method !== "POST") {
@@ -7,47 +6,35 @@ export default async function handler(req, res) {
       return res.status(405).json({ error: "method_not_allowed" });
     }
 
-    // Accept either JSON body or urlencoded — frontend sends JSON in your case
     const { code, code_verifier, redirect_uri } = req.body || {};
+    if (!code) return res.status(400).json({ error: "missing_code" });
 
-    if (!code) {
-      return res.status(400).json({ error: "missing_code" });
-    }
-
-    // read server-side secrets (must be set in Vercel dashboard as env vars)
     const CLIENT_KEY = process.env.TIKTOK_CLIENT_KEY || process.env.VITE_TIKTOK_CLIENT_KEY;
     const CLIENT_SECRET = process.env.TIKTOK_CLIENT_SECRET || process.env.TIKTOK_CLIENT_SECRET;
-
-    // Defensive: ensure we fail with clear message rather than crash (this logs server-side)
     if (!CLIENT_KEY || !CLIENT_SECRET) {
       console.error("Missing CLIENT_KEY or CLIENT_SECRET in server environment");
       return res.status(500).json({ error: "server_misconfigured", detail: "Missing TikTok client key/secret" });
     }
 
-    // Build form body per TikTok docs (application/x-www-form-urlencoded)
+    // token exchange (existing code)
     const params = new URLSearchParams();
     params.append("client_key", CLIENT_KEY);
     params.append("client_secret", CLIENT_SECRET);
     params.append("code", code);
     params.append("grant_type", "authorization_code");
     if (redirect_uri) params.append("redirect_uri", redirect_uri);
-    if (code_verifier) params.append("code_verifier", code_verifier); // harmless if present
+    if (code_verifier) params.append("code_verifier", code_verifier);
 
-    const tokenUrl = "https://open.tiktokapis.com/v2/oauth/token/"; // docs show trailing slash
+    const tokenUrl = "https://open.tiktokapis.com/v2/oauth/token/";
     const tokenRes = await fetch(tokenUrl, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        "Cache-Control": "no-cache",
-      },
+      headers: { "Content-Type": "application/x-www-form-urlencoded", "Cache-Control": "no-cache" },
       body: params.toString(),
     });
 
     const raw = await tokenRes.text();
     let tokenData;
-    try {
-      tokenData = JSON.parse(raw);
-    } catch (e) {
+    try { tokenData = JSON.parse(raw); } catch (e) {
       console.error("TikTok token response not JSON:", raw);
       return res.status(502).json({ error: "invalid_vendor_response", detail: raw.slice(0, 2000) });
     }
@@ -57,8 +44,7 @@ export default async function handler(req, res) {
       return res.status(502).json({ error: "token_exchange_failed", status: tokenRes.status, detail: tokenData });
     }
 
-    // tokenData now contains access_token, refresh_token, open_id, expires_in, etc.
-    // Optionally fetch basic user profile to return to the client
+    // Optionally fetch user info
     let profile = null;
     try {
       if (tokenData.access_token) {
@@ -73,8 +59,24 @@ export default async function handler(req, res) {
         const uiRaw = await uiRes.text();
         try {
           const uiJson = JSON.parse(uiRaw);
-          if (uiRes.ok) profile = uiJson;
-          else console.warn("User info fetch returned non-ok:", uiRes.status, uiJson);
+          if (uiRes.ok) {
+            // uiJson shape may be { data: { user: { ... } } } or similar.
+            // Normalize to a flat object with open_id, display_name, avatar
+            const userObj = (uiJson && (uiJson.data || uiJson.data === null) ? (uiJson.data?.user || uiJson.data) : uiJson) || {};
+            const open_id = tokenData.open_id || tokenData.data?.open_id || userObj.open_id || userObj.openId || userObj?.id || null;
+            // Possible avatar/display fields on TikTok user object:
+            const display_name = userObj.display_name || userObj.nickname || userObj.unique_id || userObj.displayName || null;
+            const avatar = userObj.avatar || userObj.avatar_large || userObj.avatar_url || userObj.avatarUrl || null;
+
+            profile = {
+              raw: uiJson,
+              open_id,
+              display_name,
+              avatar,
+            };
+          } else {
+            console.warn("User info fetch returned non-ok:", uiRes.status, uiJson);
+          }
         } catch (e) {
           console.warn("User info non-JSON:", uiRaw);
         }
@@ -83,7 +85,7 @@ export default async function handler(req, res) {
       console.warn("Failed fetching user info:", err);
     }
 
-    // Persist server-side as needed (store refresh_token securely), and return minimal object
+    // Return tokens and normalized profile
     return res.status(200).json({
       tokens: tokenData,
       profile,
