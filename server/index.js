@@ -1,4 +1,4 @@
-// server/index.js
+// server/index.js  (full file — replace your existing server/index.js with this)
 import express from "express";
 import dotenv from "dotenv";
 import path from "path";
@@ -8,8 +8,6 @@ import fs from "fs";
 import cookieParser from "cookie-parser";
 import profileRoutes from "./routes/profile.js";
 import { exchangeTikTokCode } from "./tiktok.js";
-
-// >>> ADD THIS IMPORT <<<
 import tiktokCallbackRouter from "./api/auth/tiktok/callback.js";
 
 dotenv.config();
@@ -23,13 +21,14 @@ console.log(">>> cwd:", process.cwd());
 
 const app = express();
 const PORT = Number(process.env.PORT || 4000);
+const HOST = process.env.HOST || "127.0.0.1";
 
 // middlewares
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// request logger
+// request logger (helpful in prod too)
 app.use((req, res, next) => {
   console.log(`[REQ] ${new Date().toISOString()} ${req.method} ${req.originalUrl}`);
   next();
@@ -50,7 +49,7 @@ app.get("/config.js", (req, res) => {
 app.get("/api/_health", (req, res) => res.json({ ok: true, msg: "server-up", time: Date.now() }));
 app.get("/api/_whoami", (req, res) => res.json({ ok: true, cwd: process.cwd(), dirname: __dirname }));
 
-// mount profile router with try/catch for visibility
+// mount API routers
 try {
   app.use("/api/profile", profileRoutes);
   console.log(">>> mounted profileRoutes at /api/profile");
@@ -58,7 +57,6 @@ try {
   console.error("Failed to mount profileRoutes:", err);
 }
 
-// >>> ADD THIS BLOCK — TikTok callback router <<<
 try {
   app.use("/api/auth/tiktok", tiktokCallbackRouter);
   console.log(">>> mounted TikTok callback router at /api/auth/tiktok");
@@ -66,12 +64,11 @@ try {
   console.error("Failed to mount tiktokCallbackRouter:", err);
 }
 
-// PKCE exchange endpoint
+// PKCE exchange endpoint (keeps legacy single-file flow working)
 app.post("/api/auth/tiktok/exchange", async (req, res) => {
   try {
     const { code, code_verifier, redirect_uri } = req.body;
-    if (!code || !code_verifier)
-      return res.status(400).json({ error: "Missing code or code_verifier" });
+    if (!code || !code_verifier) return res.status(400).json({ error: "Missing code or code_verifier" });
 
     const tokens = await exchangeTikTokCode({ code, code_verifier, redirect_uri });
     return res.json({ tokens, redirectUrl: "/" });
@@ -84,17 +81,34 @@ app.post("/api/auth/tiktok/exchange", async (req, res) => {
 // serve frontend build if present
 const buildPath = path.resolve(__dirname, "../client/build");
 if (fs.existsSync(buildPath)) {
-  app.use(express.static(buildPath));
+  app.use(express.static(buildPath, { index: false }));
+
+  // explicit copy for a few client-side routes that might be requested directly (optional)
+  const SPA_CLIENT_ROUTES = [
+    "/choose-profile",
+    "/signup",
+    "/login",
+    "/profile",
+    "/duel",
+    "/rules",
+    "/auth/tiktok/callback"
+  ];
+  SPA_CLIENT_ROUTES.forEach((p) => {
+    app.get(p, (req, res) => res.sendFile(path.join(buildPath, "index.html")));
+  });
+
+  // fallback: any non-API path should return index.html
   app.get("*", (req, res, next) => {
     if (req.path.startsWith("/api/") || req.path === "/config.js") return next();
     res.sendFile(path.join(buildPath, "index.html"));
   });
 } else {
+  // dev fallback message
   app.get("/", (req, res) => res.send("<h1>Leaderbox server running</h1><p>No frontend build found.</p>"));
 }
 
 // start server
-app.listen(PORT, "127.0.0.1", () => {
-  console.log(`Server listening on http://127.0.0.1:${PORT}  (PID ${process.pid})`);
+app.listen(PORT, HOST, () => {
+  console.log(`Server listening on http://${HOST}:${PORT}  (PID ${process.pid})`);
   console.log(">>> Server ready, test: curl http://127.0.0.1:4000/api/profile");
 });
