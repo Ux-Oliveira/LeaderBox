@@ -1,3 +1,4 @@
+// src/pages/TikTokCallback.jsx
 import React, { useEffect, useState } from "react";
 
 function getRuntimeEnv(varName, fallback = "") {
@@ -79,75 +80,61 @@ export default function TikTokCallback() {
           return;
         }
 
-        // success path
+        // success — clear PKCE storage
         sessionStorage.removeItem("tiktok_oauth_state");
         sessionStorage.removeItem("tiktok_code_verifier");
 
+        // tokens may be in data.tokens or data.tokens.access_token
         const tokens = data.tokens || data?.tokens || data;
         if (tokens) {
           localStorage.setItem("tiktok_tokens", JSON.stringify(tokens));
         }
-        if (data.profile) {
-          // if server already returned profile in exchange response
-          localStorage.setItem("tiktok_profile", JSON.stringify(data.profile));
+
+        // server may return profile in data.profile
+        let serverProfile = data.profile || null;
+        if (serverProfile && serverProfile.profile) serverProfile = serverProfile.profile; // be defensive
+
+        // if serverProfile exists, normalize fields we use (nickname + avatar)
+        const normalizedFromServer = serverProfile
+          ? {
+              open_id: serverProfile.open_id || serverProfile.data?.open_id || serverProfile.raw?.data?.open_id || null,
+              nickname: serverProfile.nickname || serverProfile.display_name || serverProfile.raw?.data?.user?.display_name || null,
+              avatar: serverProfile.avatar || serverProfile.raw?.data?.user?.avatar || serverProfile.raw?.avatar || null,
+              raw: serverProfile.raw || serverProfile,
+            }
+          : null;
+
+        // store client-side immediately if server provided profile
+        if (normalizedFromServer) {
+          localStorage.setItem("tiktok_profile", JSON.stringify(normalizedFromServer));
         }
 
-        // ======================
-        // SAVE PROFILE TO SERVER
-        // ======================
-        // Use serverBase so dev and prod work reliably.
-        // DEV: http://localhost:4000  PROD: your server domain (change below if needed)
-        const serverBase = process.env.NODE_ENV === "development" ? "http://localhost:4000" : (getRuntimeEnv("LEADERBOX_SERVER_BASE") || window.location.origin);
-        // Only attempt if we have something that looks like an open_id
-        const openId = tokens?.open_id || tokens?.data?.open_id || data?.profile?.open_id;
-        if (openId) {
-          try {
-            const profilePayload = {
-              open_id: openId,
-              // prefer display_name fields from token/profile, fallback to null
-              nickname: tokens?.display_name || data?.profile?.nickname || null,
-              avatar: tokens?.avatar_url || data?.profile?.avatar || null,
-            };
+        // Finally: determine whether we need to force the "choose nickname + avatar" step.
+        // We'll redirect to /choose-profile if either nickname or avatar missing.
+        const clientProfileRaw = localStorage.getItem("tiktok_profile");
+        const clientProfile = clientProfileRaw ? JSON.parse(clientProfileRaw) : null;
 
-            console.log("Posting profile to server:", serverBase + "/api/profile", profilePayload);
+        const hasNickname = (clientProfile && clientProfile.nickname) || (normalizedFromServer && normalizedFromServer.nickname);
+        const hasAvatar = (clientProfile && (clientProfile.avatar || clientProfile.pfp)) || (normalizedFromServer && normalizedFromServer.avatar);
 
-            const profileRes = await fetch(`${serverBase}/api/profile`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(profilePayload),
-            });
-
-            // handle non-JSON safely
-            const text = await profileRes.text();
-            let profileData = null;
-            try {
-              profileData = JSON.parse(text);
-            } catch (err) {
-              console.warn("Profile POST returned non-JSON. Body:", text);
-              // If server returns non-JSON HTML it will be logged — but we won't crash
-            }
-
-            if (!profileRes.ok) {
-              console.warn("Profile save responded not-ok:", profileRes.status, profileData || text);
-            } else {
-              // server returns { ok:true, profile:... } per routes — prefer profile field
-              const serverProfile = profileData && profileData.profile ? profileData.profile : profileData;
-              if (serverProfile) {
-                localStorage.setItem("tiktok_profile", JSON.stringify(serverProfile));
-                console.log("Saved server profile to localStorage:", serverProfile);
-              } else {
-                // still keep tokens/profile we already stored
-                console.log("Profile saved but server returned no profile object (saved tokens/local profile remains).");
-              }
-            }
-          } catch (err) {
-            console.error("Failed to save profile to server:", err);
-            // do not block login — already saved tokens/local profile above
-          }
-        } else {
-          console.warn("No open_id found in tokens/profile — skipping server profile save.");
+        // If either missing -> go to choose-profile page to complete account
+        if (!hasNickname || !hasAvatar) {
+          console.log("Redirecting user to choose-profile to complete account (nickname/avatar missing)");
+          // Save minimal token/open_id to local storage for the choose-profile page to read
+          const open_id = normalizedFromServer?.open_id || tokens?.open_id || tokens?.data?.open_id || (data.profile && data.profile.open_id) || null;
+          const minimal = {
+            open_id,
+            nickname: normalizedFromServer?.nickname || null,
+            avatar: normalizedFromServer?.avatar || null,
+            raw: normalizedFromServer?.raw || data.profile || data.tokens || data,
+          };
+          localStorage.setItem("tiktok_profile", JSON.stringify(minimal));
+          // Navigate to choose-profile route
+          window.location.href = "/choose-profile";
+          return;
         }
 
+        // otherwise continue to home (or redirectUrl if provided)
         setStatus("success");
         setMessage("Logged in successfully. Redirecting...");
         setTimeout(() => {
