@@ -64,16 +64,29 @@ export default function handler(req, res) {
 
     if (req.method === "OPTIONS") return res.status(204).end();
 
-    // Normalize pathname (serverless req.url often includes the route after the file)
+    // ---- Robust pathname normalization ----
     const rawUrl = typeof req.url === "string" ? req.url : "";
-    let pathname = rawUrl.split("?")[0] || "";
+
+    // If req.url is an absolute URL (some platforms pass that), extract pathname via URL.
+    let pathname = "/";
+    try {
+      // Use a base in case rawUrl is a pathname (URL constructor will handle both)
+      const base = (req.headers && (req.headers.host ? `https://${req.headers.host}` : "https://example.invalid")) || "https://example.invalid";
+      const parsed = new URL(rawUrl, base);
+      pathname = parsed.pathname || "/";
+    } catch (e) {
+      // fallback: naive split
+      pathname = rawUrl.split("?")[0] || "/";
+    }
 
     // Normalize variants: '/complete', '/profile/complete', '/api/profile/complete'
+    // Strip known prefixes so we end up with '/complete' or similar.
     if (pathname.startsWith("/api/profile")) pathname = pathname.replace("/api/profile", "") || "/";
     if (pathname.startsWith("/profile")) pathname = pathname.replace("/profile", "") || "/";
     if (!pathname.startsWith("/")) pathname = "/" + pathname;
 
     console.log(`[api/profile] ${req.method} ${req.url} -> normalized pathname="${pathname}" on DATA_DIR=${DATA_DIR}`);
+    // ---- end normalization ----
 
     // parse body defensively
     let body = {};
@@ -85,8 +98,6 @@ export default function handler(req, res) {
     }
 
     // ----- HANDLE POST /complete (serverless-friendly) -----
-    // When the client posts to /api/profile/complete (file-based routes hit this handler,
-    // with req.url === '/complete' or variants), we handle the "choose nickname + avatar" flow.
     if (req.method === "POST" && pathname.endsWith("/complete")) {
       try {
         const { open_id, nickname: rawNickname, avatar } = body || {};
@@ -107,7 +118,6 @@ export default function handler(req, res) {
         // Check for uniqueness (case-insensitive)
         const taken = users.find((u) => u.nickname && String(u.nickname).toLowerCase() === finalNickname.toLowerCase());
         if (taken) {
-          // If the taken entry is the same open_id (shouldn't happen), allow re-affirm
           if (String(taken.open_id) !== String(open_id)) {
             return res.status(409).json({ error: "nickname_taken", message: "Nickname already in use" });
           }
