@@ -1,1 +1,63 @@
-[]
+[
+  {
+    "open_id": "TEST_LOCAL_007",
+    "nickname": "FixedRick007",
+    "avatar": "https://example.com/pfp7.png",
+    "wins": 0,
+    "losses": 0,
+    "level": 1,
+    "deck": [],
+    "created_at": 1764695683502
+  },
+  {
+    "open_id": "TEST_PING_001",
+    "nickname": "PingRick",
+    "avatar": "https://example.com/ping.png",
+    "wins": 0,
+    "losses": 0,
+    "level": 1,
+    "deck": [],
+    "created_at": 1764696946139
+  },
+  {
+    "open_id": "test-open-id",
+    "nickname": "Test",
+    "avatar": "https://i.pravatar.cc/150?img=3",
+    "wins": 0,
+    "losses": 0,
+    "level": 1,
+    "deck": [],
+    "created_at": 1764841436958
+  },
+  {
+    "open_id": "test-open-id-run",
+    "nickname": "TestRun",
+    "avatar": "https://i.pravatar.cc/150?img=5",
+    "wins": 0,
+    "losses": 0,
+    "level": 1,
+    "deck": [],
+    "created_at": 1764852845552
+  },
+  {
+    "open_id": "test-open-id-run-2",
+    "nickname": "TestRun2",
+    "avatar": "https://i.pravatar.cc/150?img=6",
+    "wins": 0,
+    "losses": 0,
+    "level": 1,
+    "deck": [],
+    "created_at": 1764853204657
+  },
+  {
+    "open_id": "TEST_1535538887",
+    "nickname": "PostChecker",
+    "avatar": "https://i.pravatar.cc/150?img=10",
+    "wins": 0,
+    "losses": 0,
+    "level": 1,
+    "deck": [],
+    "created_at": 1764858690704,
+    "updated_at": 1764858690704
+  }
+]
