@@ -6,9 +6,10 @@ import os from "os";
 const IS_DEV = (process.env.NODE_ENV || "development") === "development";
 
 // Use local ./data during dev; use OS temp dir in production (Vercel)
+// writable on serverless platforms
 const DATA_DIR = IS_DEV
   ? path.resolve("./data")
-  : path.join(os.tmpdir(), "leaderbox_data"); // writable on serverless platforms
+  : path.join(os.tmpdir(), "leaderbox_data");
 const USERS_PATH = path.join(DATA_DIR, "users.json");
 
 function ensureDataFile() {
@@ -39,19 +40,40 @@ function saveUsers(users) {
   fs.renameSync(tmp, USERS_PATH);
 }
 
-// Robust parse — works if req.body is already object, string JSON, etc.
-function parseJsonSafely(body, headers = {}) {
+// Robust parse — works if req.body is already object, string JSON, Buffer, or user-provided raw
+function parseJsonSafely(body, headers = {}, req = {}) {
+  // If already an object (and not a Buffer), return it.
   if (body && typeof body === "object" && !Buffer.isBuffer(body)) return body;
+
+  // If it's a Buffer (common on some serverless environments), convert to string then parse
+  if (Buffer.isBuffer(body)) {
+    const str = body.toString("utf8");
+    try { return JSON.parse(str); } catch (e) {
+      try { return JSON.parse(str.trim()); } catch (e2) { throw new Error("Invalid JSON"); }
+    }
+  }
+
+  // Some platforms attach raw body at req.rawBody
+  if (req && req.rawBody) {
+    const rb = req.rawBody;
+    const str = Buffer.isBuffer(rb) ? rb.toString("utf8") : String(rb);
+    try { return JSON.parse(str); } catch (e) {
+      try { return JSON.parse(str.trim()); } catch (e2) { throw new Error("Invalid JSON"); }
+    }
+  }
+
   if (typeof body === "string") {
     try { return JSON.parse(body); } catch (e) {
       try { return JSON.parse(body.trim()); } catch (e2) { throw new Error("Invalid JSON"); }
     }
   }
-  // Some environments provide rawBody under req.rawBody or similar; ignore here.
+
+  // Defensive: if header says application/json but we couldn't parse a string/buffer/object, fail
   if (headers && headers["content-type"] && headers["content-type"].includes("application/json")) {
-    // we expected JSON but got something else
     throw new Error("Invalid JSON");
   }
+
+  // No body or not JSON — return empty object
   return {};
 }
 
@@ -78,14 +100,16 @@ export default function handler(req, res) {
     // parse body defensively
     let body = {};
     try {
-      body = parseJsonSafely(req.body, req.headers || {});
+      // pass req to parseJsonSafely for req.rawBody support
+      body = parseJsonSafely(req.body, req.headers || {}, req);
     } catch (err) {
       console.warn("[api/profile] JSON parse failed:", err.message || err);
       return res.status(400).json({ error: "invalid_json", message: String(err.message || err) });
     }
 
     // ----- HANDLE POST /complete (serverless-friendly) -----
-    // Accept POST where pathname might be '/complete' or '/profile/complete' or '/api/profile/complete'
+    // When the client posts to /api/profile/complete (file-based routes hit this handler,
+    // with req.url === '/complete'), we handle the "choose nickname + avatar" flow.
     if (req.method === "POST" && pathname.endsWith("/complete")) {
       try {
         const { open_id, nickname: rawNickname, avatar } = body || {};
