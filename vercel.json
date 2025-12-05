@@ -15,6 +15,7 @@
 
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/config.js", "destination": "/config.js" },
+
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
