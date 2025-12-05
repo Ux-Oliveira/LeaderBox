@@ -66,9 +66,14 @@ export default function handler(req, res) {
 
     // Normalize pathname (serverless req.url often includes the route after the file)
     const rawUrl = typeof req.url === "string" ? req.url : "";
-    const pathname = rawUrl.split("?")[0] || "";
+    let pathname = rawUrl.split("?")[0] || "";
 
-    console.log(`[api/profile] ${req.method} ${req.url} on DATA_DIR=${DATA_DIR}`);
+    // Normalize variants: '/complete', '/profile/complete', '/api/profile/complete'
+    if (pathname.startsWith("/api/profile")) pathname = pathname.replace("/api/profile", "") || "/";
+    if (pathname.startsWith("/profile")) pathname = pathname.replace("/profile", "") || "/";
+    if (!pathname.startsWith("/")) pathname = "/" + pathname;
+
+    console.log(`[api/profile] ${req.method} ${req.url} -> normalized pathname="${pathname}" on DATA_DIR=${DATA_DIR}`);
 
     // parse body defensively
     let body = {};
@@ -81,8 +86,8 @@ export default function handler(req, res) {
 
     // ----- HANDLE POST /complete (serverless-friendly) -----
     // When the client posts to /api/profile/complete (file-based routes hit this handler,
-    // with req.url === '/complete'), we handle the "choose nickname + avatar" flow.
-    if (req.method === "POST" && (pathname === "/complete" || pathname === "/profile/complete")) {
+    // with req.url === '/complete' or variants), we handle the "choose nickname + avatar" flow.
+    if (req.method === "POST" && pathname.endsWith("/complete")) {
       try {
         const { open_id, nickname: rawNickname, avatar } = body || {};
         if (!open_id) return res.status(400).json({ error: "missing_open_id" });
