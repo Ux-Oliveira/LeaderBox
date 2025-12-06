@@ -1,8 +1,9 @@
 // src/pages/ChooseProfile.jsx
 import React, { useEffect, useState } from "react";
+import { saveProfileToLocal } from "../lib/profileLocal";
 
 const AVATAR_COUNT = 8;
-const AVATAR_BASE = "/assets/avatars"; // ensure you add avatar1..avatar8 here
+const AVATAR_BASE = "/assets/avatars"; // avatar1..avatar8 exist
 
 function isNicknameValid(n) {
   if (!n) return false;
@@ -10,7 +11,7 @@ function isNicknameValid(n) {
   return /^[A-Za-z0-9_\-]{3,30}$/.test(cleaned);
 }
 
-export default function ChooseProfile({ navigate }) {
+export default function ChooseProfile() {
   const [openId, setOpenId] = useState(null);
   const [nickname, setNickname] = useState("");
   const [selectedAvatar, setSelectedAvatar] = useState(null);
@@ -59,17 +60,17 @@ export default function ChooseProfile({ navigate }) {
       try { data = JSON.parse(text); } catch (e) { data = null; }
 
       if (!res.ok) {
-        // show server error if available
         const msg = (data && (data.error || data.message)) || text || `Server error ${res.status}`;
         setError(String(msg));
         setBusy(false);
         return;
       }
 
-      const profile = (data && data.profile) ? data.profile : (data);
+      const profile = (data && data.profile) ? data.profile : data;
       if (profile) {
-        localStorage.setItem("tiktok_profile", JSON.stringify(profile));
-        // redirect to home
+        // Save only the safe subset — saveProfileToLocal will sanitize + persist
+        saveProfileToLocal(profile);
+        // redirect to home to show the profile (or update app state)
         window.location.href = "/";
       } else {
         setError("No profile returned from server.");
