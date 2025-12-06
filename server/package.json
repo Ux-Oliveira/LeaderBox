@@ -9,7 +9,7 @@
     "migrate": "node scripts/migrate-users.js"
   },
   "engines": {
-    "node": "18.x"
+    "node": "24.x"
   },
   "dependencies": {
     "body-parser": "^1.20.2",
@@ -24,3 +24,4 @@
     "nodemon": "^3.1.11"
   }
 }
+
