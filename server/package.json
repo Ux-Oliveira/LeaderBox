@@ -6,22 +6,22 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "migrate": "node scripts/migrate-users.js"
+    "migrate:firestore": "node ../scripts/migrate-users-to-firestore.js"
   },
   "engines": {
-    "node": "24.x"
+    "node": "18.x"
   },
   "dependencies": {
+    "@firebase/rules-unit-testing": "^4.5.0",
     "body-parser": "^1.20.2",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",
-    "firebase-admin": "^12.13.0",
+    "firebase-admin": "^13.2.0",
     "uuid": "^9.0.1"
   },
   "devDependencies": {
     "nodemon": "^3.1.11"
   }
 }
-
