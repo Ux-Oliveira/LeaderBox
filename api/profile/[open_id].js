@@ -1,10 +1,29 @@
 // api/profile/[open_id].js
-// Wrapper so /api/profile/<open_id> invokes api/profile/index.js with req.url set properly
 import { fileURLToPath } from "url";
 import path from "path";
 import fs from "fs";
 
 const indexPath = path.join(path.dirname(fileURLToPath(import.meta.url)), "index.js");
+
+async function readAndAttachBody(req) {
+  if (req.body && typeof req.body === "object" && !Buffer.isBuffer(req.body)) return;
+  if (req.rawBody) {
+    req.body = typeof req.rawBody === "string" ? tryJson(req.rawBody) : tryJsonBuffer(req.rawBody);
+    return;
+  }
+  const chunks = [];
+  for await (const chunk of req) chunks.push(chunk);
+  const buf = Buffer.concat(chunks);
+  req.rawBody = buf;
+  if (!buf || buf.length === 0) return;
+  req.body = tryJsonBuffer(buf);
+}
+function tryJson(str) {
+  try { return JSON.parse(str); } catch (e) { try { return JSON.parse(String(str).trim()); } catch (e2) { throw new Error("Invalid JSON"); } }
+}
+function tryJsonBuffer(buf) {
+  try { return JSON.parse(buf.toString("utf8")); } catch (e) { try { return JSON.parse(buf.toString("utf8").trim()); } catch (e2) { throw new Error("Invalid JSON"); } }
+}
 
 export default async function handler(req, res) {
   try {
@@ -15,19 +34,23 @@ export default async function handler(req, res) {
       return;
     }
 
-    // Normalize req.url so index.js sees pathname = '/<open_id>'
+    // normalize to '/<open_id>' path (index.js handles pathname variants)
     try {
       req.originalUrlForWrapper = req.url;
       if (typeof req.url === "string") {
         const parts = req.url.split("?");
         const raw = parts[0] || "";
         const q = parts[1] ? "?" + parts[1] : "";
-        // raw might be '/TEST_OPEN_ID_123' or '/api/profile/TEST_OPEN_ID_123'
-        const lastSegment = raw.split("/").filter(Boolean).slice(-1)[0] || "";
-        req.url = "/" + lastSegment + q;
+        const seg = raw.split("/").filter(Boolean).slice(-1)[0] || "";
+        req.url = "/" + seg + q;
       }
-    } catch (e) {
-      // ignore
+    } catch (e) { /* ignore */ }
+
+    try { await readAndAttachBody(req); } catch (e) {
+      res.statusCode = 400;
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify({ error: "invalid_json", message: String(e.message || e) }));
+      return;
     }
 
     const mod = await import(indexPath);
