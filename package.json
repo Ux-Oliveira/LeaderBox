@@ -3,15 +3,11 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "engines": {
-    "node": "24.x"
-  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "migrate": "node scripts/migrate-users.js",
     "migrate:firestore": "node scripts/migrate-users-to-firestore.js"
   },
   "dependencies": {
@@ -20,7 +16,6 @@
     "body-parser": "^2.2.0",
     "cors": "^2.8.5",
     "express": "^5.1.0",
-    "firebase-admin": "^12.13.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.9.6",
