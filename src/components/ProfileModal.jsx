@@ -1,6 +1,7 @@
+// src/components/ProfileModal.jsx
 import React, { useEffect, useState } from "react";
+import { loadProfileFromLocal, clearLocalProfile, saveProfileToLocal } from "../lib/profileLocal";
 
-// level helpers omitted for brevity if you keep them elsewhere
 const LEVELS = [
   { level: 1, name: "Noob", threshold: 0 },
   { level: 2, name: "Casual Viewer", threshold: 5 },
@@ -24,49 +25,6 @@ function getLevelByWins(wins) {
   return current;
 }
 
-const LOCAL_KEY = "stored_profile";
-
-export function saveProfileToLocal(p) {
-  try {
-    const safe = {
-      open_id: p.open_id || (p.raw && p.raw.data && p.raw.data.open_id) || null,
-      handle:
-        p.handle ||
-        (p.raw && p.raw.data && p.raw.data.user && (p.raw.data.user.unique_id || p.raw.data.user.display_name)) ||
-        p.nickname ||
-        null,
-      nickname: p.nickname || (p.handle && p.handle.replace(/^@/, "")) || "TikTok user",
-      pfp: p.pfp || p.avatar || null,
-      wins: Number.isFinite(p.wins) ? p.wins : 0,
-      losses: Number.isFinite(p.losses) ? p.losses : 0,
-      level: Number.isFinite(p.level) ? p.level : 1,
-      deck: Array.isArray(p.deck) ? p.deck : [],
-      raw: p.raw || p,
-    };
-    localStorage.setItem(LOCAL_KEY, JSON.stringify(safe));
-    localStorage.setItem("tiktok_profile", JSON.stringify(safe));
-  } catch (e) {
-    console.warn("Failed saving profile:", e);
-  }
-}
-
-export function loadProfileFromLocal() {
-  try {
-    const raw = localStorage.getItem(LOCAL_KEY) || localStorage.getItem("tiktok_profile");
-    if (!raw) return null;
-    return JSON.parse(raw);
-  } catch (e) {
-    return null;
-  }
-}
-
-export function clearLocalProfile() {
-  try {
-    localStorage.removeItem(LOCAL_KEY);
-    localStorage.removeItem("tiktok_tokens");
-  } catch (e) {}
-}
-
 export default function ProfileModal({
   open = false,
   onClose = () => {},
@@ -74,30 +32,21 @@ export default function ProfileModal({
   onLogout = () => {},
   onUpdateUser = () => {}
 }) {
-  // --- ALL hooks MUST be declared at the top-level, unconditionally ---
   const [isOpen, setOpen] = useState(open);
 
-  // mirror `open` prop
   useEffect(() => setOpen(open), [open]);
 
-  // always keep server-sourced user saved into localStorage when it changes
+  // Persist server-sourced user to localStorage when it changes
   useEffect(() => {
     if (user) saveProfileToLocal(user);
   }, [user]);
 
-  // (optional) placeholder effect — kept minimal and not conditional
-  useEffect(() => {
-    // no-op or debug only
-  }, []);
-
-  // --- component helpers (no hooks below) ---
   async function doLogout() {
     clearLocalProfile();
     onLogout();
     onUpdateUser(null);
   }
 
-  // If no user — show login/signup CTA
   if (!user) {
     const localProfile = loadProfileFromLocal();
     return (
@@ -150,7 +99,6 @@ export default function ProfileModal({
     );
   }
 
-  // Have a user — normal UI
   const level = getLevelByWins(user.wins || 0);
 
   return (
@@ -187,7 +135,6 @@ export default function ProfileModal({
             </div>
           </div>
 
-          {/* removed Change pfp & Change Password - kept Delete Profile only */}
           <button className="modal-btn" onClick={() => { clearLocalProfile(); onUpdateUser(null); }}>
             Delete Profile
           </button>
