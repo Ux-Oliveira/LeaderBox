@@ -57,7 +57,6 @@ export default function ProfilePage({ user: userProp = null }) {
               className="modal-btn"
               onClick={() => {
                 clearLocalProfile();
-                // reload to reflect logged-out state (or navigate)
                 window.location.reload();
               }}
             >
@@ -83,11 +82,10 @@ export default function ProfilePage({ user: userProp = null }) {
         <div style={{ padding: 12, borderRadius: 8, background: "rgba(255,255,255,0.02)" }}>
           <div className="small" style={{ color: "#999" }}>Actions</div>
           <div style={{ marginTop: 8 }}>
-            {/* No edit display name option (immutable by design) */}
             <button
               className="modal-btn"
               onClick={() => {
-                // Delete profile: call server delete if desired, here we clear local preview
+                // Delete profile locally; optionally implement server DELETE if you want
                 clearLocalProfile();
                 window.location.reload();
               }}
