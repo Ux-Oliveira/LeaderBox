@@ -54,19 +54,26 @@ body{
   box-shadow: 0 4px 20px rgba(0,0,0,0.4);
 }
 
-/*branding*/
+/*branding */
 .brand{
-  display:flex;align-items:center;gap:12px;font-weight:700;
-}
-.brand .logo{
-  width:40px;height:40px;border-radius:6px;background:var(--accent-2);display:flex;align-items:center;justify-content:center;color:var(--white);font-weight:800;font-size:18px;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  font-weight:700;
 }
 
-/* brand image replacement (use the real image) */
+/* logo image */
 .brand img.logo-img {
-  width:40px;height:40px;border-radius:6px;object-fit:contain;
+  width:40px;
+  height:40px;
+  border-radius:6px;
+  object-fit:contain;
   display:block;
 }
+
+/* brand textual block */
+.brand-text { display:flex; flex-direction:column; line-height:1; }
+.brand-title { font-size:14px; color:var(--accent); font-weight:900; }
 
 /* nav area holding icons and buttons */
 .navRight {
@@ -212,7 +219,6 @@ body{
   font-weight:900;
   margin-bottom:8px;
   font-family: "ArcadeClassic", monospace;
-  /* push down on landing pages specifically via .landing wrapper (see Landing.jsx update) */
 }
 
 /*subtitle*/
