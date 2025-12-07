@@ -135,12 +135,14 @@ body{
   display:flex;
   align-items:center;
   justify-content:center;
+  flex-direction: column; /* ensure bars stack vertically */
   border-radius:8px;
   cursor:pointer;
   position:relative;
   background: transparent;
   border:1px solid transparent;
   color:var(--white);
+  padding: 4px 6px;
 }
 
 /* vertical stacked bars (one above the other) */
@@ -384,11 +386,12 @@ body{
   /* mobile navbar layout: hide logo and left-side h1s and brand text */
   .brand { display:none; }
 
-  /* center nav items */
-  .navLinks { margin: 0 auto; }
+  /* center nav items: make navRight span whole width and center children */
+  .navRight { width:100%; display:flex; justify-content:center; align-items:center; gap:12px; padding:0 12px; }
+  .navLinks { margin:0; justify-content:center; display:flex; gap:12px; align-items:center; }
 
-  /* put sign up / login smaller */
-  .nav-signup, .nav-login { padding:6px 8px; font-size:14px; }
+  /* hide signup/login on mobile (only icons + hamburger remain) */
+  .nav-signup, .nav-login { display:none !important; }
 
   /* make dropdown full width on mobile */
   .dropdown-panel { right: 8px; left: 8px; top: 64px; width: auto; }
