@@ -25,11 +25,11 @@ export default function NavBar({ user, onOpenProfile }) {
   return (
     <>
       <div className="navbar">
-        {/* Branding - hidden on mobile via CSS */}
-        <div className="brand" style={{ display: "flex", gap: 12, alignItems: "center" }}>
+        {/* Branding - removed inline style so CSS media query can hide it on mobile */}
+        <div className="brand">
           <img src="/ldr-logo.png" alt="LeaderBox" className="logo-img" />
-          <div style={{ display: "flex", flexDirection: "column", lineHeight: 1 }}>
-            <div style={{ fontSize: 14, color: "var(--accent)" }}>LeaderBox</div>
+          <div className="brand-text">
+            <div className="brand-title">LeaderBox</div>
             <div className="small">Your movie taste sucks</div>
           </div>
         </div>
@@ -96,13 +96,7 @@ export default function NavBar({ user, onOpenProfile }) {
                 <div className="click-overlay" onClick={() => setDropdownOpen(false)} />
                 <div ref={dropdownRef} id="nav-dropdown" className="dropdown-panel" role="menu">
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    <a
-                      className="modal-btn"
-                      href="https://www.patreon.com"
-                      target="_blank"
-                      rel="noreferrer"
-                      style={{ display: "flex", alignItems: "center", gap: 8 }}
-                    >
+                    <a className="modal-btn" href="https://www.patreon.com" target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <i className="fa-brands fa-patreon" style={{ width: 20 }} />
                       Support
                     </a>
