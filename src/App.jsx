@@ -134,7 +134,11 @@ export default function App() {
           <Route path="/login" element={<Login onLogin={(u, t) => handleLogin(u, t)} />} />
           <Route path="/duel" element={<Duel />} />
           <Route path="/rules" element={<Rules />} />
+
+          {/* profile — local/current user */}
           <Route path="/profile" element={<ProfilePage user={user} />} />
+          {/* shareable profile links */}
+          <Route path="/profile/:id" element={<ProfilePage />} />
 
           {/* TikTok OAuth callback */}
           <Route path="/auth/tiktok/callback" element={<TikTokCallback />} />
