@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { loadProfileFromLocal, clearLocalProfile, saveProfileToLocal } from "../lib/profileLocal";
 
 const LEVELS = [
@@ -33,6 +33,7 @@ export default function ProfileModal({
 }) {
   const [isOpen, setOpen] = useState(open);
   const [busyDelete, setBusyDelete] = useState(false);
+  const panelRef = useRef(null);
 
   useEffect(() => setOpen(open), [open]);
 
@@ -40,6 +41,19 @@ export default function ProfileModal({
   useEffect(() => {
     if (user) saveProfileToLocal(user);
   }, [user]);
+
+  // click outside the modal to close it
+  useEffect(() => {
+    function handleDocClick(e) {
+      if (!isOpen) return;
+      if (panelRef.current && !panelRef.current.contains(e.target)) {
+        setOpen(false);
+        onClose && onClose();
+      }
+    }
+    if (isOpen) document.addEventListener("mousedown", handleDocClick);
+    return () => document.removeEventListener("mousedown", handleDocClick);
+  }, [isOpen, onClose]);
 
   async function handleServerDelete(open_id) {
     if (!open_id) return false;
@@ -95,11 +109,14 @@ export default function ProfileModal({
     const localProfile = loadProfileFromLocal();
     return (
       <>
-        <div className="profile-knob" onClick={() => { setOpen(true); onClose && onClose(); }}>
-          ?
-        </div>
+        {/* persistent knob - disappears when modal opens */}
+        {!isOpen && (
+          <div className="profile-knob" onClick={() => { setOpen(true); onClose && onClose(); }}>
+            ?
+          </div>
+        )}
 
-        <div className={`profile-modal ${isOpen ? "open" : ""}`}>
+        <div ref={panelRef} className={`profile-modal ${isOpen ? "open" : ""}`} aria-hidden={!isOpen}>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             <div style={{ fontWeight: 900, color: "var(--accent)" }}>Profile</div>
             <div className="small">You must login to view profile</div>
@@ -137,7 +154,7 @@ export default function ProfileModal({
           </div>
 
           <div style={{ flex: 1 }} />
-          <button className="modal-btn" onClick={() => setOpen(false)}>Close</button>
+          <button className="modal-btn" onClick={() => { setOpen(false); onClose && onClose(); }}>Close</button>
         </div>
       </>
     );
@@ -147,11 +164,17 @@ export default function ProfileModal({
 
   return (
     <>
-      <div className="profile-knob" onClick={() => setOpen(!isOpen)}>{isOpen ? "<" : ">"}</div>
-      <div className={`profile-modal ${isOpen ? "open" : ""}`} aria-hidden={!isOpen}>
+      {/* persistent knob hides when modal is open */}
+      {!isOpen && (
+        <div className="profile-knob" onClick={() => setOpen(true)} aria-label="Open profile">
+          {/* deliberately plain yellow knob — glare comes from CSS */}
+        </div>
+      )}
+
+      <div ref={panelRef} className={`profile-modal ${isOpen ? "open" : ""}`} aria-hidden={!isOpen}>
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-            <div className="pfp" style={{ width: 64, height: 64, overflow: "hidden", borderRadius: 12 }}>
+            <div className="pfp" style={{ width: 96, height: 96, overflow: "hidden", borderRadius: 999 }}>
               {(user.avatar || user.pfp) ? (
                 <img src={user.avatar || user.pfp} alt="pfp" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
               ) : (
