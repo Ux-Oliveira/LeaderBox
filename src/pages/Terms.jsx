@@ -13,7 +13,7 @@ export default function Terms() {
           <p><strong>2. Use of App</strong><br />
           You may not misuse the app or attempt unauthorized access.<br />
           You may not harass other users.<br />
-          You agree to provide accurate information when signing up/logging in.
+          You agree to provide accurate information when signing up/logging in.<br />
           You agree to not share yours or someone else's personal information in the website.
           </p>
 
@@ -33,10 +33,10 @@ export default function Terms() {
                                                                                         target="_blank" style={{ color: "var(--accent)" }}>@Ricks_a_human</a>) for management suppport.<br />  
           Email: <a href="mailto:leaderbox_management@outlook.com" style={{ color: "var(--accent)" }}>leaderbox_management@outlook.com</a></p>
 
-          <p><strong>7. Support the website!
-          Leaderbox is not a paid service. Any form of support is voluntary and could be done so via subscribing to Rick's a Human's <a href="https://www.youtube.com/@ricksahuman" target="_blank" style={{ color: "var(--accent)" }}>Patreon</a>
+        <p><strong>7. Support the website!
+          Leaderbox is not a paid service! Any form of support is voluntary and could be done so via subscribing to Rick's a Human's <a href="https://www.youtube.com/@ricksahuman" target="_blank" style={{ color: "var(--accent)" }}>Patreon </a>
             or <a href="https://www.youtube.com/@ricksahuman" target="_blank" style={{ color: "var(--accent)" }}>Youtube!</a><br />
-            Please also support <a className="small" href="https://www.youtube.com/@JangoDisc" target="_blank" rel="noreferrer" style={{color:"var(--accent)",marginLeft:8}}>JangoDisc</a>on Youtube, as his visual style was the inspiration for the website.</strong></p>
+            Please also support <a className="small" href="https://www.youtube.com/@JangoDisc" target="_blank" rel="noreferrer" style={{color:"var(--accent)",marginLeft:8}}>JangoDisc </a>on Youtube, as his visual style was the inspiration for the website.</strong></p>
         </div>
       </div>
     </div>
