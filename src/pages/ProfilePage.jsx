@@ -4,6 +4,7 @@ import { loadProfileFromLocal, clearLocalProfile } from "../lib/profileLocal";
 export default function ProfilePage({ user: userProp = null }) {
   const [user, setUser] = useState(userProp);
   const [busyDelete, setBusyDelete] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (userProp) {
@@ -60,6 +61,44 @@ export default function ProfilePage({ user: userProp = null }) {
     setBusyDelete(false);
   }
 
+  function handleCopyProfileLink(u) {
+    if (!u) return;
+    const id = u.open_id || u.nickname || "profile";
+    const url = `${window.location.origin}/profile/${encodeURIComponent(id)}`;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1800);
+      }).catch(() => {
+        try {
+          const ta = document.createElement("textarea");
+          ta.value = url;
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand("copy");
+          document.body.removeChild(ta);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1800);
+        } catch (e) {
+          alert("Unable to copy link.");
+        }
+      });
+    } else {
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = url;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1800);
+      } catch (e) {
+        alert("Unable to copy link.");
+      }
+    }
+  }
+
   if (!user) {
     return (
       <div style={{ maxWidth: 720, margin: "40px auto", padding: 24 }}>
@@ -70,22 +109,22 @@ export default function ProfilePage({ user: userProp = null }) {
   }
 
   return (
-    <div style={{ maxWidth: 820, margin: "40px auto", padding: 24 }}>
+    <div style={{ maxWidth: 820, margin: "40px auto", padding: 24, position: "relative" }}>
       <div style={{ display: "flex", gap: 18, alignItems: "center" }}>
         <div
           style={{
             width: 96,
             height: 96,
-            borderRadius: 12,
             overflow: "hidden",
-            background: "#111",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
+            background: "#111"
           }}
         >
+          {/* show raw png (rounded) — uniform with modal/duel */}
           {user.avatar ? (
-            <img src={user.avatar} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            <img src={user.avatar} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }} />
           ) : (
             <div style={{ color: "#ddd", fontSize: 32 }}>{(user.nickname || "U").slice(0, 1).toUpperCase()}</div>
           )}
@@ -93,7 +132,7 @@ export default function ProfilePage({ user: userProp = null }) {
 
         <div>
           <h2 style={{ margin: 0 }}>{user.nickname}</h2>
-          <div style={{ color: "#999", marginTop: 6 }}>{user.open_id ? `TikTok id: ${user.open_id}` : ""}</div>
+          {/* TikTok id intentionally hidden (requested) */}
           <div style={{ marginTop: 8 }}>
             <button
               className="modal-btn"
@@ -123,7 +162,7 @@ export default function ProfilePage({ user: userProp = null }) {
 
         <div style={{ padding: 12, borderRadius: 8, background: "rgba(255,255,255,0.02)" }}>
           <div className="small" style={{ color: "#999" }}>Actions</div>
-          <div style={{ marginTop: 8 }}>
+          <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 8 }}>
             <button
               className="modal-btn"
               onClick={deleteProfile}
@@ -132,9 +171,33 @@ export default function ProfilePage({ user: userProp = null }) {
             >
               {busyDelete ? "Deleting…" : "Delete Profile (delete from server if exists)"}
             </button>
+
+            <button
+              className="modal-btn"
+              onClick={() => handleCopyProfileLink(user)}
+            >
+              Copy profile link
+            </button>
           </div>
         </div>
       </div>
+
+      {/* transient toast/modal for copied */}
+      {copied && (
+        <div style={{
+          position: "fixed",
+          left: "50%",
+          transform: "translateX(-50%)",
+          top: "20%",
+          background: "rgba(0,0,0,0.9)",
+          padding: "10px 16px",
+          borderRadius: 10,
+          zIndex: 9999,
+          fontWeight: 800
+        }}>
+          Profile link copied to clipboard!
+        </div>
+      )}
     </div>
   );
 }
