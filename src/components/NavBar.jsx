@@ -95,7 +95,18 @@ export default function NavBar({ user, onOpenProfile }) {
               <>
                 <div className="click-overlay" onClick={() => setDropdownOpen(false)} />
                 <div ref={dropdownRef} id="nav-dropdown" className="dropdown-panel" role="menu">
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    <a
+                      className="modal-btn"
+                      id="patreon"
+                      href="https://www.patreon.com"
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ display: "flex", alignItems: "center", gap: 8 }}
+                    >
+                      <i className="fa-brands fa-patreon" style={{ width: 20 }} />
+                      Join the Patreon!
+                    </a>
 
                     <button
                       className="modal-btn"
@@ -115,18 +126,6 @@ export default function NavBar({ user, onOpenProfile }) {
                     >
                       Terms of Service
                     </button>
-                  <span>-</span>
-                  <a
-                      className="modal-btn"
-                      id="patreon"
-                      href="https://www.patreon.com"
-                      target="_blank"
-                      rel="noreferrer"
-                      style={{ display: "flex", alignItems: "center", gap: 8 }}
-                    >
-                      <i className="fa-brands fa-patreon" style={{ width: 20 }} />
-                      Join the Patreon!
-                    </a>
                   </div>
                 </div>
               </>
@@ -140,4 +139,3 @@ export default function NavBar({ user, onOpenProfile }) {
     </>
   );
 }
-
