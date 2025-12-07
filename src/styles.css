@@ -207,6 +207,13 @@ body{
   line-height: 1.25;
   padding: 10px;
   text-decoration: none;
+}
+.dropdown-panel .modal-btn-patreon {
+   white-space: normal;
+  word-break: break-word;
+  line-height: 1.25;
+  padding: 10px;
+  text-decoration: none;
   color:var(--accent-2);
 }
 
