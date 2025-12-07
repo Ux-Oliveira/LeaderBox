@@ -1,6 +1,23 @@
-// src/pages/Duel.jsx
 import React, { useEffect, useState } from "react";
 import { fetchAllProfiles } from "../lib/api";
+import { useNavigate } from "react-router-dom";
+
+const LEVELS = [
+  { level: 1, name: "Noob" },
+  { level: 2, name: "Casual Viewer" },
+  { level: 3, name: "Youtuber Movie Critic" },
+  { level: 4, name: "Movie Festival Goer" },
+  { level: 5, name: "Indie Afficionado" },
+  { level: 6, name: "Cult Classics Schoolar" },
+  { level: 7, name: "Film Buff" },
+  { level: 8, name: "Film Curator" },
+  { level: 9, name: "Cinephile" }
+];
+
+function getLevelName(level) {
+  const found = LEVELS.find(l => Number(l.level) === Number(level));
+  return found ? found.name : "Unknown";
+}
 
 function LevelPill({ level }) {
   return (
@@ -16,23 +33,27 @@ function LevelPill({ level }) {
   );
 }
 
-function Avatar({ src, nickname }) {
+function Avatar({ src, nickname, size = 72, onClick }) {
   return (
-    <div style={{
-      width: 72,
-      height: 72,
-      borderRadius: 12,
-      overflow: "hidden",
-      background: "#0b0b0b",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      border: "2px solid rgba(255,255,255,0.03)"
-    }}>
+    <div
+      onClick={onClick}
+      style={{
+        width: size,
+        height: size,
+        borderRadius: "50%",
+        overflow: "hidden",
+        background: "#0b0b0b",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        border: "2px solid rgba(255,255,255,0.03)",
+        cursor: onClick ? "pointer" : "default"
+      }}
+    >
       {src ? (
-        <img src={src} alt={nickname || "avatar"} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        <img src={src} alt={nickname || "avatar"} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
       ) : (
-        <div style={{ color: "#ddd", fontSize: 28 }}>{(nickname || "U").slice(0,1).toUpperCase()}</div>
+        <div style={{ color: "#ddd", fontSize: Math.max(18, size / 3) }}>{(nickname || "U").slice(0,1).toUpperCase()}</div>
       )}
     </div>
   );
@@ -43,6 +64,8 @@ export default function Duel() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
+  const [query, setQuery] = useState("");
+  const nav = useNavigate();
 
   useEffect(() => {
     (async () => {
@@ -91,8 +114,7 @@ export default function Duel() {
     // store opponent locally (duel flow can read it)
     localStorage.setItem("leaderbox_opponent", JSON.stringify(profile));
     setSelected(profile.open_id);
-    // as a simple flow, redirect to /duel/fight or wherever your duel flow is
-    // For now we just notify user (or redirect)
+    // as a simple flow, redirect to /duel/play or wherever your duel flow is
     window.location.href = "/duel/play"; // change to your duel route, or remove to keep on page
   }
 
@@ -103,10 +125,41 @@ export default function Duel() {
     } catch (e) { return null; }
   })();
 
+  // live filtered & alphabetically sorted list
+  const filtered = (profiles || []).filter(p => {
+    if (!query) return true;
+    return String(p.nickname || "").toLowerCase().includes(query.toLowerCase());
+  }).sort((a,b) => {
+    const A = (a.nickname || "").toLowerCase();
+    const B = (b.nickname || "").toLowerCase();
+    if (A < B) return -1;
+    if (A > B) return 1;
+    return 0;
+  });
+
   return (
     <div className="card" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
       <h2 className="h1-retro">Duel Arena</h2>
       <div className="small">Challenge other players — select an opponent to start.</div>
+
+      {/* slick search bar */}
+      <div style={{ width: "100%", maxWidth: 920, marginTop: 12 }}>
+        <input
+          placeholder="Search players by nickname..."
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          style={{
+            width: "100%",
+            padding: "10px 12px",
+            borderRadius: 10,
+            border: "1px solid rgba(255,255,255,0.06)",
+            background: "rgba(0,0,0,0.2)",
+            color: "var(--white)",
+            fontSize: 14,
+            outline: "none"
+          }}
+        />
+      </div>
 
       {loading && <div style={{ marginTop: 20 }}>Loading players…</div>}
 
@@ -129,7 +182,7 @@ export default function Duel() {
           gap: 12,
           marginTop: 12,
         }}>
-          {profiles.map((p) => (
+          {filtered.map((p) => (
             <div key={p.open_id} style={{
               padding: 12,
               borderRadius: 12,
@@ -141,10 +194,22 @@ export default function Duel() {
               border: selected === p.open_id ? "2px solid rgba(253, 238, 105, 0.9)" : "1px solid rgba(255,255,255,0.03)"
             }}>
               <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                <Avatar src={p.avatar} nickname={p.nickname} />
+                <Avatar
+                  src={p.avatar}
+                  nickname={p.nickname}
+                  size={72}
+                  onClick={() => {
+                    // open profile page for that user
+                    const id = p.open_id || p.nickname;
+                    nav(`/profile/${encodeURIComponent(id)}`);
+                  }}
+                />
                 <div>
                   <div style={{ fontWeight: 800 }}>{p.nickname}</div>
-                  <div className="small" style={{ color: "#999", marginTop: 6 }}>Wins: {p.wins} • Losses: {p.losses}</div>
+                  <div className="small" style={{ color: "#999", marginTop: 6 }}>
+                    Wins: {p.wins} • Losses: {p.losses}
+                    <div style={{ marginTop: 6 }}>{`Level ${p.level} — ${getLevelName(p.level)}`}</div>
+                  </div>
                 </div>
               </div>
 
@@ -153,7 +218,12 @@ export default function Duel() {
                 {me && me.open_id && me.open_id === p.open_id ? (
                   <button className="modal-btn" disabled style={{ opacity: 0.6 }}>You</button>
                 ) : (
-                  <button className="modal-btn" onClick={() => handleChallenge(p)}>Challenge</button>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button className="modal-btn" onClick={() => handleChallenge(p)}>Challenge</button>
+                    <button className="modal-btn" onClick={() => { const id = p.open_id || p.nickname; nav(`/profile/${encodeURIComponent(id)}`); }}>
+                      View
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
