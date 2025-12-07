@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 export default function NavBar({ user, onOpenProfile }) {
   const nav = useNavigate();
@@ -97,10 +97,7 @@ export default function NavBar({ user, onOpenProfile }) {
                   Log in
                 </button>
               </>
-            ) : (
-              /* if user is present we no longer show "Open" button; profile modal is still toggled by profile knob */
-              null
-            )}
+            ) : null}
           </div>
 
           {/* Hamburger */}
