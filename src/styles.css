@@ -1,190 +1,444 @@
-import React, { useState, useRef, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+@font-face {
+  font-family: "ArcadeClassic";
+  src: local("Courier New"), local("monospace");
+}
 
-export default function NavBar({ user, onOpenProfile }) {
-  const nav = useNavigate();
-  const pfp = user?.pfp || user?.avatar || null;
+/*color palette*/
+:root{
+  --bg: #525DA9;
+  --accent: #FDEE69;
+  --accent-2: #DE5022;
+  --white: #FFFFFF;
+  --black: #212121;
+  --card-bg: rgba(255,255,255,0.03);
+}
 
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const dropdownRef = useRef(null);
+/*base*/
+*{box-sizing:border-box;margin:0;padding:0}
+html,body,#root{height:100%}
+body{
+  background: linear-gradient(180deg,var(--bg), #3f3f8a 60%);
+  color:var(--white);
+  font-family: "ArcadeClassic", "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+}
 
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    function handleDocClick(e) {
-      if (!dropdownRef.current) return;
-      if (!dropdownRef.current.contains(e.target)) {
-        setDropdownOpen(false);
-      }
-    }
-    if (dropdownOpen) {
-      document.addEventListener("mousedown", handleDocClick);
-    }
-    return () => document.removeEventListener("mousedown", handleDocClick);
-  }, [dropdownOpen]);
+/* persistent background GIF under navbar (covers entire viewport) */
+.bg-gif {
+  position: fixed;
+  top: 64px; /* sits below the navbar */
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 0;
+  background-image: url('/constant.gif');
+  background-size: cover;
+  background-position: center;
+  opacity: 0.18; /* subtle — tune as needed */
+  pointer-events: none; /* so it never captures clicks */
+}
 
-  return (
-    <>
-      <div className="navbar">
-        {/* Branding */}
-        <div className="brand">
-          <img src="/ldr-logo.png" alt="LeaderBox" className="logo-img" />
-          <div className="brand-text">
-            <div className="brand-title">LeaderBox</div>
-            <div className="small">Your movie taste sucks</div>
-          </div>
-        </div>
+/*navbar*/
+.navbar{
+  position:fixed;
+  top:0;left:0;right:0;
+  height:64px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 20px;
+  background:rgba(0,0,0,0.55);
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  z-index:60;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+}
 
-        {/* Right side of nav */}
-        <div className="navRight">
-          <div className="navLinks" style={{ alignItems: "center" }}>
-            {/* Home */}
-            <button
-              className="nav-icon"
-              title="Home"
-              onClick={() => nav("/")}
-              aria-label="Home"
-            >
-              <i className="fa-regular fa-house" />
-            </button>
+/*branding */
+.brand{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  font-weight:700;
+}
 
-            {/* Duel */}
-            <button
-              className="nav-icon"
-              title="Duel"
-              onClick={() => nav("/duel")}
-              aria-label="Duel"
-            >
-              <img src="/duel.gif" alt="duel" className="icon-gif" />
-            </button>
+/* logo image */
+.brand img.logo-img {
+  width:40px;
+  height:40px;
+  border-radius:6px;
+  object-fit:contain;
+  display:block;
+}
 
-            {/* Rules */}
-            <button
-              className="nav-icon"
-              title="Rules"
-              onClick={() => nav("/rules")}
-              aria-label="Rules"
-            >
-              <i className="fa-solid fa-ruler" />
-            </button>
+/* brand textual block */
+.brand-text { display:flex; flex-direction:column; line-height:1; }
+.brand-title { font-size:14px; color:var(--accent); font-weight:900; }
 
-            {/* Profile */}
-            <button
-              className="nav-icon"
-              title="Profile"
-              onClick={() => nav("/profile")}
-              aria-label="Profile"
-              style={{ marginLeft: 6 }}
-            >
-              <i className="fa-regular fa-address-card" />
-            </button>
+/* nav area holding icons and buttons */
+.navRight {
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
 
-            {/* Signup / Login */}
-            {!user ? (
-              <>
-                <button
-                  className="nav-signup"
-                  onClick={() => nav("/signup")}
-                  title="Sign up"
-                  style={{ marginLeft: 12 }}
-                >
-                  Sign up
-                </button>
-                <button
-                  className="nav-login"
-                  onClick={() => nav("/login")}
-                  title="Log in"
-                  style={{ marginLeft: 8 }}
-                >
-                  Log in
-                </button>
-              </>
-            ) : null}
-          </div>
+/* navLinks: allow items to flow naturally (no tiny boxes) */
+.navLinks{display:flex;gap:12px;align-items:center}
 
-          {/* Hamburger dropdown */}
-          <div style={{ position: "relative" }}>
-            <div
-              className="hamburger"
-              onClick={() => setDropdownOpen((s) => !s)}
-              aria-expanded={dropdownOpen}
-              aria-controls="nav-dropdown"
-              role="button"
-              title="Menu"
-            >
-              <span className="bar" />
-              <span className="bar" />
-              <span className="bar" />
-            </div>
+/* nav-icon - NOT boxed: allow natural sizing, white icons, hover feedback */
+.nav-icon {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:6px 8px;
+  font-size:22px;          /* increased icon size */
+  color:var(--white);
+  text-decoration:none;
+  border-radius:6px;       /* subtle radius only for hover background */
+  background: transparent;
+  cursor:pointer;
+  border: none;
+  transition: transform 160ms ease, color 160ms ease, background 160ms ease;
+}
 
-            {dropdownOpen && (
-              <>
-                <div
-                  className="click-overlay"
-                  onClick={() => setDropdownOpen(false)}
-                />
+/* lighter hover: accent + gentle scale, background subtle */
+.nav-icon:hover {
+  color: var(--accent);
+  transform: scale(1.06);
+  background: rgba(255,255,255,0.03);
+}
 
-                <div
-                  ref={dropdownRef}
-                  id="nav-dropdown"
-                  className="dropdown-panel"
-                  role="menu"
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 8,
-                    }}
-                  >
-                    <a
-                      className="modal-btn"
-                      id="patreon"
-                      href="https://www.patreon.com"
-                      target="_blank"
-                      rel="noreferrer"
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
-                      }}
-                    >
-                      <i
-                        className="fa-brands fa-patreon"
-                        style={{ width: 20 }}
-                      />
-                      Join the Patreon!
-                    </a>
+/* duel gif: match the icon height, no forced square */
+.nav-icon img.icon-gif {
+  width:29px;
+  height:29px;
+  display:block;
+}
 
-                    {/* UPDATED: use nav() instead of window.location */}
-                    <button
-                      className="modal-btn"
-                      onClick={() => {
-                        nav("/privacy");
-                        setDropdownOpen(false);
-                      }}
-                    >
-                      Privacy Policy
-                    </button>
+/* signup/login keep their styles but slightly adjusted to fit new spacing */
+.nav-signup {
+  background: #000;
+  color: var(--white);
+  padding:6px 10px;
+  border-radius:8px;
+  border:1px solid rgba(255,255,255,0.06);
+  cursor:pointer;
+  font-weight:700;
+}
+.nav-login {
+  background: linear-gradient(90deg,var(--accent), #ffd85a);
+  color:var(--black);
+  padding:6px 10px;
+  border-radius:8px;
+  border: none;
+  cursor:pointer;
+  font-weight:900;
+}
 
-                    <button
-                      className="modal-btn"
-                      onClick={() => {
-                        nav("/terms");
-                        setDropdownOpen(false);
-                      }}
-                    >
-                      Terms of Service
-                    </button>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
+/* hamburger container */
+.hamburger {
+  width:44px;
+  height:36px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-direction: column; /* ensure bars stack vertically */
+  border-radius:8px;
+  cursor:pointer;
+  position:relative;
+  background: transparent;
+  border:1px solid transparent;
+  color:var(--white);
+  padding: 4px 6px;
+}
 
-      {/* persistent background GIF */}
-      <div className="bg-gif" aria-hidden="true" />
-    </>
-  );
+/* vertical stacked bars (one above the other) */
+.hamburger .bar {
+  display:block;
+  width:22px;
+  height:3px;         /* slightly thicker */
+  background:currentColor;
+  margin:3px 0;
+  border-radius:2px;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.25);
+}
+
+/* animated glare overlay moving left->right */
+.hamburger::after{
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -60%;
+  width: 60%;
+  height: 100%;
+  transform: skewX(-20deg);
+  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.22) 50%, rgba(255,255,255,0) 100%);
+  pointer-events:none;
+  opacity:0.7;
+  animation: glareMove 2.6s linear infinite;
+}
+
+/* softer glare on desktop; more aggressive on profile knob (separate rules) */
+@keyframes glareMove {
+  0% { left: -60%; }
+  100% { left: 160%; }
+}
+
+/* dropdown menu panel (transparent like profile modal) */
+.dropdown-panel {
+  position: absolute;
+  right: 12px;
+  top: 64px;
+  width:220px;
+  background: linear-gradient(180deg, rgba(82,93,169,0.82), rgba(33,33,33,0.45));
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255,255,255,0.04);
+  padding:10px;
+  border-radius:8px;
+  z-index:70;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.45);
+  box-sizing: border-box;
+}
+
+/* make modal buttons wrap and breathe */
+.dropdown-panel .modal-btn {
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.25;
+  padding: 10px;
+  text-decoration: none;
+}
+#patreon {
+  text-decoration: none;
+  color:var(--accent-2);
+}
+
+/* transparent overlay behind dropdown used to detect outside clicks */
+.click-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 65;
+  background: transparent;
+}
+
+/*main container - keep content above bg-gif */
+.app-container{padding-top:88px; max-width:1200px;margin:0 auto;padding-left:20px;padding-right:20px; position: relative; z-index: 50}
+
+/*heading style*/
+.h1-retro{
+  font-size:36px;
+  color:var(--accent);
+  text-shadow: 0 2px 0 rgba(0,0,0,0.6);
+  letter-spacing:2px;
+  font-weight:900;
+  margin-bottom:8px;
+  font-family: "ArcadeClassic", monospace;
+}
+
+/*subtitle*/
+.subtitle{
+  color:rgba(255,255,255,0.9);
+  margin-bottom:18px;
+  font-size:15px;
+}
+
+/*card*/
+.card{
+  background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,0.02));
+  border-radius:10px;
+  padding:18px;
+  border:1px solid rgba(255,255,255,0.04);
+  box-shadow: 0 4px 30px rgba(0,0,0,0.35);
+}
+
+/*video section*/
+.video-section{
+  margin-top:28px;
+  height:360px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  position:relative;
+  z-index: 10;
+}
+.video-section video{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  border-radius:10px;
+  opacity:0.95;
+  filter: contrast(0.95) saturate(0.9);
+}
+
+/*duel button stylized*/
+.duel-button{
+  position:absolute;
+  left:50%;
+  top:50%;
+  transform:translate(-50%,-50%);
+  background: linear-gradient(90deg,var(--accent), #ffd85a);
+  color:var(--black);
+  border-radius:12px;
+  padding:14px 26px;
+  font-weight:900;
+  font-size:18px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.45);
+  border:4px solid rgba(0,0,0,0.15);
+  cursor:pointer;
+}
+
+/*support section pinned bottom and full width with layout corrected */
+.support {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 55;
+  padding: 12px 20px;
+  display:flex;
+  justify-content:center;
+}
+.support .card {
+  width: calc(100% - 40px);
+  max-width: 1200px;
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+
+/* left and right groups inside support bar */
+.support .left, .support .right { display:flex; align-items:center; gap:8px; }
+.support .left { justify-content:flex-start; }
+.support .right { margin-left:auto; justify-content:flex-end; gap:8px; }
+
+/* small text */
+.small{font-size:13px;color:rgba(255,255,255,0.8)}
+
+/*profile modal*/
+.profile-modal {
+  position:fixed;
+  left:-340px;
+  top:64px;
+  height:calc(100% - 64px);
+  width:320px;
+  background: linear-gradient(180deg, rgba(82,93,169,0.82), rgba(33,33,33,0.45));
+  backdrop-filter: blur(6px);
+  border-right:1px solid rgba(255,255,255,0.04);
+  padding:18px;
+  transition: left 0.32s ease;
+  z-index:75;
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+.profile-modal.open { left:0; }
+
+/*persistent knob -> now a more aggressive yellow glare and disappears when modal opens */
+.profile-knob {
+  position:fixed;
+  left:0;
+  top:calc(50% - 30px);
+  transform:translateX(-18px);
+  z-index:76;
+  background:var(--accent);
+  color:var(--black);
+  width:36px;
+  height:60px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:0 8px 8px 0;
+  cursor:pointer;
+  font-weight:900;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.25);
+  border: 1px solid rgba(0,0,0,0.08);
+}
+
+/* aggressive glare for profile knob */
+.profile-knob::after{
+  content: "";
+  position: absolute;
+  top: -10%;
+  left: -40%;
+  width: 120%;
+  height: 120%;
+  transform: skewX(-20deg);
+  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.45) 50%, rgba(255,255,255,0) 100%);
+  pointer-events:none;
+  opacity:0.85;
+  animation: glareMove 1.4s linear infinite;
+}
+
+/*pfp - no square constraint, larger */
+.pfp {
+  width:96px;height:96px;border-radius:999px;border:3px solid rgba(255,255,255,0.08);overflow:hidden;
+  display:flex;align-items:center;justify-content:center;background:#222;
+}
+.pfp img{width:100%;height:100%;object-fit:cover;border-radius:999px;}
+
+/*modal buttons*/
+.modal-btn{
+  width:100%;
+  padding:10px;
+  border-radius:8px;
+  border:1px solid rgba(255,255,255,0.06);
+  background:transparent;
+  color:var(--white);
+  cursor:pointer;
+  text-align:left;
+  white-space: normal;
+  line-height: 1.25;
+}
+
+/*levels*/
+.level-bar { display:flex; gap:6px; flex-wrap:wrap; }
+.level-pill { padding:6px 8px; border-radius:6px; background:rgba(0,0,0,0.25); border:1px solid rgba(255,255,255,0.03); font-size:13px; }
+
+/*forms*/
+.form { display:flex; flex-direction:column; gap:10px; margin-top:14px; }
+.input { padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.06); background:rgba(0,0,0,0.2); color:var(--white); }
+.btn { padding:10px 12px; border-radius:8px; background:var(--accent); color:var(--black); font-weight:900; cursor:pointer; border:none; }
+
+/* small mobile/UX tweaks */
+@media (max-width:800px){
+  .support{flex-direction:column;align-items:flex-start}
+  .video-section{height:260px}
+  .profile-modal{width:86%; left:-92%}
+
+  /* mobile navbar layout: hide logo and left-side h1s and brand text */
+  .brand { display:none; }
+
+  /* center nav items: make navRight span whole width and center children */
+  .navRight { width:100%; display:flex; justify-content:center; align-items:center; gap:12px; padding:0 12px; }
+  .navLinks { margin:0; justify-content:center; display:flex; gap:12px; align-items:center; }
+
+  /* hide signup/login on mobile (only icons + hamburger remain) */
+  .nav-signup, .nav-login { display:none !important; }
+
+  /* Dropdown adjustments on mobile: anchor to RIGHT and give comfortable width so text isn't squished.
+     It will float from the right edge with a width up to 320px or 86vw (whichever is smaller). */
+  .dropdown-panel {
+    position: fixed;
+    top: 64px;
+    right: 12px;
+    left: auto;
+    width: min(320px, 86vw);
+    max-width: 92vw;
+    padding: 12px;
+    border-radius: 10px;
+    z-index: 140;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.55);
+  }
+
+  /* make modal buttons taller and more readable on mobile */
+  .dropdown-panel .modal-btn {
+    padding: 12px;
+    font-size: 15px;
+    text-align: left;
+  }
+}
+
+/* Landing-specific push down for heading (applied when .landing wrapper present) */
+.landing .h1-retro {
+  margin-top: 36px;
 }
