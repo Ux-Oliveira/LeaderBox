@@ -1,23 +1,95 @@
 import React, { useEffect, useState } from "react";
 import { loadProfileFromLocal, clearLocalProfile } from "../lib/profileLocal";
+import { useParams } from "react-router-dom";
+
+/*
+  ProfilePage now accepts an optional :id URL param.
+  If :id is present we try to fetch that profile from the server (by nickname),
+  otherwise we load the local profile (same behavior as before).
+*/
 
 export default function ProfilePage({ user: userProp = null }) {
+  const { id } = useParams(); // id is the slug (nickname without @) when visiting /profile/:id
   const [user, setUser] = useState(userProp);
   const [busyDelete, setBusyDelete] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [loadingRemote, setLoadingRemote] = useState(false);
 
   useEffect(() => {
+    // If parent passed a userProp (e.g. logged-in), prefer that immediately.
     if (userProp) {
       setUser(userProp);
       return;
     }
+
+    async function fetchByNickname(slug) {
+      setLoadingRemote(true);
+      try {
+        // Attempt server endpoint that looks up by nickname first.
+        // Your server should support something like: GET /api/profile?nickname=rick
+        const res = await fetch(`/api/profile?nickname=${encodeURIComponent(slug)}`, { credentials: "same-origin" });
+        if (res.ok) {
+          const data = await res.json();
+          // server shape: { ok: true, profile: { ... } } OR direct profile object
+          const profile = data.profile || data;
+          if (profile && (profile.nickname || profile.open_id)) {
+            const normalized = {
+              open_id: profile.open_id,
+              nickname: profile.nickname || (profile.handle ? profile.handle.replace(/^@/, "") : null),
+              avatar: profile.avatar || profile.pfp || null,
+              wins: profile.wins || 0,
+              losses: profile.losses || 0,
+              level: profile.level || 1,
+              raw: profile
+            };
+            setUser(normalized);
+            // also save locally so modal / other flows can use it
+            try { localStorage.setItem("stored_profile", JSON.stringify(normalized)); } catch (e) {}
+            setLoadingRemote(false);
+            return;
+          }
+        } else {
+          // if server returned 404 or not ok, try fallback by open_id (in case id is raw TikTok id)
+          const fallbackRes = await fetch(`/api/profile?open_id=${encodeURIComponent(slug)}`, { credentials: "same-origin" });
+          if (fallbackRes.ok) {
+            const d2 = await fallbackRes.json();
+            const profile2 = d2.profile || d2;
+            if (profile2) {
+              const normalized2 = {
+                open_id: profile2.open_id,
+                nickname: profile2.nickname || profile2.handle || null,
+                avatar: profile2.avatar || profile2.pfp || null,
+                wins: profile2.wins || 0,
+                losses: profile2.losses || 0,
+                level: profile2.level || 1,
+                raw: profile2
+              };
+              setUser(normalized2);
+              try { localStorage.setItem("stored_profile", JSON.stringify(normalized2)); } catch (e) {}
+              setLoadingRemote(false);
+              return;
+            }
+          }
+        }
+      } catch (err) {
+        console.warn("Error fetching profile by nickname:", err);
+      }
+      setLoadingRemote(false);
+    }
+
+    if (id) {
+      // if URL param present, try fetching that profile
+      fetchByNickname(id);
+      return;
+    }
+
     try {
       const local = loadProfileFromLocal();
       if (local) setUser(local);
     } catch (e) {
       console.warn("Failed reading profile from localStorage:", e);
     }
-  }, [userProp]);
+  }, [id, userProp]);
 
   async function handleServerDelete(open_id) {
     if (!open_id) return false;
@@ -63,8 +135,9 @@ export default function ProfilePage({ user: userProp = null }) {
 
   function handleCopyProfileLink(u) {
     if (!u) return;
-    const id = u.open_id || u.nickname || "profile";
-    const url = `${window.location.origin}/profile/${encodeURIComponent(id)}`;
+    // prefer nickname slug for shareable URL; fall back to open_id if no nickname
+    const slug = (u.nickname && String(u.nickname).replace(/^@/, "").trim()) || u.open_id || "profile";
+    const url = `${window.location.origin}/profile/${encodeURIComponent(slug)}`;
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(url).then(() => {
         setCopied(true);
@@ -99,11 +172,20 @@ export default function ProfilePage({ user: userProp = null }) {
     }
   }
 
-  if (!user) {
+  if (!user && !loadingRemote) {
     return (
       <div style={{ maxWidth: 720, margin: "40px auto", padding: 24 }}>
         <h2>Profile</h2>
         <p className="small">No profile loaded. Please log in with TikTok and complete your account.</p>
+      </div>
+    );
+  }
+
+  // while loading remote profile show small spinner/placeholder
+  if (!user && loadingRemote) {
+    return (
+      <div style={{ maxWidth: 720, margin: "40px auto", padding: 24 }}>
+        <h2>Loading profile…</h2>
       </div>
     );
   }
@@ -119,14 +201,15 @@ export default function ProfilePage({ user: userProp = null }) {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            background: "#111"
+            background: "#111",
+            borderRadius: "50%"
           }}
         >
           {/* show raw png (rounded) — uniform with modal/duel */}
-          {user.avatar ? (
+          {user?.avatar ? (
             <img src={user.avatar} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }} />
           ) : (
-            <div style={{ color: "#ddd", fontSize: 32 }}>{(user.nickname || "U").slice(0, 1).toUpperCase()}</div>
+            <div style={{ color: "#ddd", fontSize: 32 }}>{(user?.nickname || "U").slice(0, 1).toUpperCase()}</div>
           )}
         </div>
 
