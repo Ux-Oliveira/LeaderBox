@@ -14,6 +14,10 @@ import ProfileModal from "./components/ProfileModal";
 import TikTokCallback from "./pages/TikTokCallback"; // TikTok OAuth callback
 import ChooseProfile from "./pages/ChooseProfile";
 
+// NEW pages
+import Terms from "./pages/Terms";
+import Privacy from "./pages/Privacy";
+
 import { loadProfileFromLocal, saveProfileToLocal } from "./lib/profileLocal";
 import { fetchProfileByOpenId } from "./lib/api";
 
@@ -22,8 +26,6 @@ export default function App() {
   const [modalOpen, setModalOpen] = useState(false);
   const nav = useNavigate();
 
-  // Try to fetch user profile if token exists; otherwise try localStorage-saved profile.
-  // Additionally: if a local profile has open_id, attempt to fetch authoritative server profile and replace local copy.
   useEffect(() => {
     const token = localStorage.getItem("md_token");
 
@@ -45,13 +47,11 @@ export default function App() {
       return;
     }
 
-    // Fallback: load stored profile from localStorage (saved by TikTokCallback or ProfileModal)
     try {
       const raw = localStorage.getItem("stored_profile") || localStorage.getItem("tiktok_profile");
       if (raw) {
         const p = JSON.parse(raw);
 
-        // normalized client-ready object (display nickname as string without leading '@' in client state)
         const normalized = {
           open_id: p.open_id || p.openId || (p.raw && p.raw.data?.open_id) || null,
           nickname:
@@ -68,7 +68,6 @@ export default function App() {
 
         setUser(normalized);
 
-        // If we have open_id, attempt to fetch authoritative server profile and update local + app state
         if (normalized.open_id) {
           (async () => {
             try {
@@ -104,7 +103,6 @@ export default function App() {
         return;
       }
     } catch (e) {
-      // ignore parse errors
       console.warn("Failed to parse stored profile:", e);
     }
   }, []);
@@ -117,7 +115,6 @@ export default function App() {
   function handleLogout() {
     setUser(null);
     localStorage.removeItem("md_token");
-    // clear our profile storage keys too
     localStorage.removeItem("tiktok_profile");
     localStorage.removeItem("stored_profile");
     localStorage.removeItem("tiktok_tokens");
@@ -142,6 +139,10 @@ export default function App() {
 
           {/* ChooseProfile */}
           <Route path="/choose-profile" element={<ChooseProfile />} />
+
+          {/* NEW */}
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/privacy" element={<Privacy />} />
         </Routes>
       </div>
 
