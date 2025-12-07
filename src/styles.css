@@ -91,7 +91,7 @@ body{
   align-items:center;
   justify-content:center;
   padding:6px 8px;
-  font-size:20px;          /* increased icon size */
+  font-size:22px;          /* increased icon size */
   color:var(--white);
   text-decoration:none;
   border-radius:6px;       /* subtle radius only for hover background */
@@ -110,8 +110,8 @@ body{
 
 /* duel gif: match the icon height, no forced square */
 .nav-icon img.icon-gif {
-  width:24px;
-  height:24px;
+  width:29px;
+  height:29px;
   display:block;
 }
 
