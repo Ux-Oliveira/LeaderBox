@@ -19,7 +19,8 @@ export default function Terms() {
 
           <p><strong>3. Intellectual Property</strong><br />
           All content is owned by LeaderBox.
-          Inspired by JangoDisc and produced by Rick's a Human.</p>
+          Inspired by <a className="small" href="https://www.youtube.com/@JangoDisc" target="_blank" rel="noreferrer" style={{color:"var(--accent)",marginLeft:8}}>JangoDisc</a> and produced by
+            <a className="small" href="https://www.youtube.com/@ricksahuman" target="_blank" rel="noreferrer" style={{color:"var(--accent)",marginLeft:8}}>Rick's a Human.</a></p>
 
           <p><strong>4. Limitation of Liability</strong><br />
           We are not responsible for user-generated content outside of the website. 
