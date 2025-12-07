@@ -8,7 +8,7 @@ export default function Privacy() {
 
         <div style={{ marginTop: 12, color: "rgba(255,255,255,0.92)", lineHeight: 1.5 }}>
           <p><strong>1. Information We Collect</strong><br />
-          TikTok login info (username, user ID, profile picture)<br />
+          TikTok login info<br />
           - Leaderbox collects you Tiktok data for login and content sharing porpuses only. Upon signing up the user must create an ID through which they'll be identified.
             Leaderbox won't display your Tiktok page withing the website.</p>
 
@@ -18,10 +18,10 @@ export default function Privacy() {
           And to facilitate content sharing.</p>
 
           <p><strong>3. Data Sharing</strong><br />
-          We do not sell or share your personal data with third parties in any way!</p>
+          We do not sell or share your personal data with third parties in any way.</p>
 
           <p><strong>4. Data Security</strong><br />
-          We implement measures to protect your data</p>
+          We implement measures to protect your data.</p>
 
           <p><strong>5. Your Rights</strong><br />
           You can request deletion of your data at any time.</p>
