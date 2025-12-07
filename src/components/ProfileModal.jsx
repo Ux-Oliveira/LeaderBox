@@ -33,6 +33,7 @@ export default function ProfileModal({
 }) {
   const [isOpen, setOpen] = useState(open);
   const [busyDelete, setBusyDelete] = useState(false);
+  const [copied, setCopied] = useState(false); // copy-to-clipboard toast
   const panelRef = useRef(null);
 
   useEffect(() => setOpen(open), [open]);
@@ -105,6 +106,46 @@ export default function ProfileModal({
     onUpdateUser(null);
   }
 
+  function handleCopyProfileLink(u) {
+    if (!u) return;
+    // construct shareable URL: use open_id if available, otherwise nickname
+    const id = u.open_id || u.nickname || "profile";
+    const url = `${window.location.origin}/profile/${encodeURIComponent(id)}`;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1800);
+      }).catch(() => {
+        // fallback
+        try {
+          const ta = document.createElement("textarea");
+          ta.value = url;
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand("copy");
+          document.body.removeChild(ta);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1800);
+        } catch (e) {
+          alert("Unable to copy link. Your browser may not allow clipboard operations.");
+        }
+      });
+    } else {
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = url;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1800);
+      } catch (e) {
+        alert("Unable to copy link. Your browser may not allow clipboard operations.");
+      }
+    }
+  }
+
   if (!user) {
     const localProfile = loadProfileFromLocal();
     return (
@@ -174,13 +215,21 @@ export default function ProfileModal({
       <div ref={panelRef} className={`profile-modal ${isOpen ? "open" : ""}`} aria-hidden={!isOpen}>
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-            <div className="pfp" style={{ width: 96, height: 96, overflow: "hidden", borderRadius: 999 }}>
+            {/* show raw PNG/JPG avatar (rounded) without extra framing */}
+            <div style={{ width: 96, height: 96, overflow: "hidden", borderRadius: 999 }}>
               {(user.avatar || user.pfp) ? (
-                <img src={user.avatar || user.pfp} alt="pfp" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                <img
+                  src={user.avatar || user.pfp}
+                  alt="pfp"
+                  style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", borderRadius: "50%" }}
+                />
               ) : (
-                <div style={{ padding: 12 }}>{(user.nickname || "U").slice(0, 1).toUpperCase()}</div>
+                <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "#111" }}>
+                  <div style={{ padding: 12 }}>{(user.nickname || "U").slice(0, 1).toUpperCase()}</div>
+                </div>
               )}
             </div>
+
             <div>
               <div style={{ fontWeight: 900, color: "var(--accent)" }}>{user.nickname}</div>
               <div className="small">{user.email || ""}</div>
@@ -217,13 +266,49 @@ export default function ProfileModal({
             <div className="small" style={{ color: "var(--accent)" }}>Level {level.level} - {level.name}</div>
             <div className="level-bar" style={{ marginTop: 8 }}>
               {LEVELS.map(l => (
-                <div key={l.level} className="level-pill" style={{ background: (l.level === level.level) ? "var(--accent)" : "transparent", color: (l.level === level.level) ? "var(--black)" : "var(--white)" }}>{l.level}</div>
+                <div
+                  key={l.level}
+                  className="level-pill"
+                  style={{
+                    background: (l.level === level.level) ? "var(--accent)" : "transparent",
+                    color: (l.level === level.level) ? "var(--black)" : "var(--white)"
+                  }}
+                >
+                  {l.level}
+                </div>
               ))}
             </div>
           </div>
         </div>
 
+        {/* Copy profile link button */}
+        <button
+          className="modal-btn"
+          onClick={() => handleCopyProfileLink(user)}
+          style={{ marginTop: 8 }}
+        >
+          Copy profile link
+        </button>
+
         <button className="modal-btn" onClick={doLogout}>Logout</button>
+
+        {/* small transient copied toast inside the modal */}
+        {copied && (
+          <div style={{
+            position: "absolute",
+            left: "50%",
+            transform: "translateX(-50%)",
+            bottom: 18,
+            background: "rgba(0,0,0,0.8)",
+            padding: "8px 12px",
+            borderRadius: 8,
+            zIndex: 500,
+            color: "var(--white)",
+            fontWeight: 700
+          }}>
+            Profile link copied to clipboard!
+          </div>
+        )}
       </div>
     </>
   );
