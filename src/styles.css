@@ -197,6 +197,15 @@ body{
   border-radius:8px;
   z-index:70;
   box-shadow: 0 8px 30px rgba(0,0,0,0.45);
+  box-sizing: border-box;
+}
+
+/* make modal buttons wrap and breathe */
+.dropdown-panel .modal-btn {
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.25;
+  padding: 10px;
 }
 
 /* transparent overlay behind dropdown used to detect outside clicks */
@@ -372,6 +381,8 @@ body{
   color:var(--white);
   cursor:pointer;
   text-align:left;
+  white-space: normal;
+  line-height: 1.25;
 }
 
 /*levels*/
@@ -399,8 +410,27 @@ body{
   /* hide signup/login on mobile (only icons + hamburger remain) */
   .nav-signup, .nav-login { display:none !important; }
 
-  /* make dropdown full width on mobile */
-  .dropdown-panel { right: 8px; left: 8px; top: 64px; width: auto; }
+  /* Dropdown adjustments on mobile: anchor to RIGHT and give comfortable width so text isn't squished.
+     It will float from the right edge with a width up to 320px or 86vw (whichever is smaller). */
+  .dropdown-panel {
+    position: fixed;
+    top: 64px;
+    right: 12px;
+    left: auto;
+    width: min(320px, 86vw);
+    max-width: 92vw;
+    padding: 12px;
+    border-radius: 10px;
+    z-index: 140;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.55);
+  }
+
+  /* make modal buttons taller and more readable on mobile */
+  .dropdown-panel .modal-btn {
+    padding: 12px;
+    font-size: 15px;
+    text-align: left;
+  }
 }
 
 /* Landing-specific push down for heading (applied when .landing wrapper present) */
