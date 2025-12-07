@@ -111,7 +111,7 @@ export default function NavBar({ user, onOpenProfile }) {
                     <button
                       className="modal-btn"
                       onClick={() => {
-                        nav("./pages/Privacy");
+                        nav("/privacy");
                         setDropdownOpen(false);
                       }}
                     >
@@ -120,7 +120,7 @@ export default function NavBar({ user, onOpenProfile }) {
                     <button
                       className="modal-btn"
                       onClick={() => {
-                        nav("./pages/Terms");
+                        nav("/terms");
                         setDropdownOpen(false);
                       }}
                     >
@@ -139,4 +139,5 @@ export default function NavBar({ user, onOpenProfile }) {
     </>
   );
 }
+
 
