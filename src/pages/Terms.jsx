@@ -12,26 +12,25 @@ export default function Terms() {
 
           <p><strong>2. Use of App</strong><br />
           You may not misuse the app or attempt unauthorized access.<br />
-          You may not harass other users.
-          You agree to provide accurate info when signing up/logging in.
+          You may not harass other users.<br />
+          You agree to provide accurate information when signing up/logging in.
           You agree to not share yours or someone else's personal information in the website.
           </p>
 
           <p><strong>3. Intellectual Property</strong><br />
           All content is owned by LeaderBox.
-          Inspired by <a className="small" href="https://www.youtube.com/@JangoDisc" target="_blank" rel="noreferrer" style={{color:"var(--accent)",marginLeft:8}}>JangoDisc</a> and produced by
-            <a className="small" href="https://www.youtube.com/@ricksahuman" target="_blank" rel="noreferrer" style={{color:"var(--accent)",marginLeft:8}}>Rick's a Human.</a></p>
+          Inspired by<a className="small" href="https://www.youtube.com/@JangoDisc" target="_blank" rel="noreferrer" style={{color:"var(--accent)",marginLeft:8}}>JangoDisc</a> and produced by<a className="small" href="https://www.youtube.com/@ricksahuman" target="_blank" rel="noreferrer" style={{color:"var(--accent)",marginLeft:8}}>Rick's a Human.</a></p>
 
           <p><strong>4. Limitation of Liability</strong><br />
-          We are not responsible for user-generated content outside of the website. 
+          We are not responsible for user-generated content outside of the website.<br /> 
           We are not responsible for TikTok data errors.</p>
 
           <p><strong>5. Termination</strong><br />
           We may suspend accounts for violations.</p>
 
           <p><strong>6. Contact</strong><br />
-          You can contact me via email for legal or business porposes. Or via TikTok (<a href="https://www.tiktok.com/@ricks_a_human"
-                                                                                        target="_blank" style={{ color: "var(--accent)" }}>@Ricks_a_human</a>) for management suppport.  
+          You can contact me via email for legal or business porposes.<br />Or via TikTok (<a href="https://www.tiktok.com/@ricks_a_human"
+                                                                                        target="_blank" style={{ color: "var(--accent)" }}>@Ricks_a_human</a>) for management suppport.<br />  
           Email: <a href="mailto:leaderbox_management@outlook.com" style={{ color: "var(--accent)" }}>leaderbox_management@outlook.com</a></p>
         </div>
       </div>
