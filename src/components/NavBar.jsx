@@ -135,9 +135,7 @@ export default function NavBar({ user, onOpenProfile }) {
       </div>
 
       {/* persistent background gif element (below navbar) */}
-      <div className="bg-gif" aria-hidden="true" />
+      {/* REMOVED duplicate bg-gif from here — App.jsx now renders a single .bg-gif for the whole app */}
     </>
   );
 }
-
-
