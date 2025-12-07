@@ -33,6 +33,7 @@ function LevelPill({ level }) {
   );
 }
 
+/* uniform avatar component; always fixed size and rounded */
 function Avatar({ src, nickname, size = 72, onClick }) {
   return (
     <div
@@ -47,7 +48,8 @@ function Avatar({ src, nickname, size = 72, onClick }) {
         alignItems: "center",
         justifyContent: "center",
         border: "2px solid rgba(255,255,255,0.03)",
-        cursor: onClick ? "pointer" : "default"
+        cursor: onClick ? "pointer" : "default",
+        flexShrink: 0
       }}
     >
       {src ? (
@@ -65,6 +67,7 @@ export default function Duel() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
   const [query, setQuery] = useState("");
+  const [detail, setDetail] = useState(null); // for centered overlay modal of a single profile
   const nav = useNavigate();
 
   useEffect(() => {
@@ -137,6 +140,12 @@ export default function Duel() {
     return 0;
   });
 
+  /* helper to make a nice slug from nickname (strip @ if present) */
+  function slugFromNickname(nick) {
+    if (!nick) return "profile";
+    return String(nick).replace(/^@/, "").trim();
+  }
+
   return (
     <div className="card" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 14 }}>
       <h2 className="h1-retro">Duel Arena</h2>
@@ -173,61 +182,141 @@ export default function Duel() {
         <div style={{ marginTop: 20 }}>No players found on server. Try adding profiles or importing local test users.</div>
       )}
 
+      {/* scrollable modal-like panel for profiles */}
       {!loading && profiles && profiles.length > 0 && (
         <div style={{
           width: "100%",
           maxWidth: 920,
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-          gap: 12,
           marginTop: 12,
+          background: "transparent",
+          borderRadius: 12,
+          padding: 8,
+          boxSizing: "border-box"
         }}>
-          {filtered.map((p) => (
-            <div key={p.open_id} style={{
-              padding: 12,
-              borderRadius: 12,
-              background: "linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.02))",
-              display: "flex",
-              gap: 12,
-              alignItems: "center",
-              justifyContent: "space-between",
-              border: selected === p.open_id ? "2px solid rgba(253, 238, 105, 0.9)" : "1px solid rgba(255,255,255,0.03)"
-            }}>
-              <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                <Avatar
-                  src={p.avatar}
-                  nickname={p.nickname}
-                  size={72}
-                  onClick={() => {
-                    // open profile page for that user
-                    const id = p.open_id || p.nickname;
-                    nav(`/profile/${encodeURIComponent(id)}`);
-                  }}
-                />
-                <div>
-                  <div style={{ fontWeight: 800 }}>{p.nickname}</div>
-                  <div className="small" style={{ color: "#999", marginTop: 6 }}>
-                    Wins: {p.wins} • Losses: {p.losses}
-                    <div style={{ marginTop: 6 }}>{`Level ${p.level} — ${getLevelName(p.level)}`}</div>
+          <div style={{
+            maxHeight: "60vh", // scroll within modal area
+            overflowY: "auto",
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+            gap: 12,
+            padding: 6
+          }}>
+            {filtered.map((p) => (
+              <div key={p.open_id} style={{
+                padding: 12,
+                borderRadius: 12,
+                background: "linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.02))",
+                display: "flex",
+                flexDirection: "column",
+                gap: 10,
+                alignItems: "stretch",
+                border: selected === p.open_id ? "2px solid rgba(253, 238, 105, 0.9)" : "1px solid rgba(255,255,255,0.03)"
+              }}>
+                <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                  {/* uniform pfp on upper-left */}
+                  <Avatar
+                    src={p.avatar}
+                    nickname={p.nickname}
+                    size={72}
+                    onClick={() => {
+                      // show centered overlay modal with details
+                      setDetail(p);
+                    }}
+                  />
+
+                  <div style={{ flex: 1 }}>
+                    {/* nickname and stats right of pfp */}
+                    <div style={{ fontWeight: 800 }}>{p.nickname}</div>
+                    <div className="small" style={{ color: "#999", marginTop: 6 }}>
+                      Wins: {p.wins} • Losses: {p.losses}
+                      <div style={{ marginTop: 6 }}>{`Level ${p.level} — ${getLevelName(p.level)}`}</div>
+                    </div>
+                  </div>
+
+                  {/* small right column with the level pill */}
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
+                    <LevelPill level={p.level || 1} />
                   </div>
                 </div>
-              </div>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end" }}>
-                <LevelPill level={p.level || 1} />
-                {me && me.open_id && me.open_id === p.open_id ? (
-                  <button className="modal-btn" disabled style={{ opacity: 0.6 }}>You</button>
+                {/* play button area (below info) - uses /play.png */}
+                <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                  <button
+                    className="modal-btn"
+                    onClick={() => handleChallenge(p)}
+                    style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", width: 120, justifyContent: "center" }}
+                  >
+                    <img src="/play.png" alt="play" style={{ width: 20, height: 20, display: "block" }} />
+                    Play
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* centered overlay modal for single profile detail (click avatar to open) */}
+      {detail && (
+        <div
+          onClick={() => setDetail(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.6)",
+            zIndex: 9999,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "min(600px, 92vw)",
+              background: "linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,0.02))",
+              borderRadius: 12,
+              padding: 18,
+              boxShadow: "0 10px 40px rgba(0,0,0,0.6)",
+              position: "relative"
+            }}
+          >
+            <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+              <div style={{ width: 120, height: 120, borderRadius: "50%", overflow: "hidden", flexShrink: 0 }}>
+                {detail.avatar ? (
+                  <img src={detail.avatar} alt={detail.nickname} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                 ) : (
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <button className="modal-btn" onClick={() => handleChallenge(p)}>Challenge</button>
-                    <button className="modal-btn" onClick={() => { const id = p.open_id || p.nickname; nav(`/profile/${encodeURIComponent(id)}`); }}>
-                      View
-                    </button>
+                  <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "#111", color: "#ddd", fontSize: 36 }}>
+                    {(detail.nickname || "U").slice(0,1).toUpperCase()}
                   </div>
                 )}
               </div>
+
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 900, color: "var(--accent)", fontSize: 20 }}>{detail.nickname}</div>
+                <div className="small" style={{ color: "#999", marginTop: 8 }}>
+                  Wins: {detail.wins} • Losses: {detail.losses}
+                </div>
+                <div style={{ marginTop: 8 }}>{`Level ${detail.level} — ${getLevelName(detail.level)}`}</div>
+
+                <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
+                  <button className="modal-btn" onClick={() => { handleChallenge(detail); }}>
+                    <img src="/play.png" alt="play" style={{ width: 18, height: 18, marginRight: 8 }} /> Challenge
+                  </button>
+                  <button className="modal-btn" onClick={() => {
+                    const slug = slugFromNickname(detail.nickname);
+                    nav(`/profile/${encodeURIComponent(slug)}`);
+                    setDetail(null);
+                  }}>
+                    View profile
+                  </button>
+                </div>
+              </div>
             </div>
-          ))}
+
+            <button onClick={() => setDetail(null)} style={{ position: "absolute", right: 12, top: 12, background: "transparent", border: "none", color: "var(--white)", fontSize: 18, cursor: "pointer" }}>✕</button>
+          </div>
         </div>
       )}
     </div>
