@@ -206,6 +206,7 @@ body{
   word-break: break-word;
   line-height: 1.25;
   padding: 10px;
+  text-decoration: none;
 }
 
 /* transparent overlay behind dropdown used to detect outside clicks */
