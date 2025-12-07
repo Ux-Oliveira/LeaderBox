@@ -1,5 +1,6 @@
 // src/pages/TikTokCallback.jsx
 import React, { useEffect, useState } from "react";
+import { saveProfileToLocal } from "../lib/profileLocal";
 
 function getRuntimeEnv(varName, fallback = "") {
   if (typeof window !== "undefined" && window.__ENV && window.__ENV[varName]) return window.__ENV[varName];
@@ -90,37 +91,35 @@ export default function TikTokCallback() {
           localStorage.setItem("tiktok_tokens", JSON.stringify(tokens));
         }
 
-        // server may return profile in data.profile
+        // server may return profile in data.profile (could be nested)
         let serverProfile = data.profile || null;
-        if (serverProfile && serverProfile.profile) serverProfile = serverProfile.profile; // be defensive
+        if (serverProfile && serverProfile.profile) serverProfile = serverProfile.profile;
 
-        // if serverProfile exists, normalize fields we use (nickname + avatar)
+        // Normalize server profile for client storage (store nickname without @)
         const normalizedFromServer = serverProfile
           ? {
               open_id: serverProfile.open_id || serverProfile.data?.open_id || serverProfile.raw?.data?.open_id || null,
-              nickname: serverProfile.nickname || serverProfile.display_name || serverProfile.raw?.data?.user?.display_name || null,
+              nickname: serverProfile.nickname ? String(serverProfile.nickname).replace(/^@/, "") : null,
               avatar: serverProfile.avatar || serverProfile.raw?.data?.user?.avatar || serverProfile.raw?.avatar || null,
               raw: serverProfile.raw || serverProfile,
             }
           : null;
 
-        // store client-side immediately if server provided profile
-        if (normalizedFromServer) {
-          localStorage.setItem("tiktok_profile", JSON.stringify(normalizedFromServer));
+        // If server returned a profile, prefer that and persist locally
+        if (normalizedFromServer && normalizedFromServer.open_id) {
+          saveProfileToLocal(normalizedFromServer);
         }
 
-        // Finally: determine whether we need to force the "choose nickname + avatar" step.
-        // We'll redirect to /choose-profile if either nickname or avatar missing.
+        // If we don't yet have nickname or avatar we must route to choose-profile
         const clientProfileRaw = localStorage.getItem("tiktok_profile");
         const clientProfile = clientProfileRaw ? JSON.parse(clientProfileRaw) : null;
 
         const hasNickname = (clientProfile && clientProfile.nickname) || (normalizedFromServer && normalizedFromServer.nickname);
-        const hasAvatar = (clientProfile && (clientProfile.avatar || clientProfile.pfp)) || (normalizedFromServer && normalizedFromServer.avatar);
+        const hasAvatar = (clientProfile && (clientProfile.avatar)) || (normalizedFromServer && normalizedFromServer.avatar);
 
-        // If either missing -> go to choose-profile page to complete account
         if (!hasNickname || !hasAvatar) {
           console.log("Redirecting user to choose-profile to complete account (nickname/avatar missing)");
-          // Save minimal token/open_id to local storage for the choose-profile page to read
+          // Save minimal open_id and raw tokens so the choose-profile page can complete
           const open_id = normalizedFromServer?.open_id || tokens?.open_id || tokens?.data?.open_id || (data.profile && data.profile.open_id) || null;
           const minimal = {
             open_id,
@@ -129,9 +128,34 @@ export default function TikTokCallback() {
             raw: normalizedFromServer?.raw || data.profile || data.tokens || data,
           };
           localStorage.setItem("tiktok_profile", JSON.stringify(minimal));
-          // Navigate to choose-profile route
           window.location.href = "/choose-profile";
           return;
+        }
+
+        // If we have an open_id, fetch authoritative profile from server to ensure local is in sync
+        const open_id = normalizedFromServer?.open_id || tokens?.open_id || (data.profile && data.profile.open_id) || null;
+        if (open_id) {
+          try {
+            const pRes = await fetch(`/api/profile?open_id=${encodeURIComponent(open_id)}`, { credentials: "same-origin" });
+            const pText = await pRes.text();
+            let pJson = null;
+            try { pJson = JSON.parse(pText); } catch (e) { pJson = null; }
+            if (pRes.ok && pJson && pJson.profile) {
+              const serverProfile = pJson.profile;
+              const safe = {
+                open_id: serverProfile.open_id,
+                nickname: serverProfile.nickname ? String(serverProfile.nickname).replace(/^@/, "") : null,
+                avatar: serverProfile.avatar || null,
+                wins: serverProfile.wins || 0,
+                losses: serverProfile.losses || 0,
+                level: serverProfile.level || 1,
+                deck: Array.isArray(serverProfile.deck) ? serverProfile.deck : [],
+              };
+              saveProfileToLocal(safe);
+            }
+          } catch (e) {
+            console.warn("Failed fetching profile after exchange:", e);
+          }
         }
 
         // otherwise continue to home (or redirectUrl if provided)
