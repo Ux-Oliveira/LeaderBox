@@ -1,6 +1,7 @@
 // src/components/ProfileModal.jsx
 import React, { useEffect, useState } from "react";
 import { loadProfileFromLocal, clearLocalProfile, saveProfileToLocal } from "../lib/profileLocal";
+import { deleteProfile as apiDeleteProfile } from "../lib/api";
 
 const LEVELS = [
   { level: 1, name: "Noob", threshold: 0 },
@@ -33,6 +34,8 @@ export default function ProfileModal({
   onUpdateUser = () => {}
 }) {
   const [isOpen, setOpen] = useState(open);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   useEffect(() => setOpen(open), [open]);
 
@@ -45,6 +48,54 @@ export default function ProfileModal({
     clearLocalProfile();
     onLogout();
     onUpdateUser(null);
+  }
+
+  async function doDeleteProfile() {
+    setDeleteError("");
+    if (!user || !user.open_id) {
+      // try local fallback
+      const local = loadProfileFromLocal();
+      if (!local || !local.open_id) {
+        clearLocalProfile();
+        onUpdateUser(null);
+        onLogout();
+        setOpen(false);
+        return;
+      }
+      // else continue with local.open_id
+      user = local;
+    }
+    const openId = user.open_id;
+    if (!openId) {
+      clearLocalProfile();
+      onUpdateUser(null);
+      onLogout();
+      setOpen(false);
+      return;
+    }
+
+    const confirm = window.confirm("Delete your profile? This will remove it from the site (and the database). This action cannot be undone.");
+    if (!confirm) return;
+
+    setDeleting(true);
+    try {
+      const resp = await apiDeleteProfile(openId);
+      if (!resp.ok) {
+        setDeleteError(String(resp.error || "Failed to delete profile"));
+        setDeleting(false);
+        return;
+      }
+      // success - clear local and update app state
+      clearLocalProfile();
+      onUpdateUser(null);
+      onLogout();
+      setOpen(false);
+    } catch (e) {
+      console.error("Delete profile failed:", e);
+      setDeleteError(String(e.message || e));
+    } finally {
+      setDeleting(false);
+    }
   }
 
   if (!user) {
@@ -115,7 +166,7 @@ export default function ProfileModal({
               )}
             </div>
             <div>
-              <div style={{ fontWeight: 900, color: "var(--accent)" }}>{user.nickname}</div>
+              <div style={{ fontWeight: 900, color: "var(--accent)" }}>{user.nickname ? (user.nickname.startsWith("@") ? user.nickname : `@${user.nickname}`) : "TikTok user"}</div>
               <div className="small">{user.email || ""}</div>
             </div>
           </div>
@@ -135,9 +186,10 @@ export default function ProfileModal({
             </div>
           </div>
 
-          <button className="modal-btn" onClick={() => { clearLocalProfile(); onUpdateUser(null); }}>
-            Delete Profile
+          <button className="modal-btn" onClick={doDeleteProfile} disabled={deleting}>
+            {deleting ? "Deleting…" : "Delete Profile (remove from site)"}
           </button>
+          {deleteError && <div style={{ color: "#a00" }}>{deleteError}</div>}
 
           <hr style={{ borderColor: "rgba(255,255,255,0.04)" }} />
 
