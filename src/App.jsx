@@ -1,4 +1,3 @@
-// src/App.jsx
 import React, { useState, useEffect } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
 
@@ -15,7 +14,7 @@ import TikTokCallback from "./pages/TikTokCallback"; // TikTok OAuth callback
 import ChooseProfile from "./pages/ChooseProfile";
 
 // NEW pages
-import Terms from "./components/Terms";
+import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 
 import { loadProfileFromLocal, saveProfileToLocal } from "./lib/profileLocal";
@@ -125,6 +124,9 @@ export default function App() {
     <>
       <NavBar user={user} onOpenProfile={() => setModalOpen(true)} />
 
+      {/* Single persistent background GIF for the entire app */}
+      <div className="bg-gif" aria-hidden="true" />
+
       <div className="app-container">
         <Routes>
           <Route path="/" element={<Landing />} />
@@ -141,8 +143,8 @@ export default function App() {
           <Route path="/choose-profile" element={<ChooseProfile />} />
 
           {/* NEW */}
-          <Route path="./components/Terms" element={<Terms />} />
-          <Route path="./pages/Privacy" element={<Privacy />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/privacy" element={<Privacy />} />
         </Routes>
       </div>
 
