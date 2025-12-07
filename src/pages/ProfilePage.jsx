@@ -1,12 +1,9 @@
-// src/pages/ProfilePage.jsx
 import React, { useEffect, useState } from "react";
 import { loadProfileFromLocal, clearLocalProfile } from "../lib/profileLocal";
-import { deleteProfile as apiDeleteProfile } from "../lib/api";
 
 export default function ProfilePage({ user: userProp = null }) {
   const [user, setUser] = useState(userProp);
-  const [deleting, setDeleting] = useState(false);
-  const [error, setError] = useState("");
+  const [busyDelete, setBusyDelete] = useState(false);
 
   useEffect(() => {
     if (userProp) {
@@ -21,31 +18,46 @@ export default function ProfilePage({ user: userProp = null }) {
     }
   }, [userProp]);
 
-  async function handleDelete() {
-    setError("");
-    if (!user || !user.open_id) {
-      clearLocalProfile();
-      window.location.reload();
-      return;
-    }
-    const confirm = window.confirm("Delete your profile from the site? This action cannot be undone.");
-    if (!confirm) return;
-    setDeleting(true);
+  async function handleServerDelete(open_id) {
+    if (!open_id) return false;
     try {
-      const resp = await apiDeleteProfile(user.open_id);
-      if (!resp.ok) {
-        setError(String(resp.error || "Failed to delete profile"));
-        setDeleting(false);
+      const res = await fetch(`/api/profile?open_id=${encodeURIComponent(open_id)}`, { method: "DELETE", credentials: "same-origin" });
+      if (!res.ok) {
+        const txt = await res.text();
+        console.warn("Delete profile failed:", res.status, txt);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.warn("Delete profile exception:", err);
+      return false;
+    }
+  }
+
+  async function deleteProfile() {
+    if (!confirm("Delete your profile from the site and database? This cannot be undone.")) return;
+    setBusyDelete(true);
+
+    const open_id = user && (user.open_id || user.openId || user.raw?.data?.open_id);
+    if (open_id) {
+      const ok = await handleServerDelete(open_id);
+      if (ok) {
+        clearLocalProfile();
+        setUser(null);
+        setBusyDelete(false);
+        alert("Profile deleted.");
+        return;
+      } else {
+        setBusyDelete(false);
+        alert("Failed to delete profile on server. Check console for details.");
         return;
       }
-      clearLocalProfile();
-      window.location.href = "/";
-    } catch (e) {
-      console.error("Failed to delete profile:", e);
-      setError(String(e.message || e));
-    } finally {
-      setDeleting(false);
     }
+
+    // local-only
+    clearLocalProfile();
+    setUser(null);
+    setBusyDelete(false);
   }
 
   if (!user) {
@@ -80,7 +92,7 @@ export default function ProfilePage({ user: userProp = null }) {
         </div>
 
         <div>
-          <h2 style={{ margin: 0 }}>{user.nickname ? (user.nickname.startsWith("@") ? user.nickname : `@${user.nickname}`) : "TikTok user"}</h2>
+          <h2 style={{ margin: 0 }}>{user.nickname}</h2>
           <div style={{ color: "#999", marginTop: 6 }}>{user.open_id ? `TikTok id: ${user.open_id}` : ""}</div>
           <div style={{ marginTop: 8 }}>
             <button
@@ -102,7 +114,7 @@ export default function ProfilePage({ user: userProp = null }) {
         <div style={{ padding: 12, borderRadius: 8, background: "rgba(255,255,255,0.02)" }}>
           <div className="small" style={{ color: "#999" }}>Account</div>
           <div style={{ marginTop: 8 }}>
-            <div><strong>Nickname:</strong> {user.nickname ? (user.nickname.startsWith("@") ? user.nickname : `@${user.nickname}`) : "—"}</div>
+            <div><strong>Nickname:</strong> {user.nickname}</div>
             <div><strong>Wins:</strong> {user.wins || 0}</div>
             <div><strong>Losses:</strong> {user.losses || 0}</div>
             <div><strong>Level:</strong> {user.level || 1}</div>
@@ -114,12 +126,12 @@ export default function ProfilePage({ user: userProp = null }) {
           <div style={{ marginTop: 8 }}>
             <button
               className="modal-btn"
-              onClick={handleDelete}
-              disabled={deleting}
+              onClick={deleteProfile}
+              disabled={busyDelete}
+              style={{ background: "#b71c1c" }}
             >
-              {deleting ? "Deleting…" : "Delete Profile (remove from site)"}
+              {busyDelete ? "Deleting…" : "Delete Profile (delete from server if exists)"}
             </button>
-            {error && <div style={{ color: "#a00", marginTop: 8 }}>{error}</div>}
           </div>
         </div>
       </div>
