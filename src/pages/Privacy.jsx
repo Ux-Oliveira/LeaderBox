@@ -27,7 +27,7 @@ export default function Privacy() {
           You can request deletion of your data at any time.</p>
 
           <p><strong>6. Contact</strong><br />
-            <a href="https://www.tiktok.com/@ricks_a_human" target="_blank" style={{ color: "var(--accent)" }}>@Ricks_a_human</a> on TikTok for management suppport.
+            <a href="https://www.tiktok.com/@ricks_a_human" target="_blank" style={{ color: "var(--accent)" }}>@Ricks_a_human</a> on TikTok for management suppport.<br />
           Email: <a href="mailto:leaderbox_management@outlook.com" style={{ color: "var(--accent)" }}>leaderbox_management@outlook.com</a> for legal or business porposes.</p>
         </div>
       </div>
