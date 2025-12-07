@@ -30,7 +30,7 @@ export default function Terms() {
 
           <p><strong>6. Contact</strong><br />
           You can contact me via email for legal or business porposes. Or via TikTok (<a href="https://www.tiktok.com/@ricks_a_human"
-                                                                                        target="_blank" style={{ color: "var(--accent)" }}>@Ricks_a_human)</a> for management suppport.  
+                                                                                        target="_blank" style={{ color: "var(--accent)" }}>@Ricks_a_human</a>) for management suppport.  
           Email: <a href="mailto:leaderbox_management@outlook.com" style={{ color: "var(--accent)" }}>leaderbox_management@outlook.com</a></p>
         </div>
       </div>
