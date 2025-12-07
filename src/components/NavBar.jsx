@@ -26,7 +26,6 @@ export default function NavBar({ user, onOpenProfile }) {
     <>
       <div className="navbar">
         <div className="brand" style={{ display: "flex", gap: 12, alignItems: "center" }}>
-          {/* replaced square by image ldr-logo.png */}
           <img src="/ldr-logo.png" alt="LeaderBox" className="logo-img" />
           <div style={{ display: "flex", flexDirection: "column", lineHeight: 1 }}>
             <div style={{ fontSize: 14, color: "var(--accent)" }}>LeaderBox</div>
@@ -34,66 +33,36 @@ export default function NavBar({ user, onOpenProfile }) {
           </div>
         </div>
 
+        {/* navRight contains the icons and hamburger; centered on mobile via CSS */}
         <div className="navRight">
           <div className="navLinks" style={{ alignItems: "center" }}>
             {/* Home icon */}
-            <button
-              className="nav-icon"
-              title="Home"
-              onClick={() => nav("/")}
-              aria-label="Home"
-            >
+            <button className="nav-icon" title="Home" onClick={() => nav("/")} aria-label="Home">
               <i className="fa-regular fa-house" />
             </button>
 
             {/* Duel - gif icon sized like the fontawesome icons */}
-            <button
-              className="nav-icon"
-              title="Duel"
-              onClick={() => nav("/duel")}
-              aria-label="Duel"
-            >
+            <button className="nav-icon" title="Duel" onClick={() => nav("/duel")} aria-label="Duel">
               <img src="/duel.gif" alt="duel" className="icon-gif" />
             </button>
 
             {/* Rules (ruler) */}
-            <button
-              className="nav-icon"
-              title="Rules"
-              onClick={() => nav("/rules")}
-              aria-label="Rules"
-            >
+            <button className="nav-icon" title="Rules" onClick={() => nav("/rules")} aria-label="Rules">
               <i className="fa-solid fa-ruler" />
             </button>
 
-            {/* Profile link (always present as icon). When signed out it still goes to /profile */}
-            <button
-              className="nav-icon"
-              title="Profile"
-              onClick={() => nav("/profile")}
-              aria-label="Profile"
-              style={{ marginLeft: 6 }}
-            >
+            {/* Profile link */}
+            <button className="nav-icon" title="Profile" onClick={() => nav("/profile")} aria-label="Profile" style={{ marginLeft: 6 }}>
               <i className="fa-regular fa-address-card" />
             </button>
 
-            {/* Signup / Login to the left of hamburger */}
+            {/* Signup / Login — hidden on mobile via CSS */}
             {!user ? (
               <>
-                <button
-                  className="nav-signup"
-                  onClick={() => nav("/signup")}
-                  title="Sign up"
-                  style={{ marginLeft: 12 }}
-                >
+                <button className="nav-signup" onClick={() => nav("/signup")} title="Sign up" style={{ marginLeft: 12 }}>
                   Sign up
                 </button>
-                <button
-                  className="nav-login"
-                  onClick={() => nav("/login")}
-                  title="Log in"
-                  style={{ marginLeft: 8 }}
-                >
+                <button className="nav-login" onClick={() => nav("/login")} title="Log in" style={{ marginLeft: 8 }}>
                   Log in
                 </button>
               </>
@@ -117,23 +86,14 @@ export default function NavBar({ user, onOpenProfile }) {
 
             {dropdownOpen && (
               <>
-                {/* overlay to capture outside clicks and make it disappear when clicked */}
                 <div className="click-overlay" onClick={() => setDropdownOpen(false)} />
-
                 <div ref={dropdownRef} id="nav-dropdown" className="dropdown-panel" role="menu">
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    <a
-                      className="modal-btn"
-                      href="https://www.patreon.com"
-                      target="_blank"
-                      rel="noreferrer"
-                      style={{ display: "flex", alignItems: "center", gap: 8 }}
-                    >
+                    <a className="modal-btn" href="https://www.patreon.com" target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <i className="fa-brands fa-patreon" style={{ width: 20 }} />
                       Support
                     </a>
 
-                    {/* privacy + terms only present here */}
                     <button
                       className="modal-btn"
                       onClick={() => {
