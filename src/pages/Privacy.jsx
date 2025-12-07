@@ -13,8 +13,8 @@ export default function Privacy() {
             Leaderbox won't display your Tiktok page or information within the website.</p>
 
           <p><strong>2. How We Use Information</strong><br />
-          To personalize your experience<br />
-          To improve our website by making it easy to sign in.
+          To personalize your experience.<br />
+          To improve our website by making it easy to sign in.<br />
           And to facilitate content sharing.</p>
 
           <p><strong>3. Data Sharing</strong><br />
@@ -31,9 +31,9 @@ export default function Privacy() {
           Email: <a href="mailto:leaderbox_management@outlook.com" style={{ color: "var(--accent)" }}>leaderbox_management@outlook.com</a> for legal or business porposes.</p>
 
           <p><strong>7. Support the website!
-          Leaderbox is not a paid service. Any form of support is voluntary and could be done so via subscribing to Rick's a Human's <a href="https://www.youtube.com/@ricksahuman" target="_blank" style={{ color: "var(--accent)" }}>Patreon</a>
+          Leaderbox is not a paid service! Any form of support is voluntary and could be done so via subscribing to Rick's a Human's <a href="https://www.youtube.com/@ricksahuman" target="_blank" style={{ color: "var(--accent)" }}>Patreon </a>
             or <a href="https://www.youtube.com/@ricksahuman" target="_blank" style={{ color: "var(--accent)" }}>Youtube!</a><br />
-            Please also support <a className="small" href="https://www.youtube.com/@JangoDisc" target="_blank" rel="noreferrer" style={{color:"var(--accent)",marginLeft:8}}>JangoDisc</a>on Youtube, as his visual style was the inspiration for the website.</strong></p>
+            Please also support <a className="small" href="https://www.youtube.com/@JangoDisc" target="_blank" rel="noreferrer" style={{color:"var(--accent)",marginLeft:8}}>JangoDisc </a>on Youtube, as his visual style was the inspiration for the website.</strong></p>
         </div>
       </div>
     </div>
