@@ -75,33 +75,40 @@ body{
   gap:12px;
 }
 
-/* icon buttons in navbar (home, duel, rules, profile) */
+/* navLinks: allow items to flow naturally (no tiny boxes) */
+.navLinks{display:flex;gap:12px;align-items:center}
+
+/* nav-icon - NOT boxed: allow natural sizing, white icons, hover feedback */
 .nav-icon {
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  width:36px;
-  height:36px;
-  font-size:18px;
+  padding:6px 8px;
+  font-size:20px;          /* increased icon size */
   color:var(--white);
   text-decoration:none;
-  border-radius:8px;
+  border-radius:6px;       /* subtle radius only for hover background */
+  background: transparent;
   cursor:pointer;
-  border: 1px solid transparent;
+  border: none;
+  transition: transform 160ms ease, color 160ms ease, background 160ms ease;
 }
-.nav-icon:hover { background: rgba(255,255,255,0.03); }
 
-/* duel gif icon: make it match icon sizing */
+/* lighter hover: accent + gentle scale, background subtle */
+.nav-icon:hover {
+  color: var(--accent);
+  transform: scale(1.06);
+  background: rgba(255,255,255,0.03);
+}
+
+/* duel gif: match the icon height, no forced square */
 .nav-icon img.icon-gif {
-  width:22px;
-  height:22px;
+  width:24px;
+  height:24px;
   display:block;
 }
 
-/* link group (horizontal) */
-.navLinks{display:flex;gap:12px;align-items:center}
-
-/* signup/login buttons */
+/* signup/login keep their styles but slightly adjusted to fit new spacing */
 .nav-signup {
   background: #000;
   color: var(--white);
@@ -136,14 +143,15 @@ body{
   color:var(--white);
 }
 
-/* three bars */
+/* vertical stacked bars (one above the other) */
 .hamburger .bar {
-  width:20px;
-  height:2px;
+  display:block;
+  width:22px;
+  height:3px;         /* slightly thicker */
   background:currentColor;
   margin:3px 0;
   border-radius:2px;
-  display:block;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.25);
 }
 
 /* animated glare overlay moving left->right */
