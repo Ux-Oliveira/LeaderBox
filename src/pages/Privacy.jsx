@@ -10,7 +10,7 @@ export default function Privacy() {
           <p><strong>1. Information We Collect</strong><br />
           TikTok login info<br />
           Leaderbox collects your Tiktok data for login and content sharing porpuses only. Upon signing up the user must create an ID through which they'll be identified.
-            Leaderbox won't display your Tiktok page withing the website.</p>
+            Leaderbox won't display your Tiktok page or information within the website.</p>
 
           <p><strong>2. How We Use Information</strong><br />
           To personalize your experience<br />
@@ -28,7 +28,7 @@ export default function Privacy() {
 
           <p><strong>6. Contact</strong><br />
             <a href="https://www.tiktok.com/@ricks_a_human" target="_blank" style={{ color: "var(--accent)" }}>@Ricks_a_human</a> on TikTok for management suppport.
-          Email: <a href="mailto:leaderbox_management@outlook.com" style={{ color: "var(--accent)" }}>leaderbox_management@outlook.com</a></p>
+          Email: <a href="mailto:leaderbox_management@outlook.com" style={{ color: "var(--accent)" }}>leaderbox_management@outlook.com</a> for legal or business porposes.</p>
         </div>
       </div>
     </div>
