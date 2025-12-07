@@ -163,13 +163,6 @@ export default function App() {
         }}
       >
         <br />
-        <a href="/privacy.html" target="_blank" style={{ color: "#66aaff" }}>
-          Privacy Policy
-        </a>{" "}
-        •{" "}
-        <a href="/terms.html" target="_blank" style={{ color: "#66aaff" }}>
-          Terms of Service
-        </a>
       </footer>
     </>
   );
