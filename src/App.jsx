@@ -141,8 +141,8 @@ export default function App() {
           <Route path="/choose-profile" element={<ChooseProfile />} />
 
           {/* NEW */}
-          <Route path="/terms" element={<Terms />} />
-          <Route path="/privacy" element={<Privacy />} />
+          <Route path="./pages/Terms" element={<Terms />} />
+          <Route path="./pages/Privacy" element={<Privacy />} />
         </Routes>
       </div>
 
