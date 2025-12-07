@@ -4,35 +4,96 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Leaderbox TMS</title>
+    <title>Leaderbox Privacy Policy</title>
+
+    <!-- If you already have a global styles.css in public, this will pick it up.
+         Otherwise copy your styles into /public/styles.css and update path below. -->
+    <link rel="stylesheet" href="/styles.css" />
+    <!-- fontawesome for icons (optional if already loaded) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-somehash" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <style>
+      /* minimal safety: if your main CSS isn't loaded, ensure some basics */
+      html,body{height:100%;margin:0}
+      /* ensure body content isn't hidden behind fixed navbar */
+      .page-wrapper{padding-top:88px;min-height:100vh}
+      /* small tweak to make the inline demo look right if styles.css isn't present */
+      .card{max-width:980px;margin:80px auto;padding:28px;border-radius:10px;background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,0.02));border:1px solid rgba(255,255,255,0.04);}
+    </style>
   </head>
   <body>
-    <div><h1>
+    <!-- NAVBAR (static HTML version, uses same classes as your React NavBar) -->
+    <div class="navbar" role="navigation" aria-label="Main navigation">
+      <div class="brand" style="display:flex;align-items:center;gap:12px">
+        <img src="/ldr-logo.png" alt="LeaderBox" class="logo-img" style="width:40px;height:40px;border-radius:6px;object-fit:contain" />
+        <div class="brand-text" style="display:flex;flex-direction:column;line-height:1">
+          <div class="brand-title" style="font-size:14px;color:var(--accent)">LeaderBox</div>
+          <div class="small" style="font-size:13px;color:rgba(255,255,255,0.8)">Your movie taste sucks</div>
+        </div>
+      </div>
 
-Terms of Service for LeaderBox
+      <div class="navRight" style="display:flex;align-items:center;gap:12px">
+        <div class="navLinks" style="display:flex;align-items:center;gap:12px">
+          <button class="nav-icon" title="Home" onclick="location.href='/'" aria-label="Home"><i class="fa-regular fa-house"></i></button>
 
-1. Acceptance of Terms
-By using LeaderBox, you agree to these terms.
+          <button class="nav-icon" title="Duel" onclick="location.href='/duel'"><img src="/duel.gif" alt="duel" class="icon-gif" style="width:29px;height:29px;display:block" /></button>
 
-2. Use of App
-- You may not misuse the app or attempt unauthorized access
-- You agree to provide accurate info when logging in
+          <button class="nav-icon" title="Rules" onclick="location.href='/rules'"><i class="fa-solid fa-ruler"></i></button>
 
-3. Intellectual Property
-- All content is owned by LeaderBox
+          <button class="nav-icon" title="Profile" onclick="openProfileModal()" aria-label="Profile" style="margin-left:6px"><i class="fa-regular fa-address-card"></i></button>
 
-4. Limitation of Liability
-- We are not responsible for user-generated content or TikTok data errors
+          <!-- show signup/login on wide screens, hidden by CSS on mobile -->
+          <button class="nav-signup" onclick="location.href='/signup'" style="margin-left:12px">Sign up</button>
+          <button class="nav-login" onclick="location.href='/login'" style="margin-left:8px">Log in</button>
+        </div>
 
-5. Termination
-- We may suspend accounts for violations
+        <!-- Hamburger -->
+        <div style="position:relative">
+          <div class="hamburger" id="hambtn" role="button" aria-expanded="false" aria-controls="nav-dropdown" title="Menu" style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4px 6px">
+            <span class="bar" style="display:block;width:22px;height:3px;background:currentColor;margin:3px 0;border-radius:2px"></span>
+            <span class="bar" style="display:block;width:22px;height:3px;background:currentColor;margin:3px 0;border-radius:2px"></span>
+            <span class="bar" style="display:block;width:22px;height:3px;background:currentColor;margin:3px 0;border-radius:2px"></span>
+          </div>
 
-6. Contact
-- Email: leaderbox_management@outlook.com
+          <!-- dropdown (hidden by default) -->
+          <div id="nav-dropdown" class="dropdown-panel" role="menu" style="display:none;position:absolute;right:12px;top:64px;width:220px;padding:10px;border-radius:8px;background:linear-gradient(180deg, rgba(82,93,169,0.82), rgba(33,33,33,0.45));backdrop-filter:blur(6px);box-shadow:0 8px 30px rgba(0,0,0,0.45)">
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <a id="patreon" class="modal-btn" href="https://www.patreon.com" target="_blank" rel="noreferrer" style="display:flex;align-items:center;gap:8px;text-decoration:none;color:var(--accent-2)">
+                <i class="fa-brands fa-patreon" style="width:20px"></i>
+                Join the Patreon!
+              </a>
 
-      
-    </h1></div>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
-</html>
+              <button class="modal-btn" onclick="location.href='/privacy'">Privacy Policy</button>
+              <button class="modal-btn" onclick="location.href='/terms'">Terms of Service</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- persistent background GIF under navbar (covers entire viewport) -->
+    <div class="bg-gif" aria-hidden="true" style="position:fixed;top:64px;left:0;right:0;bottom:0;background-image:url('/constant.gif');background-size:cover;background-position:center;opacity:0.18;pointer-events:none;z-index:0"></div>
+
+    <!-- PROFILE KNOB + MODAL (static non-React implementation) -->
+    <div id="profile-knob" class="profile-knob" style="position:fixed;left:0;top:calc(50% - 30px);transform:translateX(-18px);z-index:76;background:var(--accent);color:var(--black);width:36px;height:60px;display:flex;align-items:center;justify-content:center;border-radius:0 8px 8px 0;cursor:pointer;font-weight:900;border:1px solid rgba(0,0,0,0.08)">
+      ?
+    </div>
+
+    <div id="profile-modal" class="profile-modal" style="position:fixed;left:-340px;top:64px;height:calc(100% - 64px);width:320px;background:linear-gradient(180deg, rgba(82,93,169,0.82), rgba(33,33,33,0.45));backdrop-filter:blur(6px);border-right:1px solid rgba(255,255,255,0.04);padding:18px;transition:left 0.32s ease;z-index:75;display:flex;flex-direction:column;gap:12px;">
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="font-weight:900;color:var(--accent)">Profile</div>
+        <div class="small">You must login to view profile</div>
+
+        <div style="display:flex;gap:8px">
+          <button class="modal-btn" onclick="location.href='/login'">Log in</button>
+          <button class="modal-btn" onclick="location.href='/signup'">Sign up</button>
+        </div>
+      </div>
+
+      <div style="flex:1"></div>
+      <button class="modal-btn" onclick="closeProfileModal()">Close</button>
+    </div>
+
+    <!-- MAIN CONTENT: Privacy Policy card (in front of bg-gif) -->
+    <main class="page-wrapper landing" style="min-height:80vh;position:relative;z-index:56">
+      <div class="card" style="max-width:980px;margin:80px auto;padding:28px;position:relative;z-index:57">
+        <h1 class="h1-retro">Privacy P
