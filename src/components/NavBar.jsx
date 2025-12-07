@@ -1,3 +1,4 @@
+// src/components/NavBar.jsx
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -111,7 +112,7 @@ export default function NavBar({ user, onOpenProfile }) {
                     <button
                       className="modal-btn"
                       onClick={() => {
-                        nav("./pages/Privacy");
+                        nav("/privacy");
                         setDropdownOpen(false);
                       }}
                     >
@@ -120,7 +121,7 @@ export default function NavBar({ user, onOpenProfile }) {
                     <button
                       className="modal-btn"
                       onClick={() => {
-                        nav("./pages/Terms");
+                        nav("/terms");
                         setDropdownOpen(false);
                       }}
                     >
@@ -133,11 +134,7 @@ export default function NavBar({ user, onOpenProfile }) {
           </div>
         </div>
       </div>
-
-      {/* persistent background gif element (below navbar) */}
-      <div className="bg-gif" aria-hidden="true" />
+      {/* NOTE: bg-gif intentionally removed from here — pages (Terms/Privacy) will include it themselves. */}
     </>
   );
 }
-
-
