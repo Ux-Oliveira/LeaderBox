@@ -8,22 +8,29 @@ export default function Terms() {
 
         <div style={{ marginTop: 12, color: "rgba(255,255,255,0.92)", lineHeight: 1.5 }}>
           <p><strong>1. Acceptance of Terms</strong><br />
-          By using LeaderBox, you agree to these terms.</p>
+          By using LeaderBox.co, you agree to the following terms.</p>
 
           <p><strong>2. Use of App</strong><br />
-          - You may not misuse the app or attempt unauthorized access.<br />
-          - You agree to provide accurate info when logging in.</p>
+          You may not misuse the app or attempt unauthorized access.<br />
+          You may not harass other users.
+          You agree to provide accurate info when signing up/logging in.
+          You agree to not share yours or someone else's personal information in the website.
+          </p>
 
           <p><strong>3. Intellectual Property</strong><br />
-          - All content is owned by LeaderBox.</p>
+          All content is owned by LeaderBox.
+          Inspired by JangoDisc and produced by Rick's a Human.</p>
 
           <p><strong>4. Limitation of Liability</strong><br />
-          - We are not responsible for user-generated content or TikTok data errors.</p>
+          We are not responsible for user-generated content outside of the website. 
+          We are not responsible for TikTok data errors.</p>
 
           <p><strong>5. Termination</strong><br />
-          - We may suspend accounts for violations.</p>
+          We may suspend accounts for violations.</p>
 
           <p><strong>6. Contact</strong><br />
+          You can contact me via email for legal or business porposes. Or via TikTok (<a href="https://www.tiktok.com/@ricks_a_human"
+                                                                                        target="_blank" style={{ color: "var(--accent)" }}>@Ricks_a_human)</a> for management suppport.  
           Email: <a href="mailto:leaderbox_management@outlook.com" style={{ color: "var(--accent)" }}>leaderbox_management@outlook.com</a></p>
         </div>
       </div>
