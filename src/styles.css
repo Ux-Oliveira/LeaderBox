@@ -207,6 +207,7 @@ body{
   line-height: 1.25;
   padding: 10px;
   text-decoration: none;
+  color: accent-2;
 }
 
 /* transparent overlay behind dropdown used to detect outside clicks */
