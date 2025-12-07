@@ -1,7 +1,5 @@
-// src/components/ProfileModal.jsx
 import React, { useEffect, useState } from "react";
 import { loadProfileFromLocal, clearLocalProfile, saveProfileToLocal } from "../lib/profileLocal";
-import { deleteProfile as apiDeleteProfile } from "../lib/api";
 
 const LEVELS = [
   { level: 1, name: "Noob", threshold: 0 },
@@ -34,8 +32,7 @@ export default function ProfileModal({
   onUpdateUser = () => {}
 }) {
   const [isOpen, setOpen] = useState(open);
-  const [deleting, setDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState("");
+  const [busyDelete, setBusyDelete] = useState(false);
 
   useEffect(() => setOpen(open), [open]);
 
@@ -44,58 +41,54 @@ export default function ProfileModal({
     if (user) saveProfileToLocal(user);
   }, [user]);
 
+  async function handleServerDelete(open_id) {
+    if (!open_id) return false;
+    try {
+      const res = await fetch(`/api/profile?open_id=${encodeURIComponent(open_id)}`, { method: "DELETE", credentials: "same-origin" });
+      if (!res.ok) {
+        const txt = await res.text();
+        console.warn("Delete profile failed:", res.status, txt);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.warn("Delete profile exception:", err);
+      return false;
+    }
+  }
+
+  async function doDeleteProfile() {
+    // Confirm destructive action
+    if (!confirm("Delete your profile from the site and database? This cannot be undone.")) return;
+    setBusyDelete(true);
+
+    const open_id = user && (user.open_id || user.openId || user.raw?.data?.open_id);
+    // If user has an actual server-side open_id, attempt server delete
+    if (open_id) {
+      const ok = await handleServerDelete(open_id);
+      if (ok) {
+        clearLocalProfile();
+        onUpdateUser(null);
+        setBusyDelete(false);
+        alert("Profile deleted.");
+        return;
+      } else {
+        setBusyDelete(false);
+        alert("Failed to delete profile on server. Check console for details.");
+        return;
+      }
+    }
+
+    // Fallback: local-only delete
+    clearLocalProfile();
+    onUpdateUser(null);
+    setBusyDelete(false);
+  }
+
   async function doLogout() {
     clearLocalProfile();
     onLogout();
     onUpdateUser(null);
-  }
-
-  async function doDeleteProfile() {
-    setDeleteError("");
-    if (!user || !user.open_id) {
-      // try local fallback
-      const local = loadProfileFromLocal();
-      if (!local || !local.open_id) {
-        clearLocalProfile();
-        onUpdateUser(null);
-        onLogout();
-        setOpen(false);
-        return;
-      }
-      // else continue with local.open_id
-      user = local;
-    }
-    const openId = user.open_id;
-    if (!openId) {
-      clearLocalProfile();
-      onUpdateUser(null);
-      onLogout();
-      setOpen(false);
-      return;
-    }
-
-    const confirm = window.confirm("Delete your profile? This will remove it from the site (and the database). This action cannot be undone.");
-    if (!confirm) return;
-
-    setDeleting(true);
-    try {
-      const resp = await apiDeleteProfile(openId);
-      if (!resp.ok) {
-        setDeleteError(String(resp.error || "Failed to delete profile"));
-        setDeleting(false);
-        return;
-      }
-      // success - clear local and update app state
-      clearLocalProfile();
-      onUpdateUser(null);
-      onLogout();
-      setOpen(false);
-    } catch (e) {
-      console.error("Delete profile failed:", e);
-      setDeleteError(String(e.message || e));
-    } finally {
-      setDeleting(false);
-    }
   }
 
   if (!user) {
@@ -166,7 +159,7 @@ export default function ProfileModal({
               )}
             </div>
             <div>
-              <div style={{ fontWeight: 900, color: "var(--accent)" }}>{user.nickname ? (user.nickname.startsWith("@") ? user.nickname : `@${user.nickname}`) : "TikTok user"}</div>
+              <div style={{ fontWeight: 900, color: "var(--accent)" }}>{user.nickname}</div>
               <div className="small">{user.email || ""}</div>
             </div>
           </div>
@@ -186,10 +179,14 @@ export default function ProfileModal({
             </div>
           </div>
 
-          <button className="modal-btn" onClick={doDeleteProfile} disabled={deleting}>
-            {deleting ? "Deleting…" : "Delete Profile (remove from site)"}
+          <button
+            className="modal-btn"
+            onClick={doDeleteProfile}
+            disabled={busyDelete}
+            style={{ background: "#b71c1c" }}
+          >
+            {busyDelete ? "Deleting…" : "Delete Profile"}
           </button>
-          {deleteError && <div style={{ color: "#a00" }}>{deleteError}</div>}
 
           <hr style={{ borderColor: "rgba(255,255,255,0.04)" }} />
 
