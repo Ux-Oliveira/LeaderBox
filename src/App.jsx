@@ -15,7 +15,7 @@ import TikTokCallback from "./pages/TikTokCallback"; // TikTok OAuth callback
 import ChooseProfile from "./pages/ChooseProfile";
 
 // NEW pages
-import Terms from "./pages/Terms";
+import Terms from "./components/Terms";
 import Privacy from "./pages/Privacy";
 
 import { loadProfileFromLocal, saveProfileToLocal } from "./lib/profileLocal";
