@@ -15,6 +15,7 @@ import LetterboxdCallback from "./pages/LetterboxdCallback";
 import ChooseProfile from "./pages/ChooseProfile";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
+import EditStack from "./pages/EditStack"; // <-- ADDED
 
 import { loadProfileFromLocal, saveProfileToLocal } from "./lib/profileLocal";
 import { fetchProfileByOpenId } from "./lib/api";
@@ -138,6 +139,9 @@ export default function App() {
           <Route path="/profile" element={<ProfilePage user={user} />} />
           {/* shareable profile links */}
           <Route path="/profile/:id" element={<ProfilePage />} />
+
+          {/* Edit Stack route (new) */}
+          <Route path="/profile/edit-stack" element={<EditStack user={user} />} />
 
           {/* TikTok OAuth callback */}
           <Route path="/auth/tiktok/callback" element={<TikTokCallback />} />
