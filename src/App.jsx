@@ -12,8 +12,6 @@ import ProfilePage from "./pages/ProfilePage";
 import ProfileModal from "./components/ProfileModal";
 import TikTokCallback from "./pages/TikTokCallback"; // TikTok OAuth callback
 import ChooseProfile from "./pages/ChooseProfile";
-
-// NEW pages
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 
