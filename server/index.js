@@ -102,7 +102,7 @@ if (fs.existsSync(buildPath)) {
     "/duel",
     "/rules",
     "/auth/tiktok/callback",
-    "/auth/letterboxd/callback" // ✅ Letterboxd callback route
+    "/auth/letterboxd/callback" 
   ];
   SPA_CLIENT_ROUTES.forEach((p) => {
     app.get(p, (req, res) => res.sendFile(path.join(buildPath, "index.html")));
@@ -123,5 +123,6 @@ app.listen(PORT, HOST, () => {
   console.log(`Server listening on http://${HOST}:${PORT}  (PID ${process.pid})`);
   console.log(">>> Server ready, test: curl http://127.0.0.1:4000/api/profile");
 });
+
 
 
