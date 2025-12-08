@@ -1,4 +1,4 @@
-// server/index.js  (full file — replace your existing server/index.js with this)
+// server/index.js
 import express from "express";
 import dotenv from "dotenv";
 import path from "path";
@@ -9,6 +9,7 @@ import cookieParser from "cookie-parser";
 import profileRoutes from "./routes/profile.js";
 import { exchangeTikTokCode } from "./tiktok.js";
 import tiktokCallbackRouter from "./api/auth/tiktok/callback.js";
+import letterboxdRouter from "./routes/letterboxd.js"; // ✅ import Letterboxd router
 
 dotenv.config();
 
@@ -39,6 +40,8 @@ app.get("/config.js", (req, res) => {
   const js = `window.__ENV = ${JSON.stringify({
     VITE_TIKTOK_CLIENT_KEY: process.env.VITE_TIKTOK_CLIENT_KEY || "",
     VITE_TIKTOK_REDIRECT_URI: process.env.VITE_TIKTOK_REDIRECT_URI || "",
+    VITE_LETTERBOXD_CLIENT_KEY: process.env.VITE_LETTERBOXD_CLIENT_KEY || "",
+    VITE_LETTERBOXD_REDIRECT_URI: process.env.VITE_LETTERBOXD_REDIRECT_URI || "",
     LEADERBOX_SERVER_BASE: process.env.LEADERBOX_SERVER_BASE || "",
   })};`;
   res.setHeader("Content-Type", "application/javascript");
@@ -62,6 +65,13 @@ try {
   console.log(">>> mounted TikTok callback router at /api/auth/tiktok");
 } catch (err) {
   console.error("Failed to mount tiktokCallbackRouter:", err);
+}
+
+try {
+  app.use("/api/auth/letterboxd", letterboxdRouter);
+  console.log(">>> mounted letterboxdRouter at /api/auth/letterboxd");
+} catch (err) {
+  console.error("Failed to mount letterboxdRouter:", err);
 }
 
 // PKCE exchange endpoint (keeps legacy single-file flow working)
@@ -91,7 +101,8 @@ if (fs.existsSync(buildPath)) {
     "/profile",
     "/duel",
     "/rules",
-    "/auth/tiktok/callback"
+    "/auth/tiktok/callback",
+    "/auth/letterboxd/callback" // ✅ Letterboxd callback route
   ];
   SPA_CLIENT_ROUTES.forEach((p) => {
     app.get(p, (req, res) => res.sendFile(path.join(buildPath, "index.html")));
