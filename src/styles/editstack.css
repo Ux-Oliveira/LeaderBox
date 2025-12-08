@@ -1,0 +1,246 @@
+/* Visuals for EditStack + modal components */
+
+.editstack-root {
+  padding-top: 88px; /* below navbar */
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: calc(100vh - 88px);
+  background: linear-gradient(180deg, rgba(0,0,0,0.02), transparent 200px);
+}
+
+.center-stage {
+  width: 100%;
+  max-width: 1100px;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  margin: 20px 12px;
+}
+
+/* bar.png background; overlay holds content */
+.bar-image {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 14px;
+  filter: drop-shadow(0 8px 30px rgba(0,0,0,0.45));
+}
+.bar-overlay {
+  position: absolute;
+  top: 6%;
+  left: 6%;
+  right: 6%;
+  bottom: 6%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  color: var(--white);
+  text-align: center;
+  pointer-events: none; /* slots will handle pointer */
+}
+.bar-overlay h1 {
+  margin: 8px 0 0;
+  font-size: 22px;
+  pointer-events: auto;
+}
+.bar-overlay .subtitle {
+  margin: 0 0 6px;
+  color: rgba(255,255,255,0.85);
+  font-size: 14px;
+  pointer-events: auto;
+}
+
+/* horizontal slots row */
+.slots-row {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  justify-content: center;
+  pointer-events: auto;
+}
+
+/* movie slot */
+.movie-slot {
+  width: 140px;
+  height: 140px;
+  background: rgba(0,0,0,0.35);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  cursor: pointer;
+  position: relative;
+  transition: transform 160ms ease, background 160ms ease;
+  border: 1px solid rgba(255,255,255,0.04);
+}
+.movie-slot:hover { transform: translateY(-6px); background: rgba(0,0,0,0.45); }
+
+.slot-empty { color: rgba(255,255,255,0.9); font-size: 44px; }
+.slot-empty .plus { font-weight: 900; }
+
+.slot-poster { width: 100%; height: 100%; object-fit: cover; display:block; }
+
+.slot-info {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  text-align: left;
+  color: #fff;
+  background: linear-gradient(180deg, transparent, rgba(0,0,0,0.5));
+  padding: 6px 8px;
+  border-radius: 6px;
+}
+.slot-title { font-size: 13px; font-weight: 800; }
+.slot-year { font-size: 12px; color: rgba(255,255,255,0.8); margin-top: 4px; }
+
+/* deck summary area */
+.deck-summary {
+  display: flex;
+  gap: 18px;
+  width: 96%;
+  margin-top: 12px;
+  justify-content: space-between;
+  pointer-events: auto;
+  align-items: flex-start;
+}
+.summary-stats {
+  display: flex;
+  gap: 12px;
+  flex: 1;
+  justify-content: space-between;
+}
+.stat {
+  background: rgba(255,255,255,0.02);
+  padding: 12px;
+  border-radius: 8px;
+  width: 170px;
+  text-align: center;
+  border: 1px solid rgba(255,255,255,0.03);
+}
+.stat-label { font-size: 12px; color: #ccc; margin-bottom: 6px; }
+.stat-value { font-size: 20px; font-weight: 900; color: var(--accent); }
+
+/* deck meta */
+.deck-meta {
+  width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.deck-meta textarea {
+  min-height: 80px;
+  resize: vertical;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.04);
+  background: rgba(0,0,0,0.25);
+  color: var(--white);
+}
+
+/* level pill */
+.level-row { display:flex; align-items:center; gap:8px; margin-top:8px; }
+.level-pill { background: var(--accent); color: var(--black); padding: 6px 10px; border-radius: 8px; font-weight:900; }
+
+/* ------------------------
+   MovieSearchModal styles
+   ------------------------ */
+.modal-root {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.modal-backdrop {
+  position: absolute;
+  inset: 0;
+  backdrop-filter: blur(6px) brightness(0.6);
+  background: rgba(0,0,0,0.55);
+}
+.modal-content {
+  position: relative;
+  width: min(960px, 94vw);
+  max-height: 84vh;
+  overflow: hidden;
+  background: linear-gradient(180deg, rgba(10,10,10,0.95), rgba(8,8,8,0.95));
+  border-radius: 12px;
+  padding: 14px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+  color: var(--white);
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.modal-header { display:flex; align-items:center; justify-content: space-between; gap: 12px; }
+.modal-header h3 { margin: 0; font-size: 18px; }
+.close-btn { background: transparent; border: none; color: var(--white); font-size: 18px; cursor: pointer; }
+
+.search-row { display:flex; gap:8px; }
+.search-row input {
+  flex: 1;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.04);
+  background: rgba(0,0,0,0.25);
+  color: var(--white);
+}
+.search-row button {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  background: var(--accent);
+  color: var(--black);
+  font-weight: 900;
+}
+
+.notice { color: #ffdd88; font-size: 13px; padding: 6px 0; }
+
+.results {
+  overflow: auto;
+  padding-right: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* each result row */
+.result-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 8px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.03);
+}
+.res-poster { width: 64px; height: 96px; object-fit: cover; border-radius: 6px; }
+.res-info { flex: 1; display:flex; flex-direction: column; gap: 6px; text-align: left; }
+.res-title { font-weight: 800; }
+.res-overview { font-size: 13px; color: rgba(255,255,255,0.8); }
+.res-stats { display:flex; gap: 12px; font-size: 12px; color: #ddd; margin-top: 4px; }
+
+.res-actions { display:flex; align-items:center; gap: 8px; }
+.select-btn {
+  background: var(--accent);
+  color: var(--black);
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-weight: 900;
+}
+
+/* responsive */
+@media (max-width:920px) {
+  .slots-row { gap: 8px; }
+  .movie-slot { width: 120px; height: 120px; }
+  .deck-summary { flex-direction: column; align-items: stretch; gap: 12px; }
+  .deck-meta { width: 100%; }
+}
