@@ -29,20 +29,20 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// request logger (helpful in prod too)
+// request logger
 app.use((req, res, next) => {
   console.log(`[REQ] ${new Date().toISOString()} ${req.method} ${req.originalUrl}`);
   next();
 });
 
-// runtime env for frontend
+// runtime env for frontend (includes Letterboxd defaults for dev)
 app.get("/config.js", (req, res) => {
   const js = `window.__ENV = ${JSON.stringify({
-    VITE_TIKTOK_CLIENT_KEY: process.env.VITE_TIKTOK_CLIENT_KEY || "",
-    VITE_TIKTOK_REDIRECT_URI: process.env.VITE_TIKTOK_REDIRECT_URI || "",
-    VITE_LETTERBOXD_CLIENT_KEY: process.env.VITE_LETTERBOXD_CLIENT_KEY || "",
-    VITE_LETTERBOXD_REDIRECT_URI: process.env.VITE_LETTERBOXD_REDIRECT_URI || "",
-    LEADERBOX_SERVER_BASE: process.env.LEADERBOX_SERVER_BASE || "",
+    VITE_TIKTOK_CLIENT_KEY: process.env.VITE_TIKTOK_CLIENT_KEY || "awjs5urmu24dmwqc",
+    VITE_TIKTOK_REDIRECT_URI: process.env.VITE_TIKTOK_REDIRECT_URI || "https://leaderbox.co/auth/tiktok/callback",
+    VITE_LETTERBOXD_CLIENT_KEY: process.env.VITE_LETTERBOXD_CLIENT_KEY || "oqKLT2bpwn0gpTTTAHs0pBGbu22J2mB8",
+    VITE_LETTERBOXD_REDIRECT_URI: process.env.VITE_LETTERBOXD_REDIRECT_URI || "https://leaderbox.co/auth/letterboxd/callback",
+    LEADERBOX_SERVER_BASE: process.env.LEADERBOX_SERVER_BASE || "https://leaderbox.co",
   })};`;
   res.setHeader("Content-Type", "application/javascript");
   res.send(js);
@@ -74,7 +74,7 @@ try {
   console.error("Failed to mount letterboxdRouter:", err);
 }
 
-// PKCE exchange endpoint (keeps legacy single-file flow working)
+// PKCE exchange endpoint
 app.post("/api/auth/tiktok/exchange", async (req, res) => {
   try {
     const { code, code_verifier, redirect_uri } = req.body;
@@ -93,7 +93,6 @@ const buildPath = path.resolve(__dirname, "../client/build");
 if (fs.existsSync(buildPath)) {
   app.use(express.static(buildPath, { index: false }));
 
-  // explicit copy for a few client-side routes that might be requested directly (optional)
   const SPA_CLIENT_ROUTES = [
     "/choose-profile",
     "/signup",
@@ -102,19 +101,17 @@ if (fs.existsSync(buildPath)) {
     "/duel",
     "/rules",
     "/auth/tiktok/callback",
-    "/auth/letterboxd/callback" 
+    "/auth/letterboxd/callback"
   ];
   SPA_CLIENT_ROUTES.forEach((p) => {
     app.get(p, (req, res) => res.sendFile(path.join(buildPath, "index.html")));
   });
 
-  // fallback: any non-API path should return index.html
   app.get("*", (req, res, next) => {
     if (req.path.startsWith("/api/") || req.path === "/config.js") return next();
     res.sendFile(path.join(buildPath, "index.html"));
   });
 } else {
-  // dev fallback message
   app.get("/", (req, res) => res.send("<h1>Leaderbox server running</h1><p>No frontend build found.</p>"));
 }
 
@@ -123,6 +120,3 @@ app.listen(PORT, HOST, () => {
   console.log(`Server listening on http://${HOST}:${PORT}  (PID ${process.pid})`);
   console.log(">>> Server ready, test: curl http://127.0.0.1:4000/api/profile");
 });
-
-
-
