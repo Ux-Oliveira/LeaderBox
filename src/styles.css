@@ -1,3 +1,4 @@
+
 @font-face {
   font-family: "ArcadeClassic";
   src: local("Courier New"), local("monospace");
@@ -24,6 +25,21 @@ body{
   -moz-osx-font-smoothing:grayscale;
 }
 
+/* persistent background GIF under navbar (covers entire viewport) */
+.bg-gif {
+  position: fixed;
+  top: 64px; /* sits below the navbar */
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 0;
+  background-image: url('/constant.gif');
+  background-size: cover;
+  background-position: center;
+  opacity: 0.18; /* subtle — tune as needed */
+  pointer-events: none; /* so it never captures clicks */
+}
+
 /*navbar*/
 .navbar{
   position:fixed;
@@ -35,25 +51,184 @@ body{
   padding:0 20px;
   background:rgba(0,0,0,0.55);
   border-bottom: 1px solid rgba(255,255,255,0.03);
-  z-index:50;
+  z-index:60;
   box-shadow: 0 4px 20px rgba(0,0,0,0.4);
 }
 
-/*branding*/
+/*branding */
 .brand{
-  display:flex;align-items:center;gap:12px;font-weight:700;
-}
-.brand .logo{
-  width:40px;height:40px;border-radius:6px;background:var(--accent-2);display:flex;align-items:center;justify-content:center;color:var(--white);font-weight:800;font-size:18px;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  font-weight:700;
 }
 
-/*nav links*/
-.navlinks{display:flex;gap:18px;align-items:center}
-.navlinks a{color:var(--white);text-decoration:none;padding:8px 10px;border-radius:6px}
-.navlinks a:hover{background:rgba(255,255,255,0.04)}
+/* logo image */
+.brand img.logo-img {
+  width:40px;
+  height:40px;
+  border-radius:6px;
+  object-fit:contain;
+  display:block;
+}
 
-/*main container*/
-.app-container{padding-top:88px; max-width:1200px;margin:0 auto;padding-left:20px;padding-right:20px}
+/* brand textual block */
+.brand-text { display:flex; flex-direction:column; line-height:1; }
+.brand-title { font-size:14px; color:var(--accent); font-weight:900; }
+
+/* nav area holding icons and buttons */
+.navRight {
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+
+/* navLinks: allow items to flow naturally (no tiny boxes) */
+.navLinks{display:flex;gap:12px;align-items:center}
+
+/* nav-icon - NOT boxed: allow natural sizing, white icons, hover feedback */
+.nav-icon {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:6px 8px;
+  font-size:22px;          /* increased icon size */
+  color:var(--white);
+  text-decoration:none;
+  border-radius:6px;       /* subtle radius only for hover background */
+  background: transparent;
+  cursor:pointer;
+  border: none;
+  transition: transform 160ms ease, color 160ms ease, background 160ms ease;
+}
+
+/* lighter hover: accent + gentle scale, background subtle */
+.nav-icon:hover {
+  color: var(--accent);
+  transform: scale(1.06);
+  background: rgba(255,255,255,0.03);
+}
+
+/* duel gif: match the icon height, no forced square */
+.nav-icon img.icon-gif {
+  width:29px;
+  height:29px;
+  display:block;
+}
+
+/* signup/login keep their styles but slightly adjusted to fit new spacing */
+.nav-signup {
+  background: #000;
+  color: var(--white);
+  padding:6px 10px;
+  border-radius:8px;
+  border:1px solid rgba(255,255,255,0.06);
+  cursor:pointer;
+  font-weight:700;
+}
+.nav-login {
+  background: linear-gradient(90deg,var(--accent), #ffd85a);
+  color:var(--black);
+  padding:6px 10px;
+  border-radius:8px;
+  border: none;
+  cursor:pointer;
+  font-weight:900;
+}
+
+/* hamburger container */
+.hamburger {
+  width:44px;
+  height:36px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-direction: column; /* ensure bars stack vertically */
+  border-radius:8px;
+  cursor:pointer;
+  position:relative;
+  background: transparent;
+  border:1px solid transparent;
+  color:var(--white);
+  padding: 4px 6px;
+}
+
+/* vertical stacked bars (one above the other) */
+.hamburger .bar {
+  display:block;
+  width:22px;
+  height:3px;         /* slightly thicker */
+  background:currentColor;
+  margin:3px 0;
+  border-radius:2px;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.25);
+}
+
+/* animated glare overlay moving left->right */
+.hamburger::after{
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -60%;
+  width: 60%;
+  height: 100%;
+  transform: skewX(-20deg);
+  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.22) 50%, rgba(255,255,255,0) 100%);
+  pointer-events:none;
+  opacity:0.7;
+  animation: glareMove 2.6s linear infinite;
+}
+
+/* softer glare on desktop; more aggressive on profile knob (separate rules) */
+@keyframes glareMove {
+  0% { left: -60%; }
+  100% { left: 160%; }
+}
+
+/* dropdown menu panel (transparent like profile modal) */
+.dropdown-panel {
+  position: absolute;
+  right: 12px;
+  top: 64px;
+  width:220px;
+  background: linear-gradient(180deg, rgba(82,93,169,0.82), rgba(33,33,33,0.45));
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255,255,255,0.04);
+  padding:10px;
+  border-radius:8px;
+  z-index:70;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.45);
+  box-sizing: border-box;
+}
+
+/* make modal buttons wrap and breathe */
+.dropdown-panel .modal-btn {
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.25;
+  padding: 10px;
+  text-decoration: none;
+}
+
+.dropdown-panel .modal-btn-patreon {
+   white-space: normal;
+  word-break: break-word;
+  line-height: 1.25;
+  padding: 10px;
+  text-decoration: none;
+  color:var(--accent-2);
+}
+
+/* transparent overlay behind dropdown used to detect outside clicks */
+.click-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 65;
+  background: transparent;
+}
+
+/*main container - keep content above bg-gif */
+.app-container{padding-top:88px; max-width:1200px;margin:0 auto;padding-left:20px;padding-right:20px; position: relative; z-index: 50}
 
 /*heading style*/
 .h1-retro{
@@ -90,6 +265,7 @@ body{
   align-items:center;
   justify-content:center;
   position:relative;
+  z-index: 10;
 }
 .video-section video{
   width:100%;
@@ -117,16 +293,31 @@ body{
   cursor:pointer;
 }
 
-/*support section*/
-.support{
-  margin-top:28px;
+/*support section pinned bottom and full width with layout corrected */
+.support {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 55;
+  padding: 12px 20px;
+  display:flex;
+  justify-content:center;
+}
+.support .card {
+  width: calc(100% - 40px);
+  max-width: 1200px;
   display:flex;
   align-items:center;
-  justify-content:space-between;
-  gap:24px;
+  gap:12px;
 }
-.support .left,.support .right{display:flex;align-items:center;gap:12px}
 
+/* left and right groups inside support bar */
+.support .left, .support .right { display:flex; align-items:center; gap:8px; }
+.support .left { justify-content:flex-start; }
+.support .right { margin-left:auto; justify-content:flex-end; gap:8px; }
+
+/* small text */
 .small{font-size:13px;color:rgba(255,255,255,0.8)}
 
 /*profile modal*/
@@ -141,20 +332,20 @@ body{
   border-right:1px solid rgba(255,255,255,0.04);
   padding:18px;
   transition: left 0.32s ease;
-  z-index:55;
+  z-index:75;
   display:flex;
   flex-direction:column;
   gap:12px;
 }
 .profile-modal.open { left:0; }
 
-/*persistent knob*/
+/*persistent knob -> now a more aggressive yellow glare and disappears when modal opens */
 .profile-knob {
   position:fixed;
   left:0;
   top:calc(50% - 30px);
   transform:translateX(-18px);
-  z-index:60;
+  z-index:76;
   background:var(--accent);
   color:var(--black);
   width:36px;
@@ -165,13 +356,31 @@ body{
   border-radius:0 8px 8px 0;
   cursor:pointer;
   font-weight:900;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.25);
+  border: 1px solid rgba(0,0,0,0.08);
 }
 
-/*pfp circle idk if its gonna be necessary*/
-.pfp {
-  width:88px;height:88px;border-radius:14px;border:3px solid rgba(255,255,255,0.08);overflow:hidden;
+/* aggressive glare for profile knob */
+.profile-knob::after{
+  content: "";
+  position: absolute;
+  top: -10%;
+  left: -40%;
+  width: 120%;
+  height: 120%;
+  transform: skewX(-20deg);
+  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.45) 50%, rgba(255,255,255,0) 100%);
+  pointer-events:none;
+  opacity:0.85;
+  animation: glareMove 1.4s linear infinite;
 }
-.pfp img{width:100%;height:100%;object-fit:cover}
+
+/*pfp - no square constraint, larger */
+.pfp {
+  width:96px;height:96px;border-radius:999px;border:3px solid rgba(255,255,255,0.08);overflow:hidden;
+  display:flex;align-items:center;justify-content:center;background:#222;
+}
+.pfp img{width:100%;height:100%;object-fit:cover;border-radius:999px;}
 
 /*modal buttons*/
 .modal-btn{
@@ -183,6 +392,8 @@ body{
   color:var(--white);
   cursor:pointer;
   text-align:left;
+  white-space: normal;
+  line-height: 1.25;
 }
 
 /*levels*/
@@ -194,8 +405,46 @@ body{
 .input { padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.06); background:rgba(0,0,0,0.2); color:var(--white); }
 .btn { padding:10px 12px; border-radius:8px; background:var(--accent); color:var(--black); font-weight:900; cursor:pointer; border:none; }
 
+/* small mobile/UX tweaks */
 @media (max-width:800px){
   .support{flex-direction:column;align-items:flex-start}
   .video-section{height:260px}
   .profile-modal{width:86%; left:-92%}
+
+  /* mobile navbar layout: hide logo and left-side h1s and brand text */
+  .brand { display:none; }
+
+  /* center nav items: make navRight span whole width and center children */
+  .navRight { width:100%; display:flex; justify-content:center; align-items:center; gap:12px; padding:0 12px; }
+  .navLinks { margin:0; justify-content:center; display:flex; gap:12px; align-items:center; }
+
+  /* hide signup/login on mobile (only icons + hamburger remain) */
+  .nav-signup, .nav-login { display:none !important; }
+
+  /* Dropdown adjustments on mobile: anchor to RIGHT and give comfortable width so text isn't squished.
+     It will float from the right edge with a width up to 320px or 86vw (whichever is smaller). */
+  .dropdown-panel {
+    position: fixed;
+    top: 64px;
+    right: 12px;
+    left: auto;
+    width: min(320px, 86vw);
+    max-width: 92vw;
+    padding: 12px;
+    border-radius: 10px;
+    z-index: 140;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.55);
+  }
+
+  /* make modal buttons taller and more readable on mobile */
+  .dropdown-panel .modal-btn {
+    padding: 12px;
+    font-size: 15px;
+    text-align: left;
+  }
+}
+
+/* Landing-specific push down for heading (applied when .landing wrapper present) */
+.landing .h1-retro {
+  margin-top: 36px;
 }
