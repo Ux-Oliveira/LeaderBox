@@ -11,6 +11,7 @@ import Rules from "./pages/Rules";
 import ProfilePage from "./pages/ProfilePage";
 import ProfileModal from "./components/ProfileModal";
 import TikTokCallback from "./pages/TikTokCallback"; // TikTok OAuth callback
+import LetterboxdCallback from "./pages/LetterboxdCallback";
 import ChooseProfile from "./pages/ChooseProfile";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
@@ -140,6 +141,8 @@ export default function App() {
 
           {/* TikTok OAuth callback */}
           <Route path="/auth/tiktok/callback" element={<TikTokCallback />} />
+          
+          <Route path="/auth/letterboxd/callback" element={<LetterboxdCallback />} />
 
           {/* ChooseProfile */}
           <Route path="/choose-profile" element={<ChooseProfile />} />
