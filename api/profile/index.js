@@ -1,13 +1,21 @@
-// api/profile/index.js  (serverless handler)
-import { getFirestore } from "../../server/lib/firestore.js"; // adjust path if needed
-
+// api/profile/index.js  (serverless handler - Firestore)
+import { getFirestore } from "../../server/lib/firestore.js"; // keep your path
 const COLLECTION = "profiles";
 
-function normalizeNickname(n) {
-  if (!n) return n;
-  let s = String(n).trim();
-  if (s.startsWith("@")) s = s.slice(1);
-  return "@" + s;
+/**
+ * Normalize nickname for saving (no leading @). Accepts empty-string as valid.
+ */
+function normalizeNicknameForSave(n) {
+  if (n === undefined || n === null) return null;
+  return String(n).trim().replace(/^@+/, "");
+}
+
+/**
+ * Normalize for querying (lowercase, no @). Returns null when input missing.
+ */
+function normalizeNicknameForQuery(n) {
+  const cleaned = normalizeNicknameForSave(n);
+  return cleaned ? cleaned.toLowerCase() : null;
 }
 
 export default async function handler(req, res) {
@@ -20,19 +28,46 @@ export default async function handler(req, res) {
     res.setHeader("Access-Control-Allow-Headers", "Content-Type");
     if (req.method === "OPTIONS") return res.status(204).end();
 
+    // ----- GET -----
     if (req.method === "GET") {
       const open_id = req.query && req.query.open_id;
+      const nickname = req.query && req.query.nickname;
+
+      // GET by open_id (document id)
       if (open_id) {
-        const doc = await db.collection(COLLECTION).doc(String(open_id)).get();
-        if (!doc.exists) return res.status(404).json({ error: "not_found" });
+        const docRef = db.collection(COLLECTION).doc(String(open_id));
+        const doc = await docRef.get();
+        if (!doc.exists) return res.status(404).json({ ok: false, error: "not_found" });
         return res.json({ ok: true, profile: doc.data() });
       }
+
+      // GET by nickname (case-insensitive) using nickname_lower field
+      if (nickname) {
+        const slug = normalizeNicknameForQuery(nickname);
+        if (slug) {
+          const snap = await db.collection(COLLECTION).where("nickname_lower", "==", slug).limit(1).get();
+          if (!snap.empty) {
+            const doc = snap.docs[0].data();
+            return res.json({ ok: true, profile: doc });
+          }
+          // fallback: try exact nickname field (if nickname_lower missing)
+          const snap2 = await db.collection(COLLECTION).where("nickname", "==", normalizeNicknameForSave(nickname)).limit(1).get();
+          if (!snap2.empty) {
+            return res.json({ ok: true, profile: snap2.docs[0].data() });
+          }
+          return res.status(404).json({ ok: false, error: "not_found" });
+        } else {
+          return res.status(400).json({ ok: false, error: "invalid_nickname" });
+        }
+      }
+
       // list all (careful on prod - pagination recommended)
       const snap = await db.collection(COLLECTION).limit(1000).get();
       const profiles = snap.docs.map(d => d.data());
       return res.json({ ok: true, profiles });
     }
 
+    // ----- POST (create or update by open_id) -----
     if (req.method === "POST") {
       const payload = (req.body && Object.keys(req.body).length ? req.body : {});
       const { open_id, nickname, avatar, wins, losses, level, deck } = payload;
@@ -42,10 +77,16 @@ export default async function handler(req, res) {
       const snap = await ref.get();
       const now = Date.now();
 
+      // normalize nickname without @ and store lowercase helper for searches
+      const cleaned = normalizeNicknameForSave(nickname);
+      const cleanedLower = cleaned ? cleaned.toLowerCase() : null;
+
       if (!snap.exists) {
         const doc = {
-          open_id,
-          nickname: nickname ? normalizeNickname(nickname) : `@${open_id}`,
+          open_id: String(open_id),
+          // store nickname WITHOUT leading @; if none provided use open_id as fallback
+          nickname: cleaned ? cleaned : String(open_id),
+          nickname_lower: cleanedLower,
           avatar: avatar || null,
           wins: Number.isFinite(wins) ? Number(wins) : 0,
           losses: Number.isFinite(losses) ? Number(losses) : 0,
@@ -62,7 +103,10 @@ export default async function handler(req, res) {
           ...data,
           updated_at: now,
         };
-        if (nickname !== undefined && nickname !== null) updated.nickname = normalizeNickname(nickname);
+        if (nickname !== undefined && nickname !== null) {
+          updated.nickname = cleaned ? cleaned : String(open_id);
+          updated.nickname_lower = cleanedLower;
+        }
         if (avatar !== undefined) updated.avatar = avatar;
         if (wins !== undefined) updated.wins = Number.isFinite(wins) ? Number(wins) : data.wins;
         if (losses !== undefined) updated.losses = Number.isFinite(losses) ? Number(losses) : data.losses;
@@ -74,6 +118,7 @@ export default async function handler(req, res) {
       }
     }
 
+    // ----- DELETE -----
     if (req.method === "DELETE") {
       const open_id = req.query && req.query.open_id;
       if (!open_id) return res.status(400).json({ error: "Missing open_id" });
