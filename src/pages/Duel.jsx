@@ -114,6 +114,20 @@ export default function Duel() {
   }, []);
 
   function handleChallenge(profile) {
+    // prevent challenging yourself
+    try {
+      const meRaw = localStorage.getItem("stored_profile") || localStorage.getItem("tiktok_profile");
+      const me = meRaw ? JSON.parse(meRaw) : null;
+      if (me && String(me.open_id) === String(profile.open_id)) {
+        // friendly UI message
+        alert("You can't challenge yourself — pick another player.");
+        return;
+      }
+    } catch (e) {
+      // parsing failed — fallback to normal behavior (non-blocking)
+      console.warn("Could not read local profile to check self-challenge:", e);
+    }
+
     // store opponent locally (duel flow can read it)
     localStorage.setItem("leaderbox_opponent", JSON.stringify(profile));
     setSelected(profile.open_id);
