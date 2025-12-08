@@ -1,5 +1,4 @@
-// src/components/ProfileModal.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { loadProfileFromLocal, clearLocalProfile, saveProfileToLocal } from "../lib/profileLocal";
 
 const LEVELS = [
@@ -33,6 +32,9 @@ export default function ProfileModal({
   onUpdateUser = () => {}
 }) {
   const [isOpen, setOpen] = useState(open);
+  const [busyDelete, setBusyDelete] = useState(false);
+  const [copied, setCopied] = useState(false); // copy-to-clipboard toast
+  const panelRef = useRef(null);
 
   useEffect(() => setOpen(open), [open]);
 
@@ -41,21 +43,121 @@ export default function ProfileModal({
     if (user) saveProfileToLocal(user);
   }, [user]);
 
+  // click outside the modal to close it
+  useEffect(() => {
+    function handleDocClick(e) {
+      if (!isOpen) return;
+      if (panelRef.current && !panelRef.current.contains(e.target)) {
+        setOpen(false);
+        onClose && onClose();
+      }
+    }
+    if (isOpen) document.addEventListener("mousedown", handleDocClick);
+    return () => document.removeEventListener("mousedown", handleDocClick);
+  }, [isOpen, onClose]);
+
+  async function handleServerDelete(open_id) {
+    if (!open_id) return false;
+    try {
+      const res = await fetch(`/api/profile?open_id=${encodeURIComponent(open_id)}`, { method: "DELETE", credentials: "same-origin" });
+      if (!res.ok) {
+        const txt = await res.text();
+        console.warn("Delete profile failed:", res.status, txt);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.warn("Delete profile exception:", err);
+      return false;
+    }
+  }
+
+  async function doDeleteProfile() {
+    // Confirm destructive action
+    if (!confirm("Delete your profile from the site and database? This cannot be undone.")) return;
+    setBusyDelete(true);
+
+    const open_id = user && (user.open_id || user.openId || user.raw?.data?.open_id);
+    // If user has an actual server-side open_id, attempt server delete
+    if (open_id) {
+      const ok = await handleServerDelete(open_id);
+      if (ok) {
+        clearLocalProfile();
+        onUpdateUser(null);
+        setBusyDelete(false);
+        alert("Profile deleted.");
+        return;
+      } else {
+        setBusyDelete(false);
+        alert("Failed to delete profile on server. Check console for details.");
+        return;
+      }
+    }
+
+    // Fallback: local-only delete
+    clearLocalProfile();
+    onUpdateUser(null);
+    setBusyDelete(false);
+  }
+
   async function doLogout() {
     clearLocalProfile();
     onLogout();
     onUpdateUser(null);
   }
 
+  function handleCopyProfileLink(u) {
+    if (!u) return;
+    // construct shareable URL: use open_id if available, otherwise nickname
+    const id = u.open_id || u.nickname || "profile";
+    const url = `${window.location.origin}/profile/${encodeURIComponent(id)}`;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1800);
+      }).catch(() => {
+        // fallback
+        try {
+          const ta = document.createElement("textarea");
+          ta.value = url;
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand("copy");
+          document.body.removeChild(ta);
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1800);
+        } catch (e) {
+          alert("Unable to copy link. Your browser may not allow clipboard operations.");
+        }
+      });
+    } else {
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = url;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1800);
+      } catch (e) {
+        alert("Unable to copy link. Your browser may not allow clipboard operations.");
+      }
+    }
+  }
+
   if (!user) {
     const localProfile = loadProfileFromLocal();
     return (
       <>
-        <div className="profile-knob" onClick={() => { setOpen(true); onClose && onClose(); }}>
-          ?
-        </div>
+        {/* persistent knob - disappears when modal opens */}
+        {!isOpen && (
+          <div className="profile-knob" onClick={() => { setOpen(true); onClose && onClose(); }}>
+            ?
+          </div>
+        )}
 
-        <div className={`profile-modal ${isOpen ? "open" : ""}`}>
+        <div ref={panelRef} className={`profile-modal ${isOpen ? "open" : ""}`} aria-hidden={!isOpen}>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             <div style={{ fontWeight: 900, color: "var(--accent)" }}>Profile</div>
             <div className="small">You must login to view profile</div>
@@ -93,7 +195,7 @@ export default function ProfileModal({
           </div>
 
           <div style={{ flex: 1 }} />
-          <button className="modal-btn" onClick={() => setOpen(false)}>Close</button>
+          <button className="modal-btn" onClick={() => { setOpen(false); onClose && onClose(); }}>Close</button>
         </div>
       </>
     );
@@ -103,17 +205,31 @@ export default function ProfileModal({
 
   return (
     <>
-      <div className="profile-knob" onClick={() => setOpen(!isOpen)}>{isOpen ? "<" : ">"}</div>
-      <div className={`profile-modal ${isOpen ? "open" : ""}`} aria-hidden={!isOpen}>
+      {/* persistent knob hides when modal is open */}
+      {!isOpen && (
+        <div className="profile-knob" onClick={() => setOpen(true)} aria-label="Open profile">
+          {/* deliberately plain yellow knob — glare comes from CSS */}
+        </div>
+      )}
+
+      <div ref={panelRef} className={`profile-modal ${isOpen ? "open" : ""}`} aria-hidden={!isOpen}>
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-            <div className="pfp" style={{ width: 64, height: 64, overflow: "hidden", borderRadius: 12 }}>
+            {/* show raw PNG/JPG avatar (rounded) without extra framing */}
+            <div style={{ width: 96, height: 96, overflow: "hidden", borderRadius: 999 }}>
               {(user.avatar || user.pfp) ? (
-                <img src={user.avatar || user.pfp} alt="pfp" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                <img
+                  src={user.avatar || user.pfp}
+                  alt="pfp"
+                  style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", borderRadius: "50%" }}
+                />
               ) : (
-                <div style={{ padding: 12 }}>{(user.nickname || "U").slice(0, 1).toUpperCase()}</div>
+                <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", background: "#111" }}>
+                  <div style={{ padding: 12 }}>{(user.nickname || "U").slice(0, 1).toUpperCase()}</div>
+                </div>
               )}
             </div>
+
             <div>
               <div style={{ fontWeight: 900, color: "var(--accent)" }}>{user.nickname}</div>
               <div className="small">{user.email || ""}</div>
@@ -135,8 +251,13 @@ export default function ProfileModal({
             </div>
           </div>
 
-          <button className="modal-btn" onClick={() => { clearLocalProfile(); onUpdateUser(null); }}>
-            Delete Profile
+          <button
+            className="modal-btn"
+            onClick={doDeleteProfile}
+            disabled={busyDelete}
+            style={{ background: "#b71c1c" }}
+          >
+            {busyDelete ? "Deleting…" : "Delete Profile"}
           </button>
 
           <hr style={{ borderColor: "rgba(255,255,255,0.04)" }} />
@@ -145,13 +266,49 @@ export default function ProfileModal({
             <div className="small" style={{ color: "var(--accent)" }}>Level {level.level} - {level.name}</div>
             <div className="level-bar" style={{ marginTop: 8 }}>
               {LEVELS.map(l => (
-                <div key={l.level} className="level-pill" style={{ background: (l.level === level.level) ? "var(--accent)" : "transparent", color: (l.level === level.level) ? "var(--black)" : "var(--white)" }}>{l.level}</div>
+                <div
+                  key={l.level}
+                  className="level-pill"
+                  style={{
+                    background: (l.level === level.level) ? "var(--accent)" : "transparent",
+                    color: (l.level === level.level) ? "var(--black)" : "var(--white)"
+                  }}
+                >
+                  {l.level}
+                </div>
               ))}
             </div>
           </div>
         </div>
 
+        {/* Copy profile link button */}
+        <button
+          className="modal-btn"
+          onClick={() => handleCopyProfileLink(user)}
+          style={{ marginTop: 8 }}
+        >
+          Copy profile link
+        </button>
+
         <button className="modal-btn" onClick={doLogout}>Logout</button>
+
+        {/* small transient copied toast inside the modal */}
+        {copied && (
+          <div style={{
+            position: "absolute",
+            left: "50%",
+            transform: "translateX(-50%)",
+            bottom: 18,
+            background: "rgba(0,0,0,0.8)",
+            padding: "8px 12px",
+            borderRadius: 8,
+            zIndex: 500,
+            color: "var(--white)",
+            fontWeight: 700
+          }}>
+            Profile link copied to clipboard!
+          </div>
+        )}
       </div>
     </>
   );

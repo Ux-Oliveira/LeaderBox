@@ -1,4 +1,3 @@
-
 @font-face {
   font-family: "ArcadeClassic";
   src: local("Courier New"), local("monospace");
@@ -32,7 +31,9 @@ body{
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 0;
+  /* Keep the GIF visually behind everything by using negative z-index.
+     This avoids accidental overlap with content that does not declare z-index. */
+  z-index: -1;
   background-image: url('/constant.gif');
   background-size: cover;
   background-position: center;
@@ -209,12 +210,7 @@ body{
   padding: 10px;
   text-decoration: none;
 }
-
-.dropdown-panel .modal-btn-patreon {
-   white-space: normal;
-  word-break: break-word;
-  line-height: 1.25;
-  padding: 10px;
+#patreon {
   text-decoration: none;
   color:var(--accent-2);
 }
@@ -225,6 +221,13 @@ body{
   inset: 0;
   z-index: 65;
   background: transparent;
+}
+
+/* Ensure page wrapper and cards sit above the background GIF.
+   Many standalone pages use .page-wrapper and .card — give them reasonable stacking. */
+.page-wrapper {
+  position: relative;
+  z-index: 50; /* above bg-gif (-1) but below navbar (60) and modals (75) */
 }
 
 /*main container - keep content above bg-gif */
@@ -250,6 +253,8 @@ body{
 
 /*card*/
 .card{
+  position: relative;
+  z-index: 55; /* sit above page-wrapper and bg-gif */
   background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,0.02));
   border-radius:10px;
   padding:18px;

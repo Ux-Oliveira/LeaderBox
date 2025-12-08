@@ -27,7 +27,7 @@ export default function ChooseProfile() {
         return;
       }
       setOpenId(parsed.open_id);
-      if (parsed.nickname) setNickname(parsed.nickname.replace(/^@/, ""));
+      if (parsed.nickname) setNickname(String(parsed.nickname).replace(/^@/, ""));
       if (parsed.avatar) setSelectedAvatar(parsed.avatar);
     } catch (e) {
       setError("Failed reading local profile. Please log in again.");
@@ -46,13 +46,14 @@ export default function ChooseProfile() {
     try {
       const payload = {
         open_id: openId,
-        nickname: nickname,
+        nickname: nickname, // server will sanitize and prefix
         avatar: selectedAvatar,
       };
       const res = await fetch("/api/profile/complete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
+        credentials: "same-origin",
       });
 
       const text = await res.text();
@@ -68,9 +69,22 @@ export default function ChooseProfile() {
 
       const profile = (data && data.profile) ? data.profile : data;
       if (profile) {
-        // Save only the safe subset — saveProfileToLocal will sanitize + persist
-        saveProfileToLocal(profile);
-        // redirect to home to show the profile (or update app state)
+        // Normalize nickname to store client-side WITHOUT leading '@'
+        const cleaned = profile.nickname ? String(profile.nickname).replace(/^@/, "") : null;
+        const safe = {
+          open_id: profile.open_id || openId,
+          nickname: cleaned,
+          avatar: profile.avatar || selectedAvatar,
+          wins: profile.wins || 0,
+          losses: profile.losses || 0,
+          level: profile.level || 1,
+          deck: Array.isArray(profile.deck) ? profile.deck : [],
+        };
+        // Save normalized safe profile locally
+        saveProfileToLocal(safe);
+        // Also set tiktok_profile in case other code reads it
+        localStorage.setItem("tiktok_profile", JSON.stringify(safe));
+        // Redirect to home (client App will fetch server profile on mount too)
         window.location.href = "/";
       } else {
         setError("No profile returned from server.");

@@ -1,25 +1,18 @@
-﻿import express from "express";
+import express from "express";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
-const router = express.Router();
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Use server/data/users.json (deterministic, relative to this file)
+// Use server/data/users.json
 const DATA_DIR = path.join(__dirname, "..", "data");
 const USERS_PATH = path.join(DATA_DIR, "users.json");
 
 function ensureDataFile() {
-  try {
-    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-    if (!fs.existsSync(USERS_PATH)) fs.writeFileSync(USERS_PATH, "[]", "utf8");
-  } catch (e) {
-    console.error("ensureDataFile error:", e);
-    throw e;
-  }
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+  if (!fs.existsSync(USERS_PATH)) fs.writeFileSync(USERS_PATH, "[]", "utf8");
 }
 
 function loadUsers() {
@@ -40,20 +33,36 @@ function saveUsers(users) {
   fs.renameSync(tmp, USERS_PATH);
 }
 
-// helpful startup log so we can confirm which file is used
-console.log("[profile-route] USING USERS_PATH =", USERS_PATH);
+function cleanNick(n) {
+  if (!n && n !== "") return null;
+  return String(n).trim().replace(/^@+/, "");
+}
 
-/**
- * GET /api/profile           -> list all
- * GET /api/profile/:open_id  -> single profile
- * POST /api/profile          -> create or update (body JSON)
- * DELETE /api/profile/:open_id -> delete
- */
+const router = express.Router();
 
-// list all
+// list all or query by nickname/open_id
 router.get("/", (req, res) => {
   try {
     const users = loadUsers();
+    const { nickname, open_id } = req.query;
+
+    if (nickname) {
+      const q = cleanNick(nickname).toLowerCase();
+      const user = users.find(u => {
+        const nick = (u.nickname || "").toString().replace(/^@+/, "").toLowerCase();
+        return nick === q || (u.open_id && String(u.open_id).toLowerCase() === q);
+      });
+      if (!user) return res.status(404).json({ ok: false, error: "not_found" });
+      return res.json({ ok: true, profile: user });
+    }
+
+    if (open_id) {
+      const user = users.find(u => String(u.open_id) === String(open_id));
+      if (!user) return res.status(404).json({ ok: false, error: "not_found" });
+      return res.json({ ok: true, profile: user });
+    }
+
+    // default: return list (beware size on prod)
     return res.json({ ok: true, profiles: users });
   } catch (err) {
     console.error("profile list error:", err);
@@ -61,7 +70,7 @@ router.get("/", (req, res) => {
   }
 });
 
-// single
+// single by open_id path (mounted as /api/profile/:open_id)
 router.get("/:open_id", (req, res) => {
   try {
     const { open_id } = req.params;
@@ -75,35 +84,39 @@ router.get("/:open_id", (req, res) => {
   }
 });
 
-// create or update
+// create or update (POST /api/profile)
 router.post("/", (req, res) => {
   try {
-    const { open_id, nickname, avatar, wins, losses, level, deck } = req.body || {};
+    const body = req.body || {};
+    const open_id = body.open_id || (body.raw && body.raw.data && body.raw.data.open_id);
     if (!open_id) return res.status(400).json({ error: "Missing open_id" });
 
     const users = loadUsers();
-    let user = users.find((u) => u.open_id === open_id);
+    let user = users.find(u => String(u.open_id) === String(open_id));
+
+    const cleanedNick = cleanNick(body.nickname || body.nick || (body.nickname === "" ? "" : undefined));
 
     if (!user) {
       user = {
         open_id,
-        nickname: nickname || `@${open_id}`,
-        avatar: avatar || null,
-        wins: Number.isFinite(wins) ? parseInt(wins, 10) : 0,
-        losses: Number.isFinite(losses) ? parseInt(losses, 10) : 0,
-        level: Number.isFinite(level) ? parseInt(level, 10) : 1,
-        deck: Array.isArray(deck) ? deck : [],
+        // store nickname WITHOUT leading @
+        nickname: cleanedNick ? cleanedNick : String(open_id),
+        avatar: body.avatar || body.pfp || null,
+        wins: Number.isFinite(body.wins) ? parseInt(body.wins, 10) : 0,
+        losses: Number.isFinite(body.losses) ? parseInt(body.losses, 10) : 0,
+        level: Number.isFinite(body.level) ? parseInt(body.level, 10) : 1,
+        deck: Array.isArray(body.deck) ? body.deck : [],
         created_at: Date.now(),
         updated_at: Date.now(),
       };
       users.push(user);
     } else {
-      if (nickname !== undefined) user.nickname = nickname;
-      if (avatar !== undefined) user.avatar = avatar;
-      if (wins !== undefined) user.wins = Number.isFinite(wins) ? parseInt(wins, 10) : user.wins;
-      if (losses !== undefined) user.losses = Number.isFinite(losses) ? parseInt(losses, 10) : user.losses;
-      if (level !== undefined) user.level = Number.isFinite(level) ? parseInt(level, 10) : user.level;
-      if (deck !== undefined) user.deck = Array.isArray(deck) ? deck : user.deck;
+      if (cleanedNick !== undefined && cleanedNick !== null) user.nickname = cleanedNick;
+      if (body.avatar !== undefined) user.avatar = body.avatar;
+      if (body.wins !== undefined) user.wins = Number.isFinite(body.wins) ? parseInt(body.wins, 10) : user.wins;
+      if (body.losses !== undefined) user.losses = Number.isFinite(body.losses) ? parseInt(body.losses, 10) : user.losses;
+      if (body.level !== undefined) user.level = Number.isFinite(body.level) ? parseInt(body.level, 10) : user.level;
+      if (body.deck !== undefined) user.deck = Array.isArray(body.deck) ? body.deck : user.deck;
       user.updated_at = Date.now();
     }
 
@@ -115,12 +128,12 @@ router.post("/", (req, res) => {
   }
 });
 
-// delete
+// delete by open_id
 router.delete("/:open_id", (req, res) => {
   try {
     const { open_id } = req.params;
     const users = loadUsers();
-    const filtered = users.filter((u) => u.open_id !== open_id);
+    const filtered = users.filter((u) => String(u.open_id) !== String(open_id));
     if (filtered.length === users.length) return res.status(404).json({ error: "not_found" });
     saveUsers(filtered);
     return res.json({ ok: true });

@@ -1,4 +1,3 @@
-// src/App.jsx
 import React, { useState, useEffect } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
 
@@ -12,16 +11,18 @@ import Rules from "./pages/Rules";
 import ProfilePage from "./pages/ProfilePage";
 import ProfileModal from "./components/ProfileModal";
 import TikTokCallback from "./pages/TikTokCallback"; // TikTok OAuth callback
-
-// NEW: ChooseProfile page (create src/pages/ChooseProfile.jsx as I gave earlier)
 import ChooseProfile from "./pages/ChooseProfile";
+import Terms from "./pages/Terms";
+import Privacy from "./pages/Privacy";
+
+import { loadProfileFromLocal, saveProfileToLocal } from "./lib/profileLocal";
+import { fetchProfileByOpenId } from "./lib/api";
 
 export default function App() {
   const [user, setUser] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const nav = useNavigate();
 
-  // Try to fetch user profile if token exists; otherwise try localStorage-saved profile
   useEffect(() => {
     const token = localStorage.getItem("md_token");
 
@@ -43,29 +44,62 @@ export default function App() {
       return;
     }
 
-    // Fallback: load stored profile from localStorage (saved by TikTokCallback or ProfileModal)
     try {
       const raw = localStorage.getItem("stored_profile") || localStorage.getItem("tiktok_profile");
       if (raw) {
         const p = JSON.parse(raw);
 
         const normalized = {
+          open_id: p.open_id || p.openId || (p.raw && p.raw.data?.open_id) || null,
           nickname:
             p.nickname ||
-            p.raw?.data?.user?.display_name ||
-            p.raw?.data?.display_name ||
-            "TikTok user",
-          pfp: p.pfp || p.raw?.data?.user?.avatar_large || p.raw?.data?.user?.avatar || null,
+            (p.raw && (p.raw.data?.user?.display_name || p.raw.data?.display_name)) ||
+            null,
+          pfp: p.pfp || p.avatar || (p.raw && (p.raw.data?.user?.avatar || null)) || null,
           email: p.email || "",
           wins: p.wins || 0,
           losses: p.losses || 0,
+          level: p.level || 1,
           raw: p.raw || p,
         };
 
         setUser(normalized);
+
+        if (normalized.open_id) {
+          (async () => {
+            try {
+              const resp = await fetchProfileByOpenId(normalized.open_id);
+              if (resp.ok && resp.profile) {
+                const server = resp.profile;
+                const cleaned = server.nickname ? String(server.nickname).replace(/^@/, "") : null;
+                const safe = {
+                  open_id: server.open_id,
+                  nickname: cleaned,
+                  avatar: server.avatar || server.pfp || normalized.pfp,
+                  wins: server.wins || 0,
+                  losses: server.losses || 0,
+                  level: server.level || 1,
+                  deck: Array.isArray(server.deck) ? server.deck : [],
+                };
+                saveProfileToLocal(safe);
+                setUser({
+                  open_id: safe.open_id,
+                  nickname: safe.nickname,
+                  pfp: safe.avatar,
+                  wins: safe.wins,
+                  losses: safe.losses,
+                  level: safe.level,
+                });
+              }
+            } catch (e) {
+              console.warn("Failed to refresh server profile:", e);
+            }
+          })();
+        }
+
+        return;
       }
     } catch (e) {
-      // ignore parse errors
       console.warn("Failed to parse stored profile:", e);
     }
   }, []);
@@ -78,7 +112,6 @@ export default function App() {
   function handleLogout() {
     setUser(null);
     localStorage.removeItem("md_token");
-    // clear our profile storage keys too
     localStorage.removeItem("tiktok_profile");
     localStorage.removeItem("stored_profile");
     localStorage.removeItem("tiktok_tokens");
@@ -89,6 +122,9 @@ export default function App() {
     <>
       <NavBar user={user} onOpenProfile={() => setModalOpen(true)} />
 
+      {/* Single persistent background GIF for the entire app */}
+      <div className="bg-gif" aria-hidden="true" />
+
       <div className="app-container">
         <Routes>
           <Route path="/" element={<Landing />} />
@@ -96,13 +132,21 @@ export default function App() {
           <Route path="/login" element={<Login onLogin={(u, t) => handleLogin(u, t)} />} />
           <Route path="/duel" element={<Duel />} />
           <Route path="/rules" element={<Rules />} />
+
+          {/* profile — local/current user */}
           <Route path="/profile" element={<ProfilePage user={user} />} />
+          {/* shareable profile links */}
+          <Route path="/profile/:id" element={<ProfilePage />} />
 
           {/* TikTok OAuth callback */}
           <Route path="/auth/tiktok/callback" element={<TikTokCallback />} />
 
-          {/* NEW: ChooseProfile route — user completes nickname + avatar here */}
+          {/* ChooseProfile */}
           <Route path="/choose-profile" element={<ChooseProfile />} />
+
+          {/* NEW */}
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/privacy" element={<Privacy />} />
         </Routes>
       </div>
 
@@ -124,13 +168,6 @@ export default function App() {
         }}
       >
         <br />
-        <a href="/privacy.html" target="_blank" style={{ color: "#66aaff" }}>
-          Privacy Policy
-        </a>{" "}
-        •{" "}
-        <a href="/terms.html" target="_blank" style={{ color: "#66aaff" }}>
-          Terms of Service
-        </a>
       </footer>
     </>
   );

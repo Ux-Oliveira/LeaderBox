@@ -1,45 +1,103 @@
+// src/pages/Login.jsx
 import React from "react";
-import { v4 as uuidv4 } from "uuid";
 
-function base64urlencode(str) {
-  return btoa(String.fromCharCode.apply(null, new Uint8Array(str)))
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
+function getRuntimeEnv(varName, fallback = "") {
+  if (typeof window !== "undefined" && window.__ENV && window.__ENV[varName]) {
+    return window.__ENV[varName];
+  }
+  if (typeof window !== "undefined" && typeof import.meta !== "undefined" && import.meta.env && import.meta.env[varName]) {
+    return import.meta.env[varName];
+  }
+  return fallback;
 }
 
-async function generateCodeChallenge(verifier) {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(verifier);
-  const digest = await crypto.subtle.digest("SHA-256", data);
-  return base64urlencode(digest);
-}
+export default function Login() {
+  const CLIENT_KEY = getRuntimeEnv("VITE_TIKTOK_CLIENT_KEY", "");
+  const REDIRECT_URI = getRuntimeEnv("VITE_TIKTOK_REDIRECT_URI", "");
+  const SCOPES = "user.info.basic";
 
-function generateCodeVerifier() {
-  const array = new Uint8Array(32);
-  crypto.getRandomValues(array);
-  return base64urlencode(array);
-}
+  if (!CLIENT_KEY) console.error("❌ ERROR: VITE_TIKTOK_CLIENT_KEY not loaded.");
+  if (!REDIRECT_URI) console.error("❌ ERROR: VITE_TIKTOK_REDIRECT_URI not loaded.");
 
-export default function TikTokLoginButton() {
-  const handleLogin = async () => {
-    const codeVerifier = generateCodeVerifier();
-    const state = uuidv4();
+  function generateState(length = 32) {
+    const array = new Uint8Array(length);
+    window.crypto.getRandomValues(array);
+    return Array.from(array, (dec) => ("0" + dec.toString(16)).slice(-2)).join("");
+  }
 
-    sessionStorage.setItem("tiktok_code_verifier", codeVerifier);
+  function base64urlEncode(arrayBuffer) {
+    const bytes = new Uint8Array(arrayBuffer);
+    let binary = "";
+    for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+    return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+
+  function generateCodeVerifier(length = 64) {
+    const array = new Uint8Array(length);
+    window.crypto.getRandomValues(array);
+    // use random bytes hex -> good entropy
+    return Array.from(array, (b) => ("0" + b.toString(16)).slice(-2)).join("");
+  }
+
+  async function createCodeChallenge(codeVerifier) {
+    const encoder = new TextEncoder();
+    const digest = await window.crypto.subtle.digest("SHA-256", encoder.encode(codeVerifier));
+    return base64urlEncode(digest);
+  }
+
+  async function startTikTokLogin() {
+    if (!CLIENT_KEY || !REDIRECT_URI) {
+      alert("TikTok configuration missing. Check console for details.");
+      return;
+    }
+
+    const state = generateState(24);
+    const codeVerifier = generateCodeVerifier(64);
+    const codeChallenge = await createCodeChallenge(codeVerifier);
+
+    // store for callback verification
     sessionStorage.setItem("tiktok_oauth_state", state);
+    sessionStorage.setItem("tiktok_code_verifier", codeVerifier);
 
-    const codeChallenge = await generateCodeChallenge(codeVerifier);
+    console.log("PKCE state (stored):", state);
+    console.log("PKCE code_verifier (stored):", codeVerifier);
+    console.log("PKCE code_challenge (sent):", codeChallenge);
+    console.log("Redirect URI (sent):", REDIRECT_URI);
 
-    const CLIENT_KEY = import.meta.env.VITE_TIKTOK_CLIENT_KEY;
-    const REDIRECT_URI = import.meta.env.VITE_TIKTOK_REDIRECT_URI;
+    const params = new URLSearchParams({
+      client_key: CLIENT_KEY,
+      response_type: "code",
+      scope: SCOPES,
+      redirect_uri: REDIRECT_URI,
+      state,
+      code_challenge: codeChallenge,
+      code_challenge_method: "S256",
+    });
 
-    const authUrl = `https://www.tiktok.com/v2/auth/authorize?client_key=${CLIENT_KEY}&response_type=code&scope=user.info.basic&redirect_uri=${encodeURIComponent(
-      REDIRECT_URI
-    )}&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`;
+    window.location.href = `https://www.tiktok.com/v2/auth/authorize?${params.toString()}`;
+  }
 
-    window.location.href = authUrl;
-  };
-
-  return <button onClick={handleLogin}>Login with TikTok</button>;
+  return (
+    <div style={{ maxWidth: 560, margin: "40px auto", padding: 24 }}>
+      <h2>Log in</h2>
+      <p>Click below to continue with TikTok</p>
+      <button
+        onClick={startTikTokLogin}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 12,
+          padding: "10px 16px",
+          borderRadius: 8,
+          border: "none",
+          cursor: "pointer",
+          background: "#010101",
+          color: "white",
+          fontWeight: 600,
+        }}
+      >
+        Continue with TikTok
+      </button>
+    </div>
+  );
 }

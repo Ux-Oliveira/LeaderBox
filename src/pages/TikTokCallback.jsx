@@ -1,4 +1,3 @@
-// src/pages/TikTokCallback.jsx
 import React, { useEffect, useState } from "react";
 
 function getRuntimeEnv(varName, fallback = "") {
@@ -60,13 +59,11 @@ export default function TikTokCallback() {
           credentials: "same-origin",
         });
 
-        // read raw text first for robust debugging
         const raw = await res.text();
         let data = null;
         try {
           data = JSON.parse(raw);
         } catch (e) {
-          // Not JSON — show server response for debugging
           console.error("Exchange returned non-JSON:", raw);
           setStatus("error");
           setMessage(`Exchange returned non-JSON: ${raw.slice(0, 1000)}`);
@@ -92,9 +89,17 @@ export default function TikTokCallback() {
 
         // server may return profile in data.profile
         let serverProfile = data.profile || null;
-        if (serverProfile && serverProfile.profile) serverProfile = serverProfile.profile; // be defensive
+        if (serverProfile && serverProfile.profile) serverProfile = serverProfile.profile; // defensive
 
-        // if serverProfile exists, normalize fields we use (nickname + avatar)
+        // derive open_id from possible places
+        const open_id =
+          (serverProfile && (serverProfile.open_id || serverProfile.data?.open_id || serverProfile.raw?.data?.open_id)) ||
+          tokens?.open_id ||
+          tokens?.data?.open_id ||
+          (data.profile && data.profile.open_id) ||
+          null;
+
+        // Normalize server profile fields if present
         const normalizedFromServer = serverProfile
           ? {
               open_id: serverProfile.open_id || serverProfile.data?.open_id || serverProfile.raw?.data?.open_id || null,
@@ -104,42 +109,68 @@ export default function TikTokCallback() {
             }
           : null;
 
-        // store client-side immediately if server provided profile
-        if (normalizedFromServer) {
+        // If server returned a profile with nickname+avatar, persist and continue to home
+        if (normalizedFromServer && normalizedFromServer.nickname && normalizedFromServer.avatar) {
           localStorage.setItem("tiktok_profile", JSON.stringify(normalizedFromServer));
-        }
-
-        // Finally: determine whether we need to force the "choose nickname + avatar" step.
-        // We'll redirect to /choose-profile if either nickname or avatar missing.
-        const clientProfileRaw = localStorage.getItem("tiktok_profile");
-        const clientProfile = clientProfileRaw ? JSON.parse(clientProfileRaw) : null;
-
-        const hasNickname = (clientProfile && clientProfile.nickname) || (normalizedFromServer && normalizedFromServer.nickname);
-        const hasAvatar = (clientProfile && (clientProfile.avatar || clientProfile.pfp)) || (normalizedFromServer && normalizedFromServer.avatar);
-
-        // If either missing -> go to choose-profile page to complete account
-        if (!hasNickname || !hasAvatar) {
-          console.log("Redirecting user to choose-profile to complete account (nickname/avatar missing)");
-          // Save minimal token/open_id to local storage for the choose-profile page to read
-          const open_id = normalizedFromServer?.open_id || tokens?.open_id || tokens?.data?.open_id || (data.profile && data.profile.open_id) || null;
-          const minimal = {
-            open_id,
-            nickname: normalizedFromServer?.nickname || null,
-            avatar: normalizedFromServer?.avatar || null,
-            raw: normalizedFromServer?.raw || data.profile || data.tokens || data,
-          };
-          localStorage.setItem("tiktok_profile", JSON.stringify(minimal));
-          // Navigate to choose-profile route
-          window.location.href = "/choose-profile";
+          setStatus("success");
+          setMessage("Logged in. Redirecting…");
+          setTimeout(() => window.location.href = data.redirectUrl || "/", 700);
           return;
         }
 
-        // otherwise continue to home (or redirectUrl if provided)
-        setStatus("success");
-        setMessage("Logged in successfully. Redirecting...");
-        setTimeout(() => {
-          window.location.href = data.redirectUrl || "/";
-        }, 700);
+        // IMPORTANT: If TikTok token response didn't include profile/nickname/avatar,
+        // query our server's /api/profile with the open_id — maybe we already have a profile saved.
+        if (open_id) {
+          try {
+            console.log("Checking server for existing profile open_id=", open_id);
+            const pRes = await fetch(`/api/profile?open_id=${encodeURIComponent(open_id)}`, { credentials: "same-origin" });
+            if (pRes.ok) {
+              const pText = await pRes.text();
+              let pJson = null;
+              try { pJson = JSON.parse(pText); } catch (e) { pJson = null; }
+              const serverStored = pJson && (pJson.profile || (pJson.profiles ? pJson.profiles.find(() => true) : null));
+              // pJson.profile is expected for single-query
+              const profileObj = pJson && pJson.profile ? pJson.profile : null;
+              if (profileObj) {
+                // If server profile has nickname and avatar -> use it and skip choose-profile
+                if (profileObj.nickname && profileObj.avatar) {
+                  const safe = {
+                    open_id: profileObj.open_id,
+                    nickname: profileObj.nickname.replace(/^@/, ""),
+                    avatar: profileObj.avatar,
+                    wins: profileObj.wins || 0,
+                    losses: profileObj.losses || 0,
+                    level: profileObj.level || 1,
+                    raw: profileObj,
+                  };
+                  localStorage.setItem("tiktok_profile", JSON.stringify(safe));
+                  setStatus("success");
+                  setMessage("Logged in (existing account). Redirecting…");
+                  setTimeout(() => window.location.href = data.redirectUrl || "/", 700);
+                  return;
+                }
+              }
+            } else {
+              console.log("/api/profile responded not-ok when checking existing profile");
+            }
+          } catch (errCheck) {
+            console.warn("Error checking server profile:", errCheck);
+            // fallthrough to choose-profile
+          }
+        }
+
+        // If we reach here — we do not have nickname/avatar from server or TikTok.
+        // Save a minimal profile to localStorage for choose-profile page to use.
+        console.log("Redirecting user to choose-profile to complete account (nickname/avatar missing)");
+        const minimal = {
+          open_id,
+          nickname: normalizedFromServer?.nickname || null,
+          avatar: normalizedFromServer?.avatar || null,
+          raw: normalizedFromServer?.raw || data.profile || data.tokens || data,
+        };
+        localStorage.setItem("tiktok_profile", JSON.stringify(minimal));
+        window.location.href = "/choose-profile";
+        return;
       } catch (err) {
         console.error("Exchange exception:", err);
         setStatus("error");
