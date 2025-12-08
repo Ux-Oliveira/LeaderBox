@@ -121,7 +121,7 @@ export default function EditStack({ user }) {
       <NavBar user={user} />
       <div className="editstack-root">
         <div className="center-stage">
-          <img src="/bar.png" alt="bar" className="bar-image" />
+          <img src="/bar.gif" alt="bar" className="bar-image" />
           <div className="bar-overlay">
             <h1>Choose your 4 favorite movies</h1>
             <p className="subtitle">Pick the deck that defines your taste.</p>
