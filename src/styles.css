@@ -31,14 +31,12 @@ body{
   left: 0;
   right: 0;
   bottom: 0;
-  /* Keep the GIF visually behind everything by using negative z-index.
-     This avoids accidental overlap with content that does not declare z-index. */
   z-index: -1;
   background-image: url('/constant.gif');
   background-size: cover;
   background-position: center;
-  opacity: 0.18; /* subtle — tune as needed */
-  pointer-events: none; /* so it never captures clicks */
+  opacity: 0.18;
+  pointer-events: none;
 }
 
 /*navbar*/
@@ -78,46 +76,31 @@ body{
 .brand-title { font-size:14px; color:var(--accent); font-weight:900; }
 
 /* nav area holding icons and buttons */
-.navRight {
-  display:flex;
-  align-items:center;
-  gap:12px;
-}
-
-/* navLinks: allow items to flow naturally (no tiny boxes) */
+.navRight { display:flex; align-items:center; gap:12px; }
 .navLinks{display:flex;gap:12px;align-items:center}
 
-/* nav-icon - NOT boxed: allow natural sizing, white icons, hover feedback */
+/* nav-icon */
 .nav-icon {
   display:inline-flex;
   align-items:center;
   justify-content:center;
   padding:6px 8px;
-  font-size:22px;          /* increased icon size */
+  font-size:22px;
   color:var(--white);
   text-decoration:none;
-  border-radius:6px;       /* subtle radius only for hover background */
+  border-radius:6px;
   background: transparent;
   cursor:pointer;
   border: none;
   transition: transform 160ms ease, color 160ms ease, background 160ms ease;
 }
-
-/* lighter hover: accent + gentle scale, background subtle */
 .nav-icon:hover {
   color: var(--accent);
   transform: scale(1.06);
   background: rgba(255,255,255,0.03);
 }
+.nav-icon img.icon-gif { width:29px; height:29px; display:block; }
 
-/* duel gif: match the icon height, no forced square */
-.nav-icon img.icon-gif {
-  width:29px;
-  height:29px;
-  display:block;
-}
-
-/* signup/login keep their styles but slightly adjusted to fit new spacing */
 .nav-signup {
   background: #000;
   color: var(--white);
@@ -144,7 +127,7 @@ body{
   display:flex;
   align-items:center;
   justify-content:center;
-  flex-direction: column; /* ensure bars stack vertically */
+  flex-direction: column;
   border-radius:8px;
   cursor:pointer;
   position:relative;
@@ -153,19 +136,7 @@ body{
   color:var(--white);
   padding: 4px 6px;
 }
-
-/* vertical stacked bars (one above the other) */
-.hamburger .bar {
-  display:block;
-  width:22px;
-  height:3px;         /* slightly thicker */
-  background:currentColor;
-  margin:3px 0;
-  border-radius:2px;
-  box-shadow: 0 1px 0 rgba(0,0,0,0.25);
-}
-
-/* animated glare overlay moving left->right */
+.hamburger .bar { display:block; width:22px; height:3px; background:currentColor; margin:3px 0; border-radius:2px; box-shadow: 0 1px 0 rgba(0,0,0,0.25); }
 .hamburger::after{
   content: "";
   position: absolute;
@@ -179,14 +150,9 @@ body{
   opacity:0.7;
   animation: glareMove 2.6s linear infinite;
 }
+@keyframes glareMove { 0% { left: -60%; } 100% { left: 160%; } }
 
-/* softer glare on desktop; more aggressive on profile knob (separate rules) */
-@keyframes glareMove {
-  0% { left: -60%; }
-  100% { left: 160%; }
-}
-
-/* dropdown menu panel (transparent like profile modal) */
+/* dropdown panel */
 .dropdown-panel {
   position: absolute;
   right: 12px;
@@ -201,36 +167,16 @@ body{
   box-shadow: 0 8px 30px rgba(0,0,0,0.45);
   box-sizing: border-box;
 }
+.dropdown-panel .modal-btn { white-space: normal; word-break: break-word; line-height: 1.25; padding: 10px; text-decoration: none; }
+#patreon { text-decoration: none; color:var(--accent-2); }
 
-/* make modal buttons wrap and breathe */
-.dropdown-panel .modal-btn {
-  white-space: normal;
-  word-break: break-word;
-  line-height: 1.25;
-  padding: 10px;
-  text-decoration: none;
-}
-#patreon {
-  text-decoration: none;
-  color:var(--accent-2);
-}
+/* click overlay */
+.click-overlay { position: fixed; inset: 0; z-index: 65; background: transparent; }
 
-/* transparent overlay behind dropdown used to detect outside clicks */
-.click-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 65;
-  background: transparent;
-}
+/* page wrapper */
+.page-wrapper { position: relative; z-index: 50; }
 
-/* Ensure page wrapper and cards sit above the background GIF.
-   Many standalone pages use .page-wrapper and .card — give them reasonable stacking. */
-.page-wrapper {
-  position: relative;
-  z-index: 50; /* above bg-gif (-1) but below navbar (60) and modals (75) */
-}
-
-/*main container - keep content above bg-gif */
+/*main container*/
 .app-container{padding-top:88px; max-width:1200px;margin:0 auto;padding-left:20px;padding-right:20px; position: relative; z-index: 50}
 
 /*heading style*/
@@ -245,16 +191,12 @@ body{
 }
 
 /*subtitle*/
-.subtitle{
-  color:rgba(255,255,255,0.9);
-  margin-bottom:18px;
-  font-size:15px;
-}
+.subtitle{ color:rgba(255,255,255,0.9); margin-bottom:18px; font-size:15px; }
 
 /*card*/
 .card{
   position: relative;
-  z-index: 55; /* sit above page-wrapper and bg-gif */
+  z-index: 55;
   background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,0.02));
   border-radius:10px;
   padding:18px;
@@ -263,25 +205,10 @@ body{
 }
 
 /*video section*/
-.video-section{
-  margin-top:28px;
-  height:360px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  position:relative;
-  z-index: 10;
-}
-.video-section video{
-  width:100%;
-  height:100%;
-  object-fit:cover;
-  border-radius:10px;
-  opacity:0.95;
-  filter: contrast(0.95) saturate(0.9);
-}
+.video-section{ margin-top:28px; height:360px; display:flex; align-items:center; justify-content:center; position:relative; z-index: 10; }
+.video-section video{ width:100%; height:100%; object-fit:cover; border-radius:10px; opacity:0.95; filter: contrast(0.95) saturate(0.9); }
 
-/*duel button stylized*/
+/*duel button stylized (generic)*/
 .duel-button{
   position:absolute;
   left:50%;
@@ -298,26 +225,9 @@ body{
   cursor:pointer;
 }
 
-/*support section pinned bottom and full width with layout corrected */
-.support {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 55;
-  padding: 12px 20px;
-  display:flex;
-  justify-content:center;
-}
-.support .card {
-  width: calc(100% - 40px);
-  max-width: 1200px;
-  display:flex;
-  align-items:center;
-  gap:12px;
-}
-
-/* left and right groups inside support bar */
+/*support section pinned bottom */
+.support { position: fixed; left: 0; right: 0; bottom: 0; z-index: 55; padding: 12px 20px; display:flex; justify-content:center; }
+.support .card { width: calc(100% - 40px); max-width: 1200px; display:flex; align-items:center; gap:12px; }
 .support .left, .support .right { display:flex; align-items:center; gap:8px; }
 .support .left { justify-content:flex-start; }
 .support .right { margin-left:auto; justify-content:flex-end; gap:8px; }
@@ -325,7 +235,7 @@ body{
 /* small text */
 .small{font-size:13px;color:rgba(255,255,255,0.8)}
 
-/*profile modal*/
+/*profile modal (side) - unchanged; used elsewhere */
 .profile-modal {
   position:fixed;
   left:-340px;
@@ -344,7 +254,7 @@ body{
 }
 .profile-modal.open { left:0; }
 
-/*persistent knob -> now a more aggressive yellow glare and disappears when modal opens */
+/* profile knob */
 .profile-knob {
   position:fixed;
   left:0;
@@ -364,8 +274,6 @@ body{
   box-shadow: 0 8px 30px rgba(0,0,0,0.25);
   border: 1px solid rgba(0,0,0,0.08);
 }
-
-/* aggressive glare for profile knob */
 .profile-knob::after{
   content: "";
   position: absolute;
@@ -380,7 +288,7 @@ body{
   animation: glareMove 1.4s linear infinite;
 }
 
-/*pfp - no square constraint, larger */
+/* pfp helper (used by ProfileModal) */
 .pfp {
   width:96px;height:96px;border-radius:999px;border:3px solid rgba(255,255,255,0.08);overflow:hidden;
   display:flex;align-items:center;justify-content:center;background:#222;
@@ -415,19 +323,10 @@ body{
   .support{flex-direction:column;align-items:flex-start}
   .video-section{height:260px}
   .profile-modal{width:86%; left:-92%}
-
-  /* mobile navbar layout: hide logo and left-side h1s and brand text */
   .brand { display:none; }
-
-  /* center nav items: make navRight span whole width and center children */
   .navRight { width:100%; display:flex; justify-content:center; align-items:center; gap:12px; padding:0 12px; }
   .navLinks { margin:0; justify-content:center; display:flex; gap:12px; align-items:center; }
-
-  /* hide signup/login on mobile (only icons + hamburger remain) */
   .nav-signup, .nav-login { display:none !important; }
-
-  /* Dropdown adjustments on mobile: anchor to RIGHT and give comfortable width so text isn't squished.
-     It will float from the right edge with a width up to 320px or 86vw (whichever is smaller). */
   .dropdown-panel {
     position: fixed;
     top: 64px;
@@ -440,16 +339,46 @@ body{
     z-index: 140;
     box-shadow: 0 10px 40px rgba(0,0,0,0.55);
   }
-
-  /* make modal buttons taller and more readable on mobile */
-  .dropdown-panel .modal-btn {
-    padding: 12px;
-    font-size: 15px;
-    text-align: left;
-  }
+  .dropdown-panel .modal-btn { padding: 12px; font-size: 15px; text-align: left; }
 }
 
-/* Landing-specific push down for heading (applied when .landing wrapper present) */
-.landing .h1-retro {
-  margin-top: 36px;
+/* Landing-specific push down for heading */
+.landing .h1-retro { margin-top: 36px; }
+
+/* -------------------------
+   Custom scrollbar for Duel
+   (single rectangular light purple node)
+   Targets only container with class .profiles-scroll
+   ------------------------- */
+.profiles-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #B19CD9 transparent; /* Firefox */
+}
+
+/* WebKit browsers */
+.profiles-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.profiles-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.profiles-scroll::-webkit-scrollbar-thumb {
+  background-color: #B19CD9; /* light purple */
+  border-radius: 6px;        /* slightly rounded rectangular node */
+  border: 1px solid rgba(0,0,0,0.08);
+  min-height: 32px;
+}
+/* subtle hover */
+.profiles-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: #C8A2C8;
+}
+
+/* Optional: ensure scrollbars don't get dramatic shadows */
+.profiles-scroll::-webkit-scrollbar-thumb:active { filter: none; }
+
+/* Keep it discreet on very small screens */
+@media (max-width:480px){
+  .profiles-scroll::-webkit-scrollbar { width: 6px; }
+  .profiles-scroll::-webkit-scrollbar-thumb { border-radius:4px; }
 }
