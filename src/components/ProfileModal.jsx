@@ -238,7 +238,7 @@ export default function ProfileModal({
 
           <hr style={{ borderColor: "rgba(255,255,255,0.04)" }} />
 
-          <button className="modal-btn" onClick={() => (window.location.href = "/profile")}>Edit Stack</button>
+          <button className="modal-btn" onClick={() => (window.location.href = "./pages/EditStack")}>Edit Stack</button>
 
           <div style={{ padding: "8px", borderRadius: 8, background: "rgba(0,0,0,0.15)" }}>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
@@ -313,3 +313,4 @@ export default function ProfileModal({
     </>
   );
 }
+
