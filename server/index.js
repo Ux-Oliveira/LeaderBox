@@ -9,7 +9,7 @@ import cookieParser from "cookie-parser";
 import profileRoutes from "./routes/profile.js";
 import { exchangeTikTokCode } from "./tiktok.js";
 import tiktokCallbackRouter from "./api/auth/tiktok/callback.js";
-import letterboxdRouter from "./routes/letterboxd.js"; // ✅ import Letterboxd router
+import letterboxdRouter from "./routes/letterboxd.js"; 
 
 dotenv.config();
 
@@ -123,4 +123,5 @@ app.listen(PORT, HOST, () => {
   console.log(`Server listening on http://${HOST}:${PORT}  (PID ${process.pid})`);
   console.log(">>> Server ready, test: curl http://127.0.0.1:4000/api/profile");
 });
+
 
