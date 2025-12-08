@@ -21,7 +21,7 @@ console.log(">>> index.js loaded from", __filename);
 console.log(">>> cwd:", process.cwd());
 
 const app = express();
-const PORT = Number(process.env.PORT || 4000);
+const PORT = Number(process.env.PORT || 4001);
 const HOST = process.env.HOST || "127.0.0.1";
 
 // middlewares
@@ -123,3 +123,4 @@ app.listen(PORT, HOST, () => {
   console.log(`Server listening on http://${HOST}:${PORT}  (PID ${process.pid})`);
   console.log(">>> Server ready, test: curl http://127.0.0.1:4000/api/profile");
 });
+
