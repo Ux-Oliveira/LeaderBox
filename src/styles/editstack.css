@@ -196,7 +196,7 @@
 /* LEVEL AREA: positioned inside the bar-block at its bottom */
 .level-area {
   position: absolute;
-  bottom: -140px; /* push lower relative to .bar-overlay so it visually sits inside the bar */
+  bottom: -150px; /* push lower relative to .bar-overlay so it visually sits inside the bar */
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -211,8 +211,8 @@
 
 /* level image size adjusted to fit inside the lower bar area */
 .level-image {
-  width: 220px;           /* desktop size */
-  height: 220px;
+  width: 320px;           /* desktop size */
+  height: 320px;
   margin-top: 50px;
   object-fit: contain;
   display: block;
