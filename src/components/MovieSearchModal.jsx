@@ -3,13 +3,11 @@ import React, { useEffect, useState } from "react";
 /*
   MovieSearchModal
   - open (bool), onClose(), onSelect(movie)
-  - Will try to read API key from:
-      1) localStorage 'tmdb_api_key'
-      2) window.__ENV?.TMDB_API_KEY
-    If not present, it shows a small input to paste/store the API key locally.
-  - Uses TMDB Search API when key present.
-  - Returns a normalized movie object with fields:
-      { id, title, overview, poster_path (full url), vote_average, popularity, genre_ids }
+  - Behavior:
+      1) If a client-side saved key exists (localStorage 'tmdb_api_key') use it.
+      2) Else, if the app has a PUBLIC env var (process.env.NEXT_PUBLIC_TMDB_API_KEY) use that.
+      3) Else, if a server proxy '/api/tmdb_search' exists, call it (preferred for production).
+      4) Otherwise show input to paste/save an API key to localStorage.
 */
 
 const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w342";
@@ -17,6 +15,14 @@ const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w342";
 function getStoredKey() {
   if (typeof window === "undefined") return null;
   if (window.__ENV && window.__ENV.TMDB_API_KEY) return window.__ENV.TMDB_API_KEY;
+  try {
+    // process.env.* is replaced at build-time for many setups (Next/Vite). Use it if present.
+    if (typeof process !== "undefined" && process.env && process.env.NEXT_PUBLIC_TMDB_API_KEY) {
+      return process.env.NEXT_PUBLIC_TMDB_API_KEY;
+    }
+  } catch (e) {
+    // ignore
+  }
   return localStorage.getItem("tmdb_api_key");
 }
 
@@ -36,15 +42,51 @@ export default function MovieSearchModal({ open, onClose, onSelect }) {
 
   async function doSearch(q) {
     if (!q || q.trim().length < 1) return;
-    const key = apiKey || getStoredKey();
-    if (!key) {
-      setError("No TMDB API key set. Paste one above and click 'Save key'.");
-      return;
-    }
+
+    // Decide search path:
+    // 1) If a server proxy exists, use it (recommended).
+    // 2) Else if we have an API key available for client, call TMDb directly.
     setError("");
     setLoading(true);
     setResults([]);
+
+    // prefer server proxy
+    const useServerProxy = true; // set true to prefer proxy; change if you want direct calls
     try {
+      if (useServerProxy) {
+        // call your serverless endpoint which will call TMDb using server-only env var
+        const res = await fetch(`/api/tmdb_search?q=${encodeURIComponent(q)}`);
+        if (!res.ok) {
+          const txt = await res.text();
+          setError(`Search proxy error: ${res.status} ${txt}`);
+          setLoading(false);
+          return;
+        }
+        const data = await res.json();
+        const items = Array.isArray(data.results) ? data.results : [];
+        const normalized = items.map(it => ({
+          id: it.id,
+          title: it.title || it.name,
+          overview: it.overview,
+          poster_path: it.poster_path ? (TMDB_IMAGE_BASE + it.poster_path) : null,
+          vote_average: it.vote_average,
+          popularity: it.popularity,
+          release_date: it.release_date,
+          genre_ids: it.genre_ids || []
+        }));
+        setResults(normalized);
+        setLoading(false);
+        return;
+      }
+
+      // fallback: client-side direct call to TMDb (requires NEXT_PUBLIC_TMDB_API_KEY or local key)
+      const key = apiKey || getStoredKey();
+      if (!key) {
+        setError("No TMDB API key set. Paste one above and click 'Save key'.");
+        setLoading(false);
+        return;
+      }
+
       const url = `https://api.themoviedb.org/3/search/movie?api_key=${encodeURIComponent(key)}&query=${encodeURIComponent(q)}&page=1&include_adult=false`;
       const res = await fetch(url);
       if (!res.ok) {
@@ -55,7 +97,6 @@ export default function MovieSearchModal({ open, onClose, onSelect }) {
       }
       const data = await res.json();
       const items = Array.isArray(data.results) ? data.results : [];
-      // Normalize results
       const normalized = items.map(it => ({
         id: it.id,
         title: it.title || it.name,
@@ -86,7 +127,6 @@ export default function MovieSearchModal({ open, onClose, onSelect }) {
   }
 
   function handleSelect(m) {
-    // Return the movie object to the parent. Parent will store it in deck.
     onSelect && onSelect(m);
   }
 
@@ -104,7 +144,7 @@ export default function MovieSearchModal({ open, onClose, onSelect }) {
           {!apiKey ? (
             <>
               <input
-                placeholder="Paste your TMDB API key here"
+                placeholder="Paste your TMDB API key here (optional if you use server proxy)"
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
                 className="ms-input"
