@@ -235,11 +235,10 @@ export default function ProfilePage({ user: userProp = null }) {
   return (
     <div style={{ maxWidth: 820, margin: "40px auto", padding: 24, position: "relative" }}>
       <div style={{ display: "flex", gap: 18, alignItems: "center" }}>
-        {/* RAW PHOTO — NO FRAME, NO BORDER, NO RADIUS, NO BACKGROUND */}
         <div
           style={{
-            width: 96,
-            height: 96,
+            width: 120,
+            height: 120,
             overflow: "hidden",
             display: "flex",
             alignItems: "center",
