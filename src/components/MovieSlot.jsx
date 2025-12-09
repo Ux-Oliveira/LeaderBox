@@ -1,25 +1,33 @@
 import React from "react";
 
 /*
-  MovieSlot.jsx
-  - Shows a square slot; empty shows plus sign, filled shows poster and title overlay.
-  - Clicking an empty or filled slot calls onOpen (open search) or onClear (clear)
+  MovieSlot
+  - shows a square tile; when empty shows a translucent + button
+  - when filled shows poster, title overlay and a small clear X
+  - clicking tile opens search modal (via onOpen)
+  - clicking clear calls onClear
 */
 
 export default function MovieSlot({ index, movie, onOpen, onClear }) {
   return (
-    <div className="movie-slot" onClick={movie ? onClear : onOpen} role="button" tabIndex={0}>
-      {movie ? (
-        <>
-          <img className="slot-poster" src={movie.poster_full || movie.poster_path || "/poster-placeholder.png"} alt={movie.title} />
-          <div className="slot-info">
-            <div className="slot-title">{movie.title}</div>
-            <div className="slot-year">{movie.release_date ? movie.release_date.slice(0,4) : ""}</div>
-          </div>
-        </>
+    <div className="movie-slot" role="listitem">
+      {!movie ? (
+        <button className="slot-empty" onClick={onOpen} aria-label={`Add movie to slot ${index + 1}`}>
+          <div className="plus">＋</div>
+        </button>
       ) : (
-        <div className="slot-empty">
-          <div className="plus">+</div>
+        <div className="slot-filled" onClick={onOpen} role="button" tabIndex={0}>
+          <img
+            src={movie.poster_path || movie.poster || movie.poster_full || ""}
+            alt={movie.title || movie.name || "movie"}
+            className="slot-poster"
+            onError={(e) => { e.currentTarget.src = "/poster-fallback.png"; }}
+          />
+          <div className="slot-meta">
+            <div className="slot-title">{movie.title || movie.name}</div>
+            <div className="slot-sub">{movie.release_date ? movie.release_date.slice(0,4) : ""}</div>
+          </div>
+          <button className="slot-clear" onClick={(e) => { e.stopPropagation(); onClear(); }} aria-label="Remove movie">✕</button>
         </div>
       )}
     </div>
