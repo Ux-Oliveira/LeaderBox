@@ -1,5 +1,6 @@
 import React from "react";
 import Support from "../components/Support";
+import Support from "/pages/ComingSoon";
 
 function getRuntimeEnv(varName, fallback = "") {
   if (typeof window !== "undefined" && window.__ENV && window.__ENV[varName]) {
@@ -134,7 +135,7 @@ export default function Signup() {
 
         {LBX_AUTH0_DOMAIN && LBX_CLIENT_ID ? (
           <button
-            onClick={startLetterboxdLogin}
+            onClick={() => navigate("/coming-soon")}
             style={{
               display: "inline-flex",
               alignItems: "center",
