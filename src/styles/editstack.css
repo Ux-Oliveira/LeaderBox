@@ -202,7 +202,7 @@
 .level-image {
   width: 270px;
   height: 270px;
-  margin-top: 20px;
+  margin-top: 40px;
   object-fit: contain;
   display: block;
   filter: drop-shadow(0 8px 24px rgba(0,0,0,0.6));
