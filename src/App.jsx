@@ -141,7 +141,7 @@ export default function App() {
           <Route path="/profile/:id" element={<ProfilePage />} />
 
           {/* Edit Stack route (new) */}
-          <Route path="/profile/edit-stack" element={<EditStack user={user} />} />
+          <Route path="/pages/EditStack" element={<EditStack user={user} />} />
 
           {/* TikTok OAuth callback */}
           <Route path="/auth/tiktok/callback" element={<TikTokCallback />} />
