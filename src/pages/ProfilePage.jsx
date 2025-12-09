@@ -2,13 +2,13 @@ import React, { useEffect, useState } from "react";
 import { loadProfileFromLocal, clearLocalProfile } from "../lib/profileLocal";
 import { useParams, useNavigate } from "react-router-dom";
 
+const STORAGE_KEY = "leaderbox_deck_v1";
+
 /*
   ProfilePage now accepts an optional :id URL param.
   If :id is present we try to fetch that profile from the server (by nickname),
   otherwise we load the local profile (same behavior as before).
 */
-
-const STORAGE_KEY = "leaderbox_deck_v1";
 
 export default function ProfilePage({ user: userProp = null }) {
   const { id } = useParams(); // id is the slug (nickname without @) when visiting /profile/:id
@@ -193,6 +193,7 @@ export default function ProfilePage({ user: userProp = null }) {
 
   // Navigate to EditStack when clicking the stack bar
   function handleStackClick() {
+    // matches what you've used elsewhere
     nav("/pages/EditStack");
   }
 
@@ -243,12 +244,12 @@ export default function ProfilePage({ user: userProp = null }) {
             alignItems: "center",
             justifyContent: "center",
             background: "#111",
-            borderRadius: "50%"
+            borderRadius: 0 // raw image (no rounded frame as requested)
           }}
         >
-          {/* show raw png (rounded) — uniform with modal/duel */}
+          {/* show raw png (no framing) — uniform with your request */}
           {user?.avatar ? (
-            <img src={user.avatar} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }} />
+            <img src={user.avatar} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           ) : (
             <div style={{ color: "#ddd", fontSize: 32 }}>{(user?.nickname || "U").slice(0, 1).toUpperCase()}</div>
           )}
