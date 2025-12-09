@@ -22,7 +22,7 @@
 .center-stage {
   width: 100%;
   max-width: 1100px;
-  position: relative; /* important: level-area absolute is relative to this */
+  position: relative; /* important: level-area relative to this */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -32,7 +32,7 @@
 /* rectangular block that replaces bar.gif (same visual footprint) */
 .bar-block {
   width: 100%;
-  height: 520px;              /* increased per request (was 490 / user asked 510-520) */
+  height: 520px;              /* increased per request */
   background: #101221; /* requested color */
   border-radius: 14px;
   box-shadow: 0 8px 40px rgba(0,0,0,0.6);
@@ -55,7 +55,7 @@
   flex-direction: column;
   align-items: center;
   gap: 16px;
-  padding: 18px 10px;
+  padding: 18px 10px 80px; /* added bottom padding so level image has room */
 }
 
 /* heading inside overlay */
@@ -192,38 +192,34 @@
 .stat-label { font-size: 13px; color: rgba(255,255,255,0.85); margin-bottom: 6px; }
 .stat-value { font-size: 20px; font-weight: 900; color: var(--accent); }
 
-/* level-area now absolutely positioned inside the lower part of the bar-block */
-/* it's been pushed further down so the image sits in the lower section of the black bar */
+/* LEVEL AREA: inside the overlay under the stats so it visually sits in the bottom part of the black bar */
 .level-area {
-  position: absolute;
-  bottom: 12px;      /* sits inside bar near its bottom edge */
-  left: 50%;
-  transform: translateX(-50%) translateY(8px); /* slight downward nudge */
-  z-index: 45;
+  margin-top: 8px; /* sits right under stats inside the bar */
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  pointer-events: none; /* decorative inside the bar */
+  gap: 8px;
+  z-index: 45;
+  pointer-events: none; /* decorative */
 }
 
 /* level image size adjusted to fit inside the lower bar area */
 .level-image {
   width: 220px;           /* desktop size */
   height: 220px;
-  patting-top: 88px;
+  padding-top: 8px;
   object-fit: contain;
   display: block;
   filter: drop-shadow(0 8px 24px rgba(0,0,0,0.6));
   border-radius: 8px;
   background: transparent;
-  pointer-events: auto; /* allow hover if needed later */
+  pointer-events: auto;
 }
 
 /* label/caption sitting immediately below the bar (very close) */
 /* centered and using the requested yellow color (var(--yellow)) */
 .level-caption {
-  margin-top: 6px; /* very close to the bar */
+  margin-top: 8px; /* very close to the bar */
   text-align: center;
   font-weight: 900;
   color: var(--yellow); /* requested specific color */
@@ -330,16 +326,14 @@
   .movie-slot { width: 22%; min-width: 110px; }
   .level-image { width: 180px; height: 180px; } /* slightly smaller on tablet */
   .bar-block { height: 520px; } /* keep same height */
-  .level-area { bottom: 8px; transform: translateX(-50%) translateY(6px); }
 }
 
 @media (max-width: 720px) {
   .bar-block { height: 560px; } /* give more vertical room on small devices */
-  .bar-overlay { width: calc(100% - 28px); margin: 0 14px; padding: 14px 8px; }
+  .bar-overlay { width: calc(100% - 28px); margin: 0 14px; padding: 14px 8px 110px; }
   .slots-row { gap: 8px; flex-wrap: wrap; }
   .movie-slot { min-width: 98px; width: 22%; }
   .level-image { width: 150px; height: 150px; } /* mobile-friendly */
-  .level-area { bottom: 6px; transform: translateX(-50%) translateY(4px); }
   .level-caption { font-size: 16px; margin-top: 4px; }
   .stat { width: 140px; padding: 10px; }
   .stat-value { font-size: 18px; }
@@ -348,9 +342,8 @@
 @media (max-width: 480px) {
   .movie-slot { min-width: 84px; width: 22%; }
   .bar-block { height: 640px; } /* stack space for small phones so slots don't overlap image */
-  .bar-overlay { width: calc(100% - 20px); margin: 0 10px; padding: 12px 6px; }
+  .bar-overlay { width: calc(100% - 20px); margin: 0 10px; padding: 12px 6px 140px; }
   .level-image { width: 130px; height: 130px; }
-  .level-area { bottom: 4px; transform: translateX(-50%) translateY(2px); }
   .level-caption { font-size: 15px; margin-top: 3px; }
   .stat { width: 120px; min-width: 100px; padding: 8px; }
 }
