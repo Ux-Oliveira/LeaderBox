@@ -196,17 +196,16 @@
 /* LEVEL AREA: positioned inside the bar-block at its bottom */
 .level-area {
   position: absolute;
-  bottom: -20px; /* sits inside the bar-block */
+  bottom: -140px; /* push lower relative to .bar-overlay so it visually sits inside the bar */
   left: 50%;
-  margin-top: 50px;
   transform: translateX(-50%);
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 8px;
   z-index: 50;
-  pointer-events: auto; /* interactive if needed */
-  width: calc(100% - 160px); /* center-constrained */
+  pointer-events: auto;
+  width: calc(100% - 160px);
   max-width: 520px;
 }
 
