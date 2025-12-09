@@ -27,7 +27,7 @@ body{
 /* persistent background GIF under navbar (covers entire viewport) */
 .bg-gif {
   position: fixed;
-  top: 64px; /* sits below the navbar */
+  /*top: 64px;*/
   left: 0;
   right: 0;
   bottom: 0;
