@@ -359,7 +359,7 @@ export default function Duel() {
           </div>
         </div>
       )}
-      <Support />
+      <Route path="./components/support" element={<Support />} />
     </div>
   );
 }
