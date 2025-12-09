@@ -196,7 +196,7 @@
 /* LEVEL AREA: positioned inside the bar-block at its bottom */
 .level-area {
   position: absolute;
-  bottom: -150px; /* push lower relative to .bar-overlay so it visually sits inside the bar */
+  bottom: -170px; /* push lower relative to .bar-overlay so it visually sits inside the bar */
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -228,7 +228,7 @@
   color: var(--yellow); /* requested specific color */
   line-height: 1;
   font-size: 18px;
-  margin-top: 20px;
+  margin-top: 50px;
   padding: 0 8px;
   text-shadow: 0 2px 6px rgba(0,0,0,0.45);
 }
