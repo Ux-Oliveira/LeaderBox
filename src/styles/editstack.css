@@ -5,6 +5,7 @@
   --bg: #525DA9;
   --accent: #FDEE69;
   --yellow: #FDEE69; /* explicit alias requested */
+  --white: #ffffff;
 }
 
 /* page base */
@@ -32,7 +33,7 @@
 /* rectangular block that replaces bar.gif (same visual footprint) */
 .bar-block {
   width: 100%;
-  height: 520px;              /* increased per request */
+  height: 680px;              /* increased to fit level image + caption inside */
   background: #101221; /* requested color */
   border-radius: 14px;
   box-shadow: 0 8px 40px rgba(0,0,0,0.6);
@@ -55,7 +56,7 @@
   flex-direction: column;
   align-items: center;
   gap: 16px;
-  padding: 18px 10px 80px; /* added bottom padding so level image has room */
+  padding: 18px 10px 20px; /* reduced bottom padding because level-area now sits absolutely in bar */
 }
 
 /* heading inside overlay */
@@ -110,7 +111,7 @@
 }
 .slot-empty:hover { transform: translateY(-4px); background: rgba(0,0,0,0.55); }
 
-/* filled slot - poster fills the square */
+ /* filled slot - poster fills the square */
 .slot-filled {
   width: 100%;
   height: 100%;
@@ -192,15 +193,20 @@
 .stat-label { font-size: 13px; color: rgba(255,255,255,0.85); margin-bottom: 6px; }
 .stat-value { font-size: 20px; font-weight: 900; color: var(--accent); }
 
-/* LEVEL AREA: inside the overlay under the stats so it visually sits in the bottom part of the black bar */
+/* LEVEL AREA: positioned inside the bar-block at its bottom */
 .level-area {
-  margin-top: 8px; /* sits right under stats inside the bar */
+  position: absolute;
+  bottom: 20px; /* sits inside the bar-block */
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  z-index: 45;
-  pointer-events: none; /* decorative */
+  z-index: 50;
+  pointer-events: auto; /* interactive if needed */
+  width: calc(100% - 160px); /* center-constrained */
+  max-width: 520px;
 }
 
 /* level image size adjusted to fit inside the lower bar area */
@@ -213,19 +219,18 @@
   filter: drop-shadow(0 8px 24px rgba(0,0,0,0.6));
   border-radius: 8px;
   background: transparent;
-  pointer-events: auto;
 }
 
-/* label/caption sitting immediately below the bar (very close) */
-/* centered and using the requested yellow color (var(--yellow)) */
+/* label/caption placed immediately under the level image and centered */
 .level-caption {
-  margin-top: 8px; /* very close to the bar */
   text-align: center;
   font-weight: 900;
   color: var(--yellow); /* requested specific color */
-  z-index: 50;
   line-height: 1;
   font-size: 18px;
+  margin: 0;
+  padding: 0 8px;
+  text-shadow: 0 2px 6px rgba(0,0,0,0.45);
 }
 
 /* MovieSearchModal styles (kept here to avoid adding new css file) */
@@ -325,25 +330,28 @@
   .summary-stats { gap: 12px; }
   .movie-slot { width: 22%; min-width: 110px; }
   .level-image { width: 180px; height: 180px; } /* slightly smaller on tablet */
-  .bar-block { height: 520px; } /* keep same height */
+  .bar-block { height: 640px; } /* slightly less than desktop but still larger than before */
+  .level-area { max-width: 460px; width: calc(100% - 120px); }
 }
 
 @media (max-width: 720px) {
-  .bar-block { height: 560px; } /* give more vertical room on small devices */
-  .bar-overlay { width: calc(100% - 28px); margin: 0 14px; padding: 14px 8px 110px; }
+  .bar-block { height: 720px; } /* give more vertical room on small devices */
+  .bar-overlay { width: calc(100% - 28px); margin: 0 14px; padding: 14px 8px 20px; }
   .slots-row { gap: 8px; flex-wrap: wrap; }
   .movie-slot { min-width: 98px; width: 22%; }
   .level-image { width: 150px; height: 150px; } /* mobile-friendly */
-  .level-caption { font-size: 16px; margin-top: 4px; }
+  .level-caption { font-size: 16px; }
   .stat { width: 140px; padding: 10px; }
   .stat-value { font-size: 18px; }
+  .level-area { max-width: 380px; width: calc(100% - 80px); bottom: 24px; }
 }
 
 @media (max-width: 480px) {
   .movie-slot { min-width: 84px; width: 22%; }
-  .bar-block { height: 640px; } /* stack space for small phones so slots don't overlap image */
-  .bar-overlay { width: calc(100% - 20px); margin: 0 10px; padding: 12px 6px 140px; }
+  .bar-block { height: 820px; } /* extra stack space for small phones so slots don't overlap image */
+  .bar-overlay { width: calc(100% - 20px); margin: 0 10px; padding: 12px 6px 20px; }
   .level-image { width: 130px; height: 130px; }
   .level-caption { font-size: 15px; margin-top: 3px; }
   .stat { width: 120px; min-width: 100px; padding: 8px; }
+  .level-area { width: calc(100% - 40px); max-width: 320px; bottom: 26px; }
 }
