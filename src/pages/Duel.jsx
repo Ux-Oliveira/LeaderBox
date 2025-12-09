@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { fetchAllProfiles } from "../lib/api";
 import { useNavigate } from "react-router-dom";
+import Support from "./Support";
 
 /*
   Duel.jsx - Full fixed file
