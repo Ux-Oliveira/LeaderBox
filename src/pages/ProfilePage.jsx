@@ -162,7 +162,6 @@ export default function ProfilePage({ user: userProp = null }) {
             width: 96,
             height: 96,
             overflow: "hidden",
-            background: "#111",
             display: "flex",
             alignItems: "center",
             justifyContent: "center"
@@ -176,7 +175,6 @@ export default function ProfilePage({ user: userProp = null }) {
                 width: "100%",
                 height: "100%",
                 objectFit: "cover",
-                borderRadius: 999
               }}
             />
           ) : (
