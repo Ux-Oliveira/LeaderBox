@@ -1,5 +1,4 @@
 import React from "react";
-import Support from "../components/Support";
 
 export default function Terms() {
   return (
@@ -41,6 +40,5 @@ export default function Terms() {
         </div>
       </div>
     </div>
-    <Support />
   );
 }
