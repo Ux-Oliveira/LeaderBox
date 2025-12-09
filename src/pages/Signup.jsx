@@ -1,6 +1,6 @@
 import React from "react";
 import Support from "../components/Support";
-import Support from "/pages/ComingSoon";
+import ComingSoon from "/pages/ComingSoon";
 
 function getRuntimeEnv(varName, fallback = "") {
   if (typeof window !== "undefined" && window.__ENV && window.__ENV[varName]) {
