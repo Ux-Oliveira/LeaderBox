@@ -166,23 +166,23 @@ export default function EditStack({ user }) {
                 </div>
               </div>
 
-              {/* LEVEL AREA: placed here so it sits directly under the stats and visually inside the black bar */}
-              <div className="level-area">
+              {/* LEVEL AREA: now absolutely positioned and visually inside the bar-block at its bottom */}
+              <div className="level-area" aria-hidden={false}>
                 <img
                   src={levelImage}
                   alt={`Level ${levelIndex}`}
                   className="level-image"
                   onError={(e) => { e.currentTarget.style.opacity = 0.12; }}
                 />
+                <div className="level-caption">
+                  {levelLabel}
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* caption / label placed immediately after the bar (very close) */}
-        <div className="level-caption">
-          {levelLabel}
-        </div>
+        {/* NOTE: Level caption moved into the bar; removed external caption to keep it inside the bar */}
       </div>
 
       <MovieSearchModal
