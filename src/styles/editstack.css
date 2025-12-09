@@ -198,6 +198,7 @@
   position: absolute;
   bottom: 20px; /* sits inside the bar-block */
   left: 50%;
+  margin-top: 50px;
   transform: translateX(-50%);
   display: flex;
   flex-direction: column;
