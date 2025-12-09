@@ -2,7 +2,7 @@ import React from "react";
 
 export default function Support() {
   return (
-    <div className="support-center-wrapper">
+    <footer className="support-footer">
       <div className="support card">
         <div className="left">
           <div className="small">
@@ -29,6 +29,6 @@ export default function Support() {
           </div>
         </div>
       </div>
-    </div>
+    </footer>
   );
 }
