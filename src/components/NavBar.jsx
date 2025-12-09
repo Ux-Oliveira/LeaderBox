@@ -73,11 +73,7 @@ export default function NavBar({ user, onOpenProfile }) {
               aria-label="Profile"
               style={{ marginLeft: 6 }}
             >
-              {pfp ? (
-                <img src={pfp} alt="pfp" style={{ width: 22, height: 22, borderRadius: 6, objectFit: "cover" }} />
-              ) : (
                 <i className="fa-regular fa-address-card" />
-              )}
             </button>
 
             {/* Signup / Login — hidden on mobile via CSS */}
@@ -157,3 +153,4 @@ export default function NavBar({ user, onOpenProfile }) {
   );
 
 }
+
