@@ -358,6 +358,7 @@ export default function Duel() {
           </div>
         </div>
       )}
+      <Support />
     </div>
   );
 }
