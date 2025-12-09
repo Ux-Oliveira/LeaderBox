@@ -1,7 +1,7 @@
 import React from "react";
 import Support from "../components/Support";
-import ComingSoon from "../pages/ComingSoon";  // ✅ FIXED import
-import { useNavigate } from "react-router-dom"; // ✅ ADDED navigate
+import ComingSoon from "../pages/ComingSoon"; 
+import { useNavigate } from "react-router-dom"; 
 
 function getRuntimeEnv(varName, fallback = "") {
   if (typeof window !== "undefined" && window.__ENV && window.__ENV[varName]) {
@@ -133,7 +133,7 @@ export default function Signup() {
 
         {LBX_AUTH0_DOMAIN && LBX_CLIENT_ID ? (
           <button
-            onClick={() => navigate("/coming-soon")}   {/* ✅ FIXED */}
+            onClick={() => navigate("/coming-soon")} 
             style={{
               display: "inline-flex",
               alignItems: "center",
