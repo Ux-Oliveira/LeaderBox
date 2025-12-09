@@ -3,6 +3,7 @@ import NavBar from "../components/NavBar";
 import MovieSlot from "../components/MovieSlot";
 import MovieSearchModal from "../components/MovieSearchModal";
 import "../styles/editstack.css";
+import Support from "../components/Support";
 
 const STORAGE_KEY = "leaderbox_deck_v1";
 
@@ -187,6 +188,7 @@ export default function EditStack({ user }) {
         onClose={closeSearch}
         onSelect={(movie) => setSlotMovie(activeSlot, movie)}
       />
+      <Support />
     </>
   );
 }
