@@ -1,384 +1,192 @@
-@font-face {
-  font-family: "ArcadeClassic";
-  src: local("Courier New"), local("monospace");
-}
+import React, { useEffect, useState } from "react";
+import NavBar from "../components/NavBar";
+import MovieSlot from "../components/MovieSlot";
+import MovieSearchModal from "../components/MovieSearchModal";
+import "../styles/editstack.css";
 
-/*color palette*/
-:root{
-  --bg: #525DA9;
-  --accent: #FDEE69;
-  --accent-2: #DE5022;
-  --white: #FFFFFF;
-  --black: #212121;
-  --card-bg: rgba(255,255,255,0.03);
-}
+const STORAGE_KEY = "leaderbox_deck_v1";
 
-/*base*/
-*{box-sizing:border-box;margin:0;padding:0}
-html,body,#root{height:100%}
-body{
-  background: linear-gradient(180deg,var(--bg), #3f3f8a 60%);
-  color:var(--white);
-  font-family: "ArcadeClassic", "Segoe UI", Roboto, sans-serif;
-  -webkit-font-smoothing:antialiased;
-  -moz-osx-font-smoothing:grayscale;
-}
+// Level labels (keeps parity with existing site wording)
+const LEVEL_LABELS = {
+  1: "Noob",
+  2: "Casual Viewer",
+  3: "Youtuber Movie Critic",
+  4: "Movie Festival Goer",
+  5: "Indie Afficionado",
+  6: "Cult Classics Schoolar",
+  7: "Film Buff",
+  8: "Film Curator",
+  9: "Cinephile",
+};
 
-/* persistent background GIF under navbar (covers entire viewport) */
-.bg-gif {
-  position: fixed;
-  top: 64px; /* sits below the navbar */
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: -1;
-  background-image: url('/constant.gif');
-  background-size: cover;
-  background-position: center;
-  opacity: 0.18;
-  pointer-events: none;
-}
+export default function EditStack({ user }) {
+  // deck: array of 4 slots (null or movie object)
+  const [deck, setDeck] = useState([null, null, null, null]);
+  const [activeSlot, setActiveSlot] = useState(null); // index of slot being edited
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [userLevel, setUserLevel] = useState(user?.level || 1);
 
-/*navbar*/
-.navbar{
-  position:fixed;
-  top:0;left:0;right:0;
-  height:64px;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:0 20px;
-  background:rgba(0,0,0,0.55);
-  border-bottom: 1px solid rgba(255,255,255,0.03);
-  z-index:60;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-}
+  useEffect(() => {
+    // load deck from localStorage if present
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length === 4) setDeck(parsed);
+      }
+      // if user has level in app state, reflect it
+      if (user && user.level) setUserLevel(user.level);
+    } catch (e) {
+      console.warn("Failed to load saved deck:", e);
+    }
+  }, [user]);
 
-/*branding */
-.brand{
-  display:flex;
-  align-items:center;
-  gap:12px;
-  font-weight:700;
-}
+  useEffect(() => {
+    // persist deck
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(deck));
+    } catch (e) {
+      // ignore
+    }
+  }, [deck]);
 
-/* logo image */
-.brand img.logo-img {
-  width:40px;
-  height:40px;
-  border-radius:6px;
-  object-fit:contain;
-  display:block;
-}
-
-/* brand textual block */
-.brand-text { display:flex; flex-direction:column; line-height:1; }
-.brand-title { font-size:14px; color:var(--accent); font-weight:900; }
-
-/* nav area holding icons and buttons */
-.navRight { display:flex; align-items:center; gap:12px; }
-.navLinks{display:flex;gap:12px;align-items:center}
-
-/* nav-icon */
-.nav-icon {
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  padding:6px 8px;
-  font-size:22px;
-  color:var(--white);
-  text-decoration:none;
-  border-radius:6px;
-  background: transparent;
-  cursor:pointer;
-  border: none;
-  transition: transform 160ms ease, color 160ms ease, background 160ms ease;
-}
-.nav-icon:hover {
-  color: var(--accent);
-  transform: scale(1.06);
-  background: rgba(255,255,255,0.03);
-}
-.nav-icon img.icon-gif { width:29px; height:29px; display:block; }
-
-.nav-signup {
-  background: #000;
-  color: var(--white);
-  padding:6px 10px;
-  border-radius:8px;
-  border:1px solid rgba(255,255,255,0.06);
-  cursor:pointer;
-  font-weight:700;
-}
-.nav-login {
-  background: linear-gradient(90deg,var(--accent), #ffd85a);
-  color:var(--black);
-  padding:6px 10px;
-  border-radius:8px;
-  border: none;
-  cursor:pointer;
-  font-weight:900;
-}
-
-/* hamburger container */
-.hamburger {
-  width:44px;
-  height:36px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  flex-direction: column;
-  border-radius:8px;
-  cursor:pointer;
-  position:relative;
-  background: transparent;
-  border:1px solid transparent;
-  color:var(--white);
-  padding: 4px 6px;
-}
-.hamburger .bar { display:block; width:22px; height:3px; background:currentColor; margin:3px 0; border-radius:2px; box-shadow: 0 1px 0 rgba(0,0,0,0.25); }
-.hamburger::after{
-  content: "";
-  position: absolute;
-  top: 0;
-  left: -60%;
-  width: 60%;
-  height: 100%;
-  transform: skewX(-20deg);
-  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.22) 50%, rgba(255,255,255,0) 100%);
-  pointer-events:none;
-  opacity:0.7;
-  animation: glareMove 2.6s linear infinite;
-}
-@keyframes glareMove { 0% { left: -60%; } 100% { left: 160%; } }
-
-/* dropdown panel */
-.dropdown-panel {
-  position: absolute;
-  right: 12px;
-  top: 64px;
-  width:220px;
-  background: linear-gradient(180deg, rgba(82,93,169,0.82), rgba(33,33,33,0.45));
-  backdrop-filter: blur(6px);
-  border: 1px solid rgba(255,255,255,0.04);
-  padding:10px;
-  border-radius:8px;
-  z-index:70;
-  box-shadow: 0 8px 30px rgba(0,0,0,0.45);
-  box-sizing: border-box;
-}
-.dropdown-panel .modal-btn { white-space: normal; word-break: break-word; line-height: 1.25; padding: 10px; text-decoration: none; }
-#patreon { text-decoration: none; color:var(--accent-2); }
-
-/* click overlay */
-.click-overlay { position: fixed; inset: 0; z-index: 65; background: transparent; }
-
-/* page wrapper */
-.page-wrapper { position: relative; z-index: 50; }
-
-/*main container*/
-.app-container{padding-top:88px; max-width:1200px;margin:0 auto;padding-left:20px;padding-right:20px; position: relative; z-index: 50}
-
-/*heading style*/
-.h1-retro{
-  font-size:36px;
-  color:var(--accent);
-  text-shadow: 0 2px 0 rgba(0,0,0,0.6);
-  letter-spacing:2px;
-  font-weight:900;
-  margin-bottom:8px;
-  font-family: "ArcadeClassic", monospace;
-}
-
-/*subtitle*/
-.subtitle{ color:rgba(255,255,255,0.9); margin-bottom:18px; font-size:15px; }
-
-/*card*/
-.card{
-  position: relative;
-  z-index: 55;
-  background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,0.02));
-  border-radius:10px;
-  padding:18px;
-  border:1px solid rgba(255,255,255,0.04);
-  box-shadow: 0 4px 30px rgba(0,0,0,0.35);
-}
-
-/*video section*/
-.video-section{ margin-top:28px; height:360px; display:flex; align-items:center; justify-content:center; position:relative; z-index: 10; }
-.video-section video{ width:100%; height:100%; object-fit:cover; border-radius:10px; opacity:0.95; filter: contrast(0.95) saturate(0.9); }
-
-/*duel button stylized (generic)*/
-.duel-button{
-  position:absolute;
-  left:50%;
-  top:50%;
-  transform:translate(-50%,-50%);
-  background: linear-gradient(90deg,var(--accent), #ffd85a);
-  color:var(--black);
-  border-radius:12px;
-  padding:14px 26px;
-  font-weight:900;
-  font-size:18px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.45);
-  border:4px solid rgba(0,0,0,0.15);
-  cursor:pointer;
-}
-
-/*support section pinned bottom */
-.support { position: fixed; left: 0; right: 0; bottom: 0; z-index: 55; padding: 12px 20px; display:flex; justify-content:center; }
-.support .card { width: calc(100% - 40px); max-width: 1200px; display:flex; align-items:center; gap:12px; }
-.support .left, .support .right { display:flex; align-items:center; gap:8px; }
-.support .left { justify-content:flex-start; }
-.support .right { margin-left:auto; justify-content:flex-end; gap:8px; }
-
-/* small text */
-.small{font-size:13px;color:rgba(255,255,255,0.8)}
-
-/*profile modal (side) - unchanged; used elsewhere */
-.profile-modal {
-  position:fixed;
-  left:-340px;
-  top:64px;
-  height:calc(100% - 64px);
-  width:320px;
-  background: linear-gradient(180deg, rgba(82,93,169,0.82), rgba(33,33,33,0.45));
-  backdrop-filter: blur(6px);
-  border-right:1px solid rgba(255,255,255,0.04);
-  padding:18px;
-  transition: left 0.32s ease;
-  z-index:75;
-  display:flex;
-  flex-direction:column;
-  gap:12px;
-}
-.profile-modal.open { left:0; }
-
-/* profile knob */
-.profile-knob {
-  position:fixed;
-  left:0;
-  top:calc(50% - 30px);
-  transform:translateX(-18px);
-  z-index:76;
-  background:var(--accent);
-  color:var(--black);
-  width:36px;
-  height:60px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  border-radius:0 8px 8px 0;
-  cursor:pointer;
-  font-weight:900;
-  box-shadow: 0 8px 30px rgba(0,0,0,0.25);
-  border: 1px solid rgba(0,0,0,0.08);
-}
-.profile-knob::after{
-  content: "";
-  position: absolute;
-  top: -10%;
-  left: -40%;
-  width: 120%;
-  height: 120%;
-  transform: skewX(-20deg);
-  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.45) 50%, rgba(255,255,255,0) 100%);
-  pointer-events:none;
-  opacity:0.85;
-  animation: glareMove 1.4s linear infinite;
-}
-
-/* pfp helper (used by ProfileModal) */
-.pfp {
-  width:96px;height:96px;border-radius:999px;border:3px solid rgba(255,255,255,0.08);overflow:hidden;
-  display:flex;align-items:center;justify-content:center;background:#222;
-}
-.pfp img{width:100%;height:100%;object-fit:cover;border-radius:999px;}
-
-/*modal buttons*/
-.modal-btn{
-  width:100%;
-  padding:10px;
-  border-radius:8px;
-  border:1px solid rgba(255,255,255,0.06);
-  background:transparent;
-  color:var(--white);
-  cursor:pointer;
-  text-align:left;
-  white-space: normal;
-  line-height: 1.25;
-}
-
-/*levels*/
-.level-bar { display:flex; gap:6px; flex-wrap:wrap; }
-.level-pill { padding:6px 8px; border-radius:6px; background:rgba(0,0,0,0.25); border:1px solid rgba(255,255,255,0.03); font-size:13px; }
-
-/*forms*/
-.form { display:flex; flex-direction:column; gap:10px; margin-top:14px; }
-.input { padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.06); background:rgba(0,0,0,0.2); color:var(--white); }
-.btn { padding:10px 12px; border-radius:8px; background:var(--accent); color:var(--black); font-weight:900; cursor:pointer; border:none; }
-
-/* small mobile/UX tweaks */
-@media (max-width:800px){
-  .support{flex-direction:column;align-items:flex-start}
-  .video-section{height:260px}
-  .profile-modal{width:86%; left:-92%}
-  .brand { display:none; }
-  .navRight { width:100%; display:flex; justify-content:center; align-items:center; gap:12px; padding:0 12px; }
-  .navLinks { margin:0; justify-content:center; display:flex; gap:12px; align-items:center; }
-  .nav-signup, .nav-login { display:none !important; }
-  .dropdown-panel {
-    position: fixed;
-    top: 64px;
-    right: 12px;
-    left: auto;
-    width: min(320px, 86vw);
-    max-width: 92vw;
-    padding: 12px;
-    border-radius: 10px;
-    z-index: 140;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.55);
+  function openSlot(i) {
+    setActiveSlot(i);
+    setSearchOpen(true);
   }
-  .dropdown-panel .modal-btn { padding: 12px; font-size: 15px; text-align: left; }
-}
 
-/* Landing-specific push down for heading */
-.landing .h1-retro { margin-top: 36px; }
+  function closeSearch() {
+    setActiveSlot(null);
+    setSearchOpen(false);
+  }
 
-/* -------------------------
-   Custom scrollbar for Duel
-   (single rectangular light purple node)
-   Targets only container with class .profiles-scroll
-   ------------------------- */
-.profiles-scroll {
-  scrollbar-width: thin;
-  scrollbar-color: #B19CD9 transparent; /* Firefox */
-}
+  function setSlotMovie(i, movie) {
+    const copy = [...deck];
+    copy[i] = movie;
+    setDeck(copy);
+    closeSearch();
+  }
 
-/* WebKit browsers */
-.profiles-scroll::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-.profiles-scroll::-webkit-scrollbar-track {
-  background: transparent;
-}
-.profiles-scroll::-webkit-scrollbar-thumb {
-  background-color: #B19CD9; /* light purple */
-  border-radius: 6px;        /* slightly rounded rectangular node */
-  border: 1px solid rgba(0,0,0,0.08);
-  min-height: 32px;
-}
-/* subtle hover */
-.profiles-scroll::-webkit-scrollbar-thumb:hover {
-  background-color: #C8A2C8;
-}
+  function clearSlot(i) {
+    const copy = [...deck];
+    copy[i] = null;
+    setDeck(copy);
+  }
 
-/* Optional: ensure scrollbars don't get dramatic shadows */
-.profiles-scroll::-webkit-scrollbar-thumb:active { filter: none; }
+  /* Stats formulas (same as your spec) */
+  function computeStats(deckArr) {
+    const movies = deckArr.filter(Boolean);
+    if (movies.length === 0) return { pretentious: 0, rewatch: 0, quality: 0, popularity: 0 };
 
-/* Keep it discreet on very small screens */
-@media (max-width:480px){
-  .profiles-scroll::-webkit-scrollbar { width: 6px; }
-  .profiles-scroll::-webkit-scrollbar-thumb { border-radius:4px; }
+    // Collect raw arrays
+    const scores = movies.map(m => (m.vote_average || 0)); // 0..10
+    const pops = movies.map(m => (m.popularity || 0)); // unbounded
+
+    // Normalize popularity within this deck to 0..1
+    const minPop = Math.min(...pops);
+    const maxPop = Math.max(...pops);
+    const normPops = pops.map(p => (maxPop === minPop ? 0.5 : (p - minPop) / (maxPop - minPop)));
+
+    // Normalize scores 0..1 (TMDB vote_average is typically 0..10)
+    const normScores = scores.map(s => Math.min(1, Math.max(0, s / 10)));
+
+    // Quality = average score (0..10)
+    const quality = scores.reduce((a, b) => a + b, 0) / scores.length;
+
+    // Popularity average (use raw popularity)
+    const popularity = pops.reduce((a, b) => a + b, 0) / pops.length;
+
+    // Pretentiousness: high score AND low popularity -> pretentious
+    const pretArr = normScores.map((ns, idx) => ns * (1 - normPops[idx]));
+    const pretentious = (pretArr.reduce((a, b) => a + b, 0) / pretArr.length) * 100; // scale to 0..100
+
+    // Rewatchability: high score * high popularity
+    const rewatchArr = normScores.map((ns, idx) => ns * normPops[idx]);
+    const rewatch = (rewatchArr.reduce((a, b) => a + b, 0) / rewatchArr.length) * 100;
+
+    return {
+      pretentious: Math.round(pretentious),
+      rewatch: Math.round(rewatch),
+      quality: +(quality.toFixed(2)),
+      popularity: +(popularity.toFixed(2))
+    };
+  }
+
+  const stats = computeStats(deck);
+
+  // choose a level image file (public folder)
+  const levelIndex = Math.min(9, Math.max(1, Number(userLevel || 1)));
+  const levelImage = `/level${levelIndex}.png`;
+  const levelLabel = LEVEL_LABELS[levelIndex] || `L${levelIndex}`;
+
+  return (
+    <>
+      <NavBar user={user} />
+      <div className="editstack-root">
+        <div className="center-stage">
+          {/* rectangular block (replaces bar.gif) */}
+          <div className="bar-block" aria-hidden="true" />
+
+          <div className="bar-overlay">
+            <h1>Choose your 4 favorite movies</h1>
+            <p className="subtitle">Pick the deck that defines your taste.</p>
+
+            <div className="slots-row" role="list">
+              {deck.map((m, i) => (
+                <MovieSlot
+                  key={i}
+                  index={i}
+                  movie={m}
+                  onOpen={() => openSlot(i)}
+                  onClear={() => clearSlot(i)}
+                />
+              ))}
+            </div>
+
+            <div className="deck-summary centered">
+              <div className="summary-stats centered">
+                <div className="stat">
+                  <div className="stat-label">Pretentiousness</div>
+                  <div className="stat-value">{stats.pretentious}%</div>
+                </div>
+
+                <div className="stat">
+                  <div className="stat-label">Rewatchability</div>
+                  <div className="stat-value">{stats.rewatch}%</div>
+                </div>
+
+                <div className="stat">
+                  <div className="stat-label">Quality</div>
+                  <div className="stat-value">{stats.quality} / 10</div>
+                </div>
+
+                <div className="stat">
+                  <div className="stat-label">Popularity</div>
+                  <div className="stat-value">{stats.popularity}</div>
+                </div>
+              </div>
+
+              {/* Note: level-image visually appears inside the lower part of the black bar via CSS absolute positioning */}
+            </div>
+          </div>
+
+          {/* level image absolutely positioned to the lower part of the bar-block */}
+          <div className="level-area" aria-hidden="true">
+            <img src={levelImage} alt={`Level ${levelIndex}`} className="level-image" onError={(e) => { e.currentTarget.style.opacity = 0.12; }} />
+          </div>
+        </div>
+
+        {/* caption / label placed immediately after the bar (very close) */}
+        <div className="level-caption">
+          {levelLabel}
+        </div>
+      </div>
+
+      <MovieSearchModal
+        open={searchOpen}
+        onClose={closeSearch}
+        onSelect={(movie) => setSlotMovie(activeSlot, movie)}
+      />
+    </>
+  );
 }
