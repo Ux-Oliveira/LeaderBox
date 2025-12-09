@@ -166,13 +166,16 @@ export default function EditStack({ user }) {
                 </div>
               </div>
 
-              {/* Note: level-image visually appears inside the lower part of the black bar via CSS absolute positioning */}
+              {/* LEVEL AREA: placed here so it sits directly under the stats and visually inside the black bar */}
+              <div className="level-area">
+                <img
+                  src={levelImage}
+                  alt={`Level ${levelIndex}`}
+                  className="level-image"
+                  onError={(e) => { e.currentTarget.style.opacity = 0.12; }}
+                />
+              </div>
             </div>
-          </div>
-
-          {/* level image absolutely positioned to the lower part of the bar-block */}
-          <div className="level-area" aria-hidden="true">
-            <img src={levelImage} alt={`Level ${levelIndex}`} className="level-image" onError={(e) => { e.currentTarget.style.opacity = 0.12; }} />
           </div>
         </div>
 
