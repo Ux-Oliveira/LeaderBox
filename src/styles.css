@@ -551,3 +551,33 @@ div[style*="#525DA9"], section[style*="#525DA9"] {
   .page-wrapper, .app-container { min-height: calc(100vh - 88px); }
 }
 
+/* Root wrapper forces footer to stick to bottom */
+.app-root {
+  min-height: 100vh;      /* full page height */
+  display: flex;
+  flex-direction: column; /* vertical layout */
+  position: relative;
+  z-index: 1;
+}
+
+/* Main content grows and pushes footer down */
+.app-container {
+  flex: 1;                /* this is the magic */
+  padding-top: 88px;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding-left: 20px;
+  padding-right: 20px;
+  position: relative;
+  z-index: 50;
+}
+
+/* Footer always at bottom, after page content */
+.support-footer {
+  padding: 20px;
+  text-align: center;
+  margin-top: 40px;
+  color: #aaa;
+  font-size: 14px;
+}
+
