@@ -1,4 +1,5 @@
 import React from "react";
+import Support from "../components/Support";
 
 export default function Rules() {
   return (
@@ -36,6 +37,7 @@ export default function Rules() {
           You can share the results of a battle on TikTok!.</p>
         </div>
       </div>
+      <Support />
     </div>
   );
 }
