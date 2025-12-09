@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { loadProfileFromLocal, clearLocalProfile, saveProfileToLocal } from "../lib/profileLocal";
 
 const LEVELS = [
@@ -35,6 +36,7 @@ export default function ProfileModal({
   const [busyDelete, setBusyDelete] = useState(false);
   const [copied, setCopied] = useState(false); // copy-to-clipboard toast
   const panelRef = useRef(null);
+  const nav = useNavigate();
 
   useEffect(() => setOpen(open), [open]);
 
@@ -108,9 +110,9 @@ export default function ProfileModal({
 
   function handleCopyProfileLink(u) {
     if (!u) return;
-    // construct shareable URL: use open_id if available, otherwise nickname
-    const id = u.open_id || u.nickname || "profile";
-    const url = `${window.location.origin}/profile/${encodeURIComponent(id)}`;
+    // construct shareable URL: prefer nickname slug for shareable URL as requested
+    const slug = (u.nickname && String(u.nickname).replace(/^@/, "").trim()) || u.open_id || "profile";
+    const url = `${window.location.origin}/profile/${encodeURIComponent(slug)}`;
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(url).then(() => {
         setCopied(true);
@@ -216,7 +218,14 @@ export default function ProfileModal({
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
             {/* show raw PNG/JPG avatar (rounded) without extra framing */}
-            <div style={{ width: 96, height: 96, overflow: "hidden", borderRadius: 999 }}>
+            <div
+              style={{ width: 96, height: 96, overflow: "hidden", borderRadius: 999, cursor: "pointer" }}
+              onClick={() => {
+                // open profile by nickname slug first (requested), fallback to open_id
+                const slug = (user.nickname && String(user.nickname).replace(/^@/, "").trim()) || user.open_id;
+                if (slug) nav(`/profile/${encodeURIComponent(slug)}`);
+              }}
+            >
               {(user.avatar || user.pfp) ? (
                 <img
                   src={user.avatar || user.pfp}
@@ -313,4 +322,3 @@ export default function ProfileModal({
     </>
   );
 }
-
