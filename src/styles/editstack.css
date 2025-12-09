@@ -206,7 +206,7 @@
 .level-label {
   color: var(--yellow);
   font-weight: 900;
-  margin-top: 20px;
+  margin-top: -20px;
 }
 
 /* MovieSearchModal styles (kept here to avoid adding new css file) */
