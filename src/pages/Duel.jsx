@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { fetchAllProfiles } from "../lib/api";
 import { useNavigate } from "react-router-dom";
-import Support from "./components/Support";
+import Support from "../components/Support";
 
 /*
   Duel.jsx - Full fixed file
@@ -359,7 +359,7 @@ export default function Duel() {
           </div>
         </div>
       )}
-      <Route path="./components/support" element={<Support />} />
+       <Support />
     </div>
   );
 }
