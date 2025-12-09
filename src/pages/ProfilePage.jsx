@@ -193,7 +193,6 @@ export default function ProfilePage({ user: userProp = null }) {
 
   // Navigate to EditStack when clicking the stack bar
   function handleStackClick() {
-    // matches what you've used elsewhere
     nav("/pages/EditStack");
   }
 
@@ -249,7 +248,7 @@ export default function ProfilePage({ user: userProp = null }) {
         >
           {/* show raw png (no framing) — uniform with your request */}
           {user?.avatar ? (
-            <img src={user.avatar} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+            <img src={user.avatar} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 0 }} />
           ) : (
             <div style={{ color: "#ddd", fontSize: 32 }}>{(user?.nickname || "U").slice(0, 1).toUpperCase()}</div>
           )}
