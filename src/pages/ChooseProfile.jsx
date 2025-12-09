@@ -1,4 +1,3 @@
-// src/pages/ChooseProfile.jsx
 import React, { useEffect, useState } from "react";
 import { saveProfileToLocal } from "../lib/profileLocal";
 
