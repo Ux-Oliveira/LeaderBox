@@ -15,7 +15,8 @@ import LetterboxdCallback from "./pages/LetterboxdCallback";
 import ChooseProfile from "./pages/ChooseProfile";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
-import EditStack from "./pages/EditStack"; // <-- ADDED
+import EditStack from "./pages/EditStack";
+import ComingSoon from "./pages/ComingSoon";
 
 import { loadProfileFromLocal, saveProfileToLocal } from "./lib/profileLocal";
 import { fetchProfileByOpenId } from "./lib/api";
@@ -154,6 +155,8 @@ export default function App() {
           {/* NEW */}
           <Route path="/terms" element={<Terms />} />
           <Route path="/privacy" element={<Privacy />} />
+
+          <Route path="/coming-soon" element={<ComingSoon />} />
         </Routes>
       </div>
 
