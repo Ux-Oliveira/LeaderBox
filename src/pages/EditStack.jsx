@@ -6,19 +6,24 @@ import "../styles/editstack.css";
 
 const STORAGE_KEY = "leaderbox_deck_v1";
 
-/*
-  EditStack.jsx
-  - Shows bar.png background area with 4 slots
-  - Opens MovieSearchModal to search/select from TMDB
-  - Calculates summary stats and shows deck description + user level
-*/
+// Level labels (keeps parity with existing site wording)
+const LEVEL_LABELS = {
+  1: "Noob",
+  2: "Casual Viewer",
+  3: "Youtuber Movie Critic",
+  4: "Movie Festival Goer",
+  5: "Indie Afficionado",
+  6: "Cult Classics Schoolar",
+  7: "Film Buff",
+  8: "Film Curator",
+  9: "Cinephile",
+};
 
 export default function EditStack({ user }) {
   // deck: array of 4 slots (null or movie object)
   const [deck, setDeck] = useState([null, null, null, null]);
   const [activeSlot, setActiveSlot] = useState(null); // index of slot being edited
   const [searchOpen, setSearchOpen] = useState(false);
-  const [deckDescription, setDeckDescription] = useState("");
   const [userLevel, setUserLevel] = useState(user?.level || 1);
 
   useEffect(() => {
@@ -68,13 +73,7 @@ export default function EditStack({ user }) {
     setDeck(copy);
   }
 
-  /* Stats formulas (basic first-pass; tweak weights later):
-     - Pretentiousness = avg( inverse popularity, high critic score ) roughly:
-         = avg( (1 - norm_pop), norm_score ) where norms are normalized 0..1 within deck
-     - Rewatchability = avg(norm_score * norm_pop)
-     - Quality = average critic score (vote_average)
-     - Popularity = average popularity (TMDB popularity field)
-  */
+  /* Stats formulas (same as your spec) */
   function computeStats(deckArr) {
     const movies = deckArr.filter(Boolean);
     if (movies.length === 0) return { pretentious: 0, rewatch: 0, quality: 0, popularity: 0 };
@@ -92,19 +91,18 @@ export default function EditStack({ user }) {
     const normScores = scores.map(s => Math.min(1, Math.max(0, s / 10)));
 
     // Quality = average score (0..10)
-    const quality = scores.reduce((a,b) => a + b, 0) / scores.length;
+    const quality = scores.reduce((a, b) => a + b, 0) / scores.length;
 
     // Popularity average (use raw popularity)
-    const popularity = pops.reduce((a,b) => a + b, 0) / pops.length;
+    const popularity = pops.reduce((a, b) => a + b, 0) / pops.length;
 
     // Pretentiousness: high score AND low popularity -> pretentious
-    // For each movie: (normScore * (1 - normPop))
     const pretArr = normScores.map((ns, idx) => ns * (1 - normPops[idx]));
-    const pretentious = (pretArr.reduce((a,b) => a + b, 0) / pretArr.length) * 100; // scale to 0..100
+    const pretentious = (pretArr.reduce((a, b) => a + b, 0) / pretArr.length) * 100; // scale to 0..100
 
     // Rewatchability: high score * high popularity
     const rewatchArr = normScores.map((ns, idx) => ns * normPops[idx]);
-    const rewatch = (rewatchArr.reduce((a,b) => a + b, 0) / rewatchArr.length) * 100;
+    const rewatch = (rewatchArr.reduce((a, b) => a + b, 0) / rewatchArr.length) * 100;
 
     return {
       pretentious: Math.round(pretentious),
@@ -116,17 +114,24 @@ export default function EditStack({ user }) {
 
   const stats = computeStats(deck);
 
+  // choose a level image file (public folder)
+  const levelIndex = Math.min(9, Math.max(1, Number(userLevel || 1)));
+  const levelImage = `/level${levelIndex}.png`;
+  const levelLabel = LEVEL_LABELS[levelIndex] || `L${levelIndex}`;
+
   return (
     <>
       <NavBar user={user} />
       <div className="editstack-root">
         <div className="center-stage">
-          <img src="/bar.gif" alt="bar" className="bar-image" />
+          {/* rectangular block (replaces bar.gif) */}
+          <div className="bar-block" aria-hidden="true" />
+
           <div className="bar-overlay">
             <h1>Choose your 4 favorite movies</h1>
             <p className="subtitle">Pick the deck that defines your taste.</p>
 
-            <div className="slots-row">
+            <div className="slots-row" role="list">
               {deck.map((m, i) => (
                 <MovieSlot
                   key={i}
@@ -138,8 +143,8 @@ export default function EditStack({ user }) {
               ))}
             </div>
 
-            <div className="deck-summary">
-              <div className="summary-stats">
+            <div className="deck-summary centered">
+              <div className="summary-stats centered">
                 <div className="stat">
                   <div className="stat-label">Pretentiousness</div>
                   <div className="stat-value">{stats.pretentious}%</div>
@@ -161,18 +166,10 @@ export default function EditStack({ user }) {
                 </div>
               </div>
 
-              <div className="deck-meta">
-                <label className="small">Deck description</label>
-                <textarea
-                  value={deckDescription}
-                  onChange={e => setDeckDescription(e.target.value)}
-                  placeholder="Describe what this deck is about..."
-                />
-
-                <div className="level-row">
-                  <div>Level:</div>
-                  <div className="level-pill">L{userLevel}</div>
-                </div>
+              {/* Level area: centered image + label */}
+              <div className="level-area">
+                <img src={levelImage} alt={`Level ${levelIndex}`} className="level-image" onError={(e) => { e.currentTarget.style.opacity = 0.12; }} />
+                <div className="level-label">{levelLabel}</div>
               </div>
             </div>
 
