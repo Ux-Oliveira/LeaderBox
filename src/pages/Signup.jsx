@@ -1,6 +1,7 @@
 import React from "react";
 import Support from "../components/Support";
-import ComingSoon from "/pages/ComingSoon";
+import ComingSoon from "../pages/ComingSoon";  // ✅ FIXED import
+import { useNavigate } from "react-router-dom"; // ✅ ADDED navigate
 
 function getRuntimeEnv(varName, fallback = "") {
   if (typeof window !== "undefined" && window.__ENV && window.__ENV[varName]) {
@@ -13,6 +14,8 @@ function getRuntimeEnv(varName, fallback = "") {
 }
 
 export default function Signup() {
+  const navigate = useNavigate(); // ✅ MUST be added
+
   const CLIENT_KEY = getRuntimeEnv("VITE_TIKTOK_CLIENT_KEY", "");
   const REDIRECT_URI = getRuntimeEnv("VITE_TIKTOK_REDIRECT_URI", "");
   const SCOPES = "user.info.basic";
@@ -43,7 +46,6 @@ export default function Signup() {
   function generateCodeVerifier(length = 64) {
     const array = new Uint8Array(length);
     window.crypto.getRandomValues(array);
-    // use random bytes hex -> good entropy
     return Array.from(array, (b) => ("0" + b.toString(16)).slice(-2)).join("");
   }
 
@@ -63,7 +65,6 @@ export default function Signup() {
     const codeVerifier = generateCodeVerifier(64);
     const codeChallenge = await createCodeChallenge(codeVerifier);
 
-    // store for callback verification
     sessionStorage.setItem("tiktok_oauth_state", state);
     sessionStorage.setItem("tiktok_code_verifier", codeVerifier);
 
@@ -80,7 +81,6 @@ export default function Signup() {
     window.location.href = `https://www.tiktok.com/v2/auth/authorize?${params.toString()}`;
   }
 
-  // --- Letterboxd (via Auth0 tenant) start ---
   async function startLetterboxdLogin() {
     if (!LBX_AUTH0_DOMAIN || !LBX_CLIENT_ID || !LBX_REDIRECT_URI) {
       alert("Letterboxd (Auth0) configuration missing. Check console for details.");
@@ -102,10 +102,8 @@ export default function Signup() {
       state,
       code_challenge: codeChallenge,
       code_challenge_method: "S256",
-      // prompt=consent can be added if you want explicit consent each time
     });
 
-    // Use Auth0 authorize endpoint
     window.location.href = `https://${LBX_AUTH0_DOMAIN}/authorize?${params.toString()}`;
   }
 
@@ -135,7 +133,7 @@ export default function Signup() {
 
         {LBX_AUTH0_DOMAIN && LBX_CLIENT_ID ? (
           <button
-            onClick={() => navigate("/coming-soon")}
+            onClick={() => navigate("/coming-soon")}   {/* ✅ FIXED */}
             style={{
               display: "inline-flex",
               alignItems: "center",
