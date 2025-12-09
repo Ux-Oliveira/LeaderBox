@@ -17,7 +17,7 @@
 *{box-sizing:border-box;margin:0;padding:0}
 html,body,#root{height:100%}
 body{
-  background: linear-gradient(180deg,var(--bg), #3f3f8a 60%);
+  /*background: linear-gradient(180deg,var(--bg), #3f3f8a 60%);*/
   color:var(--white);
   font-family: "ArcadeClassic", "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing:antialiased;
