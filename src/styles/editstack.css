@@ -25,7 +25,7 @@
 
 /* rectangular block that replaces bar.gif (same visual footprint) */
 .bar-block {
-  width: 490%;
+  width: 490px;
   height: 490px;
   background: #101221; /* requested color */
   border-radius: 14px;
@@ -200,8 +200,8 @@
   pointer-events: none; /* decorative inside the bar */
 }
 .level-image {
-  width: 296px;
-  height: 296px;
+  width: 220px;
+  height: 220px;
   object-fit: contain;
   display: block;
   filter: drop-shadow(0 8px 24px rgba(0,0,0,0.6));
