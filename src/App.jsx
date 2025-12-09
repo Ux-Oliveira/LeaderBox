@@ -10,14 +10,13 @@ import Duel from "./pages/Duel";
 import Rules from "./pages/Rules";
 import ProfilePage from "./pages/ProfilePage";
 import ProfileModal from "./components/ProfileModal";
-import TikTokCallback from "./pages/TikTokCallback";
+import TikTokCallback from "./pages/TikTokCallback"; // TikTok OAuth callback
 import LetterboxdCallback from "./pages/LetterboxdCallback";
 import ChooseProfile from "./pages/ChooseProfile";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import EditStack from "./pages/EditStack";
 import ComingSoon from "./pages/ComingSoon";
-import Support from "./components/Support";
 
 import { loadProfileFromLocal, saveProfileToLocal } from "./lib/profileLocal";
 import { fetchProfileByOpenId } from "./lib/api";
@@ -49,30 +48,17 @@ export default function App() {
     }
 
     try {
-      const raw =
-        localStorage.getItem("stored_profile") ||
-        localStorage.getItem("tiktok_profile");
-
+      const raw = localStorage.getItem("stored_profile") || localStorage.getItem("tiktok_profile");
       if (raw) {
         const p = JSON.parse(raw);
 
         const normalized = {
-          open_id:
-            p.open_id ||
-            p.openId ||
-            (p.raw && p.raw.data?.open_id) ||
-            null,
+          open_id: p.open_id || p.openId || (p.raw && p.raw.data?.open_id) || null,
           nickname:
             p.nickname ||
-            (p.raw &&
-              (p.raw.data?.user?.display_name ||
-                p.raw.data?.display_name)) ||
+            (p.raw && (p.raw.data?.user?.display_name || p.raw.data?.display_name)) ||
             null,
-          pfp:
-            p.pfp ||
-            p.avatar ||
-            (p.raw && (p.raw.data?.user?.avatar || null)) ||
-            null,
+          pfp: p.pfp || p.avatar || (p.raw && (p.raw.data?.user?.avatar || null)) || null,
           email: p.email || "",
           wins: p.wins || 0,
           losses: p.losses || 0,
@@ -88,9 +74,7 @@ export default function App() {
               const resp = await fetchProfileByOpenId(normalized.open_id);
               if (resp.ok && resp.profile) {
                 const server = resp.profile;
-                const cleaned = server.nickname
-                  ? String(server.nickname).replace(/^@/, "")
-                  : null;
+                const cleaned = server.nickname ? String(server.nickname).replace(/^@/, "") : null;
                 const safe = {
                   open_id: server.open_id,
                   nickname: cleaned,
@@ -98,9 +82,7 @@ export default function App() {
                   wins: server.wins || 0,
                   losses: server.losses || 0,
                   level: server.level || 1,
-                  deck: Array.isArray(server.deck)
-                    ? server.deck
-                    : [],
+                  deck: Array.isArray(server.deck) ? server.deck : [],
                 };
                 saveProfileToLocal(safe);
                 setUser({
@@ -140,7 +122,7 @@ export default function App() {
   }
 
   return (
-    <div className="app-root">
+    <>
       <NavBar user={user} onOpenProfile={() => setModalOpen(true)} />
 
       {/* Single persistent background GIF for the entire app */}
@@ -149,31 +131,28 @@ export default function App() {
       <div className="app-container">
         <Routes>
           <Route path="/" element={<Landing />} />
-          <Route
-            path="/signup"
-            element={<Signup onSigned={(u, t) => handleLogin(u, t)} />}
-          />
-          <Route
-            path="/login"
-            element={<Login onLogin={(u, t) => handleLogin(u, t)} />}
-          />
+          <Route path="/signup" element={<Signup onSigned={(u, t) => handleLogin(u, t)} />} />
+          <Route path="/login" element={<Login onLogin={(u, t) => handleLogin(u, t)} />} />
           <Route path="/duel" element={<Duel />} />
           <Route path="/rules" element={<Rules />} />
 
+          {/* profile — local/current user */}
           <Route path="/profile" element={<ProfilePage user={user} />} />
+          {/* shareable profile links */}
           <Route path="/profile/:id" element={<ProfilePage />} />
 
+          {/* Edit Stack route (new) */}
           <Route path="/pages/EditStack" element={<EditStack user={user} />} />
 
+          {/* TikTok OAuth callback */}
           <Route path="/auth/tiktok/callback" element={<TikTokCallback />} />
+          
+          <Route path="/auth/letterboxd/callback" element={<LetterboxdCallback />} />
 
-          <Route
-            path="/auth/letterboxd/callback"
-            element={<LetterboxdCallback />}
-          />
-
+          {/* ChooseProfile */}
           <Route path="/choose-profile" element={<ChooseProfile />} />
 
+          {/* NEW */}
           <Route path="/terms" element={<Terms />} />
           <Route path="/privacy" element={<Privacy />} />
 
@@ -200,7 +179,6 @@ export default function App() {
       >
         <br />
       </footer>
-      <Support />
-    </div>
+    </>
   );
 }
