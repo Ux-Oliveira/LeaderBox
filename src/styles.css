@@ -17,7 +17,7 @@
 *{box-sizing:border-box;margin:0;padding:0}
 html,body,#root{height:100%}
 body{
-  /*background: linear-gradient(180deg,var(--bg), #3f3f8a 60%);*/
+  background: linear-gradient(180deg,var(--bg), #3f3f8a 60%);
   color:var(--white);
   font-family: "ArcadeClassic", "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing:antialiased;
@@ -475,3 +475,79 @@ body{
   .profile-stack-block .movie-slot { width: 22%; min-width: 64px; }
   .profile-stack-block { padding: 10px; border-radius: 10px; }
 }
+
+/*fixing background issue*/
+/* === Fix for stray purple "bar" at bottom of pages ===
+   Place at the end of styles.css to override earlier rules.
+   Ensures background GIF covers viewport and page containers are transparent.
+*/
+
+html, body, #root {
+  height: 100%;
+  min-height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* Ensure the site background is only provided by body (gradient) and the bg-gif layer */
+body {
+  /* keep your existing gradient on body */
+  background: linear-gradient(180deg, var(--bg), #3f3f8a 60%);
+  /* make sure there's no accidental repeat/extra backgrounds */
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+
+/* the background GIF layer must cover the entire viewport and be behind everything */
+.bg-gif {
+  position: fixed;
+  top: 64px; /* below navbar */
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: -1;
+  background-image: url('/constant.gif');
+  background-size: cover;
+  background-position: center;
+  opacity: 0.18;
+  pointer-events: none;
+}
+
+/* Make main wrappers transparent so underlying body gradient stays consistent */
+.page-wrapper,
+.app-container,
+.card,
+.center-stage,
+.editstack-root,
+.profile-modal,
+.profile-stack-block {
+  background: transparent !important;
+}
+
+/* But preserve card visual look via inner overlays — keep existing .card styles intact by using .card > .inner if needed.
+   If you want the existing .card gradient retained, remove .card from above rule and only target wrappers. */
+
+/* Force top-level content to at least fill the viewport so you don't get a "short-content" purple rectangle */
+.page-wrapper,
+.app-container {
+  min-height: calc(100vh - 88px); /* 88px accounts for navbar; adjust to your layout */
+  box-sizing: border-box;
+}
+
+/* Defensive: if some component is accidentally using var(--bg) as a background, tone it down */
+*[style*="var(--bg)"],
+*[style*="background: var(--bg)"] {
+  background: transparent !important;
+}
+
+/* If any element is accidentally pinned to bottom with the purple color, hide it:
+   (this is conservative — will only affect elements that match the pattern and prevents accidental blocks) */
+div[style*="#525DA9"], section[style*="#525DA9"] {
+  background: transparent !important;
+}
+
+/* mobile tweak keep consistent */
+@media (max-width: 800px) {
+  .page-wrapper, .app-container { min-height: calc(100vh - 88px); }
+}
+
