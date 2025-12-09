@@ -1,6 +1,9 @@
 /* editstack.css - visual styles for the Edit Stack page */
 
 /* root font / palette rely on main site styles (kept consistent) */
+:root{
+  --yellow: #FDEF6E;
+}
 
 .editstack-root {
   min-height: calc(100vh - 120px);
@@ -195,6 +198,7 @@
 .level-image {
   width: 496px;
   height: 496px;
+  margin-top: 10px;
   object-fit: contain;
   display: block;
   filter: drop-shadow(0 8px 24px rgba(0,0,0,0.6));
