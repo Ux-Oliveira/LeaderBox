@@ -196,7 +196,7 @@
 /* LEVEL AREA: positioned inside the bar-block at its bottom */
 .level-area {
   position: absolute;
-  bottom: 20px; /* sits inside the bar-block */
+  bottom: -20px; /* sits inside the bar-block */
   left: 50%;
   margin-top: 50px;
   transform: translateX(-50%);
