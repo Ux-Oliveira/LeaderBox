@@ -1,324 +1,192 @@
-/* editstack.css - visual styles for the Edit Stack page */
+import React, { useEffect, useState } from "react";
+import NavBar from "../components/NavBar";
+import MovieSlot from "../components/MovieSlot";
+import MovieSearchModal from "../components/MovieSearchModal";
+import "../styles/editstack.css";
 
-/* root font / palette rely on main site styles (kept consistent) */
+const STORAGE_KEY = "leaderbox_deck_v1";
 
-.editstack-root {
-  min-height: calc(100vh - 120px);
-  padding-top: 88px; /* keep under navbar */
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding-bottom: 60px;
-  flex-direction: column; /* so level-caption can sit right under center-stage */
-}
+// Level labels (keeps parity with existing site wording)
+const LEVEL_LABELS = {
+  1: "Noob",
+  2: "Casual Viewer",
+  3: "Youtuber Movie Critic",
+  4: "Movie Festival Goer",
+  5: "Indie Afficionado",
+  6: "Cult Classics Schoolar",
+  7: "Film Buff",
+  8: "Film Curator",
+  9: "Cinephile",
+};
 
-/* center-stage positions the rectangular bar and overlay content */
-.center-stage {
-  width: 100%;
-  max-width: 1100px;
-  position: relative; /* important: level-area absolute is relative to this */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-}
+export default function EditStack({ user }) {
+  // deck: array of 4 slots (null or movie object)
+  const [deck, setDeck] = useState([null, null, null, null]);
+  const [activeSlot, setActiveSlot] = useState(null); // index of slot being edited
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [userLevel, setUserLevel] = useState(user?.level || 1);
 
-/* rectangular block that replaces bar.gif (same visual footprint) */
-.bar-block {
-  width: 100%;
-  height: 380px;
-  background: #101221; /* requested color */
-  border-radius: 14px;
-  box-shadow: 0 8px 40px rgba(0,0,0,0.6);
-  border: 1px solid rgba(255,255,255,0.02);
-  position: absolute;
-  top: 24px;
-  left: 0;
-  right: 0;
-  z-index: 10;
-}
+  useEffect(() => {
+    // load deck from localStorage if present
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length === 4) setDeck(parsed);
+      }
+      // if user has level in app state, reflect it
+      if (user && user.level) setUserLevel(user.level);
+    } catch (e) {
+      console.warn("Failed to load saved deck:", e);
+    }
+  }, [user]);
 
-/* overlay sits above the block and contains the UI */
-.bar-overlay {
-  position: relative;
-  width: calc(100% - 80px);
-  margin: 0 40px;
-  z-index: 40;
-  color: var(--white);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-  padding: 18px 10px;
-}
+  useEffect(() => {
+    // persist deck
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(deck));
+    } catch (e) {
+      // ignore
+    }
+  }, [deck]);
 
-/* heading inside overlay */
-.bar-overlay h1 {
-  margin: 8px 0 0 0;
-  font-size: 28px;
-  color: var(--accent);
-  font-weight: 900;
-  letter-spacing: 1px;
-}
+  function openSlot(i) {
+    setActiveSlot(i);
+    setSearchOpen(true);
+  }
 
-.bar-overlay .subtitle {
-  margin-top: 4px;
-  opacity: 0.92;
-}
+  function closeSearch() {
+    setActiveSlot(null);
+    setSearchOpen(false);
+  }
 
-/* row of 4 slots horizontally */
-.slots-row {
-  display: flex;
-  gap: 12px;
-  width: 100%;
-  justify-content: center;
-  margin-top: 8px;
-  margin-bottom: 6px;
-}
+  function setSlotMovie(i, movie) {
+    const copy = [...deck];
+    copy[i] = movie;
+    setDeck(copy);
+    closeSearch();
+  }
 
-/* each slot container */
-.movie-slot {
-  width: 170px;
-  max-width: 22%;
-  min-width: 140px;
-  aspect-ratio: 1/1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
+  function clearSlot(i) {
+    const copy = [...deck];
+    copy[i] = null;
+    setDeck(copy);
+  }
 
-/* empty slot style (transparent black square with plus) */
-.slot-empty {
-  width: 100%;
-  height: 100%;
-  background: rgba(0,0,0,0.45);
-  border-radius: 10px;
-  border: 1px solid rgba(255,255,255,0.04);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: rgba(255,255,255,0.9);
-  font-size: 48px;
-  transition: transform 160ms ease, background 160ms ease;
-}
-.slot-empty:hover { transform: translateY(-4px); background: rgba(0,0,0,0.55); }
+  /* Stats formulas (same as your spec) */
+  function computeStats(deckArr) {
+    const movies = deckArr.filter(Boolean);
+    if (movies.length === 0) return { pretentious: 0, rewatch: 0, quality: 0, popularity: 0 };
 
-/* filled slot - poster fills the square */
-.slot-filled {
-  width: 100%;
-  height: 100%;
-  position: relative;
-  border-radius: 10px;
-  overflow: hidden;
-  cursor: pointer;
-  border: 1px solid rgba(255,255,255,0.04);
-  box-shadow: 0 8px 30px rgba(0,0,0,0.45);
-}
-.slot-poster {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
+    // Collect raw arrays
+    const scores = movies.map(m => (m.vote_average || 0)); // 0..10
+    const pops = movies.map(m => (m.popularity || 0)); // unbounded
 
-/* meta overlay on bottom of filled poster */
-.slot-meta {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  padding: 8px;
-  background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.6) 100%);
-  color: #fff;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.slot-title { font-weight: 800; font-size: 13px; }
-.slot-sub { font-size: 12px; opacity: 0.9; }
+    // Normalize popularity within this deck to 0..1
+    const minPop = Math.min(...pops);
+    const maxPop = Math.max(...pops);
+    const normPops = pops.map(p => (maxPop === minPop ? 0.5 : (p - minPop) / (maxPop - minPop)));
 
-/* small clear button at top-right */
-.slot-clear {
-  position: absolute;
-  right: 8px;
-  top: 8px;
-  background: rgba(0,0,0,0.55);
-  color: #fff;
-  border: none;
-  border-radius: 6px;
-  padding: 4px 7px;
-  cursor: pointer;
-  font-weight: 800;
-  font-size: 13px;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.4);
-}
+    // Normalize scores 0..1 (TMDB vote_average is typically 0..10)
+    const normScores = scores.map(s => Math.min(1, Math.max(0, s / 10)));
 
-/* summary area (centered) */
-.deck-summary {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  align-items: center;
-  margin-top: 6px;
-}
+    // Quality = average score (0..10)
+    const quality = scores.reduce((a, b) => a + b, 0) / scores.length;
 
-/* center the stats horizontally and in a row on large screens */
-.summary-stats {
-  display: flex;
-  gap: 20px;
-  align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
-}
+    // Popularity average (use raw popularity)
+    const popularity = pops.reduce((a, b) => a + b, 0) / pops.length;
 
-/* single stat */
-.stat {
-  width: 170px;
-  min-width: 130px;
-  background: rgba(255,255,255,0.02);
-  border-radius: 10px;
-  padding: 12px;
-  text-align: center;
-  border: 1px solid rgba(255,255,255,0.03);
-}
-.stat-label { font-size: 13px; color: rgba(255,255,255,0.85); margin-bottom: 6px; }
-.stat-value { font-size: 20px; font-weight: 900; color: var(--accent); }
+    // Pretentiousness: high score AND low popularity -> pretentious
+    const pretArr = normScores.map((ns, idx) => ns * (1 - normPops[idx]));
+    const pretentious = (pretArr.reduce((a, b) => a + b, 0) / pretArr.length) * 100; // scale to 0..100
 
-/* level-area now absolutely positioned inside the lower part of the bar-block */
-.level-area {
-  position: absolute;
-  bottom: 8px; /* sits inside the lower part of the bar */
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 45;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  pointer-events: none; /* decorative inside the bar */
-}
-.level-image {
-  width: 96px;
-  height: 96px;
-  object-fit: contain;
-  display: block;
-  filter: drop-shadow(0 8px 24px rgba(0,0,0,0.6));
-  border-radius: 8px;
-  background: transparent;
-  pointer-events: auto; /* allow hover if needed later */
-}
+    // Rewatchability: high score * high popularity
+    const rewatchArr = normScores.map((ns, idx) => ns * normPops[idx]);
+    const rewatch = (rewatchArr.reduce((a, b) => a + b, 0) / rewatchArr.length) * 100;
 
-/* label/caption sitting immediately below the bar (very close) */
-.level-caption {
-  margin-top: 6px; /* very close to the bar */
-  text-align: center;
-  font-weight: 900;
-  color: var(--white);
-  z-index: 50;
-  line-height: 1;
-}
+    return {
+      pretentious: Math.round(pretentious),
+      rewatch: Math.round(rewatch),
+      quality: +(quality.toFixed(2)),
+      popularity: +(popularity.toFixed(2))
+    };
+  }
 
-/* MovieSearchModal styles (kept here to avoid adding new css file) */
-.ms-modal-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  background: rgba(0,0,0,0.6);
-  backdrop-filter: blur(6px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-}
-.ms-modal {
-  width: min(980px, 96vw);
-  max-height: 86vh;
-  overflow: hidden;
-  background: linear-gradient(180deg, rgba(8,9,12,0.98), rgba(16,18,24,0.98));
-  border-radius: 12px;
-  padding: 16px;
-  box-shadow: 0 20px 80px rgba(0,0,0,0.8);
-  display: flex;
-  flex-direction: column;
-}
-.ms-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-.ms-close {
-  background: transparent;
-  color: var(--white);
-  border: none;
-  font-size: 18px;
-  cursor: pointer;
-}
-.ms-keyarea { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
-.ms-input {
-  width: 100%;
-  padding: 10px 12px;
-  border-radius: 8px;
-  border: 1px solid rgba(255,255,255,0.06);
-  background: rgba(255,255,255,0.02);
-  color: var(--white);
-  outline: none;
-}
-.ms-btn {
-  padding: 8px 12px;
-  border-radius: 8px;
-  border: none;
-  background: var(--accent);
-  color: #000;
-  cursor: pointer;
-  font-weight: 900;
-}
-.ms-ghost {
-  background: transparent;
-  border: 1px solid rgba(255,255,255,0.06);
-  color: var(--white);
-}
-.ms-results {
-  margin-top: 12px;
-  overflow: auto;
-  padding-bottom: 12px;
-}
-.ms-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 12px;
-}
-.ms-item {
-  background: rgba(255,255,255,0.02);
-  padding: 8px;
-  border-radius: 8px;
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  cursor: pointer;
-}
-.ms-item img {
-  width: 54px;
-  height: 80px;
-  object-fit: cover;
-  border-radius: 6px;
-  flex-shrink: 0;
-}
-.ms-item-meta { flex: 1; min-width: 0; }
-.ms-title { font-weight: 800; }
-.ms-sub { opacity: 0.85; font-size: 13px; }
+  const stats = computeStats(deck);
 
-@media (max-width: 920px) {
-  .bar-overlay { width: calc(100% - 40px); }
-  .slots-row { gap: 10px; }
-  .summary-stats { gap: 12px; }
-  .movie-slot { width: 22%; min-width: 110px; }
-}
-@media (max-width: 560px) {
-  .movie-slot { min-width: 86px; width: 20%; }
-  .bar-block { height: 520px; } /* allow vertical stacking on small screens */
-  .bar-overlay { width: calc(100% - 24px); margin: 0 12px; }
-  .ms-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+  // choose a level image file (public folder)
+  const levelIndex = Math.min(9, Math.max(1, Number(userLevel || 1)));
+  const levelImage = `/level${levelIndex}.png`;
+  const levelLabel = LEVEL_LABELS[levelIndex] || `L${levelIndex}`;
+
+  return (
+    <>
+      <NavBar user={user} />
+      <div className="editstack-root">
+        <div className="center-stage">
+          {/* rectangular block (replaces bar.gif) */}
+          <div className="bar-block" aria-hidden="true" />
+
+          <div className="bar-overlay">
+            <h1>Choose your 4 favorite movies</h1>
+            <p className="subtitle">Pick the deck that defines your taste.</p>
+
+            <div className="slots-row" role="list">
+              {deck.map((m, i) => (
+                <MovieSlot
+                  key={i}
+                  index={i}
+                  movie={m}
+                  onOpen={() => openSlot(i)}
+                  onClear={() => clearSlot(i)}
+                />
+              ))}
+            </div>
+
+            <div className="deck-summary centered">
+              <div className="summary-stats centered">
+                <div className="stat">
+                  <div className="stat-label">Pretentiousness</div>
+                  <div className="stat-value">{stats.pretentious}%</div>
+                </div>
+
+                <div className="stat">
+                  <div className="stat-label">Rewatchability</div>
+                  <div className="stat-value">{stats.rewatch}%</div>
+                </div>
+
+                <div className="stat">
+                  <div className="stat-label">Quality</div>
+                  <div className="stat-value">{stats.quality} / 10</div>
+                </div>
+
+                <div className="stat">
+                  <div className="stat-label">Popularity</div>
+                  <div className="stat-value">{stats.popularity}</div>
+                </div>
+              </div>
+
+              {/* Note: level-image visually appears inside the lower part of the black bar via CSS absolute positioning */}
+            </div>
+          </div>
+
+          {/* level image absolutely positioned to the lower part of the bar-block */}
+          <div className="level-area" aria-hidden="true">
+            <img src={levelImage} alt={`Level ${levelIndex}`} className="level-image" onError={(e) => { e.currentTarget.style.opacity = 0.12; }} />
+          </div>
+        </div>
+
+        {/* caption / label placed immediately after the bar (very close) */}
+        <div className="level-caption">
+          {levelLabel}
+        </div>
+      </div>
+
+      <MovieSearchModal
+        open={searchOpen}
+        onClose={closeSearch}
+        onSelect={(movie) => setSlotMovie(activeSlot, movie)}
+      />
+    </>
+  );
 }
