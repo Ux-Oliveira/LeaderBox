@@ -22,6 +22,19 @@ export default function NavBar({ user, onOpenProfile }) {
     return () => document.removeEventListener("mousedown", handleDocClick);
   }, [dropdownOpen]);
 
+  function handleProfileClick() {
+    if (user) {
+      // prefer nickname slug (without @) — as requested
+      const slug = (user.nickname && String(user.nickname).replace(/^@/, "").trim()) || user.open_id || null;
+      if (slug) {
+        nav(`/profile/${encodeURIComponent(slug)}`);
+        return;
+      }
+    }
+    // fallback to general profile page
+    nav("/profile");
+  }
+
   return (
     <>
       <div className="navbar">
@@ -56,11 +69,15 @@ export default function NavBar({ user, onOpenProfile }) {
             <button
               className="nav-icon"
               title="Profile"
-              onClick={() => nav("/profile")}
+              onClick={handleProfileClick}
               aria-label="Profile"
               style={{ marginLeft: 6 }}
             >
-              <i className="fa-regular fa-address-card" />
+              {pfp ? (
+                <img src={pfp} alt="pfp" style={{ width: 22, height: 22, borderRadius: 6, objectFit: "cover" }} />
+              ) : (
+                <i className="fa-regular fa-address-card" />
+              )}
             </button>
 
             {/* Signup / Login — hidden on mobile via CSS */}
@@ -138,4 +155,5 @@ export default function NavBar({ user, onOpenProfile }) {
       {/* REMOVED duplicate bg-gif from here — App.jsx now renders a single .bg-gif for the whole app */}
     </>
   );
+
 }
