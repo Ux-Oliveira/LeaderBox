@@ -1,4 +1,5 @@
 import React from "react";
+import Support from "../components/Support";
 
 function getRuntimeEnv(varName, fallback = "") {
   if (typeof window !== "undefined" && window.__ENV && window.__ENV[varName]) {
@@ -147,6 +148,7 @@ export default function Login() {
           <div style={{ alignSelf: "center", color: "#777" }}>Letterboxd (Auth0) not configured</div>
         )}
       </div>
+      <Support />
     </div>
   );
 }
