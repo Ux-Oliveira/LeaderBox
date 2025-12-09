@@ -174,9 +174,6 @@ export default function EditStack({ user }) {
                   className="level-image"
                   onError={(e) => { e.currentTarget.style.opacity = 0.12; }}
                 />
-                <div className="level-caption">
-                  {levelLabel}
-                </div>
               </div>
             </div>
           </div>
