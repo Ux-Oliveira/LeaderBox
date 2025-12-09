@@ -1,4 +1,5 @@
 import React from "react";
+import Support from "../components/Support";
 
 export default function Privacy() {
   return (
@@ -36,6 +37,7 @@ export default function Privacy() {
             Please also support <a className="small" href="https://www.youtube.com/@JangoDisc" target="_blank" rel="noreferrer" style={{color:"var(--accent)",marginLeft:8}}>JangoDisc </a>on Youtube, as his visual style was the inspiration for the website.</strong></p>
         </div>
       </div>
+      <Support />
     </div>
   );
 }
