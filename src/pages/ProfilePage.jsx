@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { loadProfileFromLocal, clearLocalProfile } from "../lib/profileLocal";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 
 /*
   ProfilePage now accepts an optional :id URL param.
@@ -8,12 +8,31 @@ import { useParams } from "react-router-dom";
   otherwise we load the local profile (same behavior as before).
 */
 
+const STORAGE_KEY = "leaderbox_deck_v1";
+
 export default function ProfilePage({ user: userProp = null }) {
   const { id } = useParams(); // id is the slug (nickname without @) when visiting /profile/:id
   const [user, setUser] = useState(userProp);
   const [busyDelete, setBusyDelete] = useState(false);
   const [copied, setCopied] = useState(false);
   const [loadingRemote, setLoadingRemote] = useState(false);
+  const [deck, setDeck] = useState([null, null, null, null]);
+  const nav = useNavigate();
+
+  useEffect(() => {
+    // load deck from localStorage if present
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length === 4) {
+          setDeck(parsed);
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to load saved deck:", e);
+    }
+  }, []);
 
   useEffect(() => {
     // If parent passed a userProp (e.g. logged-in), prefer that immediately.
@@ -172,6 +191,11 @@ export default function ProfilePage({ user: userProp = null }) {
     }
   }
 
+  // Navigate to EditStack when clicking the stack bar
+  function handleStackClick() {
+    nav("/pages/EditStack");
+  }
+
   if (!user && !loadingRemote) {
     return (
       <div style={{ maxWidth: 720, margin: "40px auto", padding: 24 }}>
@@ -188,6 +212,23 @@ export default function ProfilePage({ user: userProp = null }) {
         <h2>Loading profile…</h2>
       </div>
     );
+  }
+
+  // helper to render poster thumbnail safely
+  function posterFor(movie) {
+    if (!movie) return null;
+    // common shapes: movie.poster_path (TMDB), movie.poster, movie.image, movie.posterUrl
+    if (movie.poster_path) {
+      // TMDB path
+      return `https://image.tmdb.org/t/p/w342${movie.poster_path}`;
+    }
+    if (movie.poster) return movie.poster;
+    if (movie.image) return movie.image;
+    if (movie.posterUrl) return movie.posterUrl;
+    // try nested raw paths
+    if (movie.raw && movie.raw.poster_path) return `https://image.tmdb.org/t/p/w342${movie.raw.poster_path}`;
+    if (movie.raw && movie.raw.poster) return movie.raw.poster;
+    return null;
   }
 
   return (
@@ -231,6 +272,37 @@ export default function ProfilePage({ user: userProp = null }) {
       </div>
 
       <hr style={{ margin: "20px 0", borderColor: "rgba(255,255,255,0.04)" }} />
+
+      {/* ======= STACK BAR (clickable) ======= */}
+      <div
+        className="profile-stack-block"
+        role="button"
+        onClick={handleStackClick}
+        aria-label="Open Edit Stack"
+        title="Click to edit your stack"
+      >
+        <div className="profile-stack-overlay">
+          <div className="slots-row" role="list" style={{ width: "100%", justifyContent: "center" }}>
+            {deck.map((m, i) => {
+              const poster = posterFor(m);
+              return (
+                <div key={i} className="movie-slot" style={{ cursor: "pointer" }}>
+                  {poster ? (
+                    <div className="slot-filled" aria-hidden>
+                      <img src={poster} alt={m.title || m.name || `movie-${i}`} className="slot-poster" />
+                    </div>
+                  ) : (
+                    <div className="slot-empty" aria-hidden />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+      {/* ======= end stack bar ======= */}
+
+      <div style={{ height: 18 }} />
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <div style={{ padding: 12, borderRadius: 8, background: "rgba(255,255,255,0.02)" }}>
