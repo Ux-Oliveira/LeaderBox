@@ -136,7 +136,8 @@ export default function ChooseProfile() {
                 background: "#0b0b0b"
               }}
             >
-              <img src={src} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 6 }} />
+              {/* image shown raw (no rounded frame) as requested */}
+              <img src={src} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 0 }} />
             </div>
           ))}
         </div>
