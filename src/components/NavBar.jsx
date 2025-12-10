@@ -43,7 +43,6 @@ export default function NavBar({ user, onOpenProfile }) {
           <img src="/ldr-logo.png" alt="LeaderBox" className="logo-img" />
           <div className="brand-text">
             <div className="brand-title">LeaderBox</div>
-            <div className="small">Your movie taste sucks</div>
           </div>
         </div>
 
@@ -153,4 +152,5 @@ export default function NavBar({ user, onOpenProfile }) {
   );
 
 }
+
 
