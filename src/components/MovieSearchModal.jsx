@@ -7,7 +7,7 @@ import React, { useEffect, useState } from "react";
       1) If a client-side saved key exists (localStorage 'tmdb_api_key') use it.
       2) Else, if the app has a PUBLIC env var (process.env.NEXT_PUBLIC_TMDB_API_KEY) use that.
       3) Else, if a server proxy '/api/tmdb_search' exists, call it (preferred for production).
-      4) Otherwise show input to paste/save an API key to localStorage.
+      4) Otherwise the modal still works but direct TMDb calls require a key (handled in code).
 */
 
 const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w342";
@@ -16,7 +16,6 @@ function getStoredKey() {
   if (typeof window === "undefined") return null;
   if (window.__ENV && window.__ENV.TMDB_API_KEY) return window.__ENV.TMDB_API_KEY;
   try {
-    // process.env.* is replaced at build-time for many setups (Next/Vite). Use it if present.
     if (typeof process !== "undefined" && process.env && process.env.NEXT_PUBLIC_TMDB_API_KEY) {
       return process.env.NEXT_PUBLIC_TMDB_API_KEY;
     }
@@ -27,15 +26,14 @@ function getStoredKey() {
 }
 
 export default function MovieSearchModal({ open, onClose, onSelect }) {
-  const [apiKey, setApiKey] = useState(getStoredKey() || "");
+  const [apiKey] = useState(getStoredKey() || ""); // kept for fallback but not shown in UI
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // keep apiKey and UI reset in sync when modal opens/closes
+  // reset state when modal opens/closes
   useEffect(() => {
-    setApiKey(getStoredKey() || "");
     setResults([]);
     setQuery("");
     setError("");
@@ -46,14 +44,13 @@ export default function MovieSearchModal({ open, onClose, onSelect }) {
     if (!open) return;
     const q = (query || "").trim();
     if (q.length < 1) {
-      // if query cleared, clear results and don't show "No results yet" as an error
       setResults([]);
       setError("");
       return;
     }
     const id = setTimeout(() => {
       doSearch(q);
-    }, 300); // 300ms debounce
+    }, 300);
     return () => clearTimeout(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, open]);
@@ -61,18 +58,14 @@ export default function MovieSearchModal({ open, onClose, onSelect }) {
   async function doSearch(q) {
     if (!q || q.trim().length < 1) return;
 
-    // Decide search path:
-    // 1) If a server proxy exists, use it (recommended).
-    // 2) Else if we have an API key available for client, call TMDb directly.
     setError("");
     setLoading(true);
     setResults([]);
 
     // prefer server proxy
-    const useServerProxy = true; // set true to prefer proxy; change if you want direct calls
+    const useServerProxy = true;
     try {
       if (useServerProxy) {
-        // call your serverless endpoint which will call TMDb using server-only env var
         const res = await fetch(`/api/tmdb_search?q=${encodeURIComponent(q)}`);
         if (!res.ok) {
           const txt = await res.text();
@@ -97,10 +90,10 @@ export default function MovieSearchModal({ open, onClose, onSelect }) {
         return;
       }
 
-      // fallback: client-side direct call to TMDb (requires NEXT_PUBLIC_TMDB_API_KEY or local key)
+      // fallback: client-side direct call to TMDb (requires key)
       const key = apiKey || getStoredKey();
       if (!key) {
-        setError("No TMDB API key set. Paste one above and click 'Save key'.");
+        setError("No TMDB API key available for direct calls.");
         setLoading(false);
         return;
       }
@@ -134,16 +127,6 @@ export default function MovieSearchModal({ open, onClose, onSelect }) {
     }
   }
 
-  function handleSaveKey() {
-    try {
-      localStorage.setItem("tmdb_api_key", apiKey);
-      alert("TMDB API key saved to localStorage.");
-    } catch (e) {
-      console.warn("Could not save key", e);
-      alert("Failed to save key locally.");
-    }
-  }
-
   function handleSelect(m) {
     onSelect && onSelect(m);
   }
@@ -158,7 +141,7 @@ export default function MovieSearchModal({ open, onClose, onSelect }) {
           <button className="ms-close" onClick={onClose}>✕</button>
         </div>
 
-        {/* ALWAYS show the real search bar immediately */}
+        {/* Real search bar only (no key UI present) */}
         <div className="ms-keyarea">
           <div style={{ display: "flex", gap: 8, alignItems: "center", width: "100%" }}>
             <input
@@ -181,6 +164,7 @@ export default function MovieSearchModal({ open, onClose, onSelect }) {
           )}
 
           {!loading && results.length === 0 && query.trim().length === 0 && (
+            <div className="small" style={{ opacity: 0.8 }}>Start typing to see results.</div>
           )}
 
           <div className="ms-grid">
