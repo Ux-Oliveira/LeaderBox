@@ -48,6 +48,19 @@ export default function ProfilePage({ user: userProp = null }) {
     // If parent passed a userProp (e.g. logged-in), prefer that immediately.
     if (userProp) {
       setUser(userProp);
+
+      // if userProp includes a deck / stack, use it
+      const upDeck =
+        userProp.deck ||
+        userProp.stack ||
+        userProp.movies ||
+        userProp.raw?.deck ||
+        userProp.raw?.stack ||
+        userProp.raw?.movies ||
+        null;
+      if (Array.isArray(upDeck) && upDeck.length === 4) {
+        setDeck(upDeck);
+      }
       return;
     }
 
@@ -74,6 +87,20 @@ export default function ProfilePage({ user: userProp = null }) {
             setUser(normalized);
             // also save locally so modal / other flows can use it
             try { localStorage.setItem("stored_profile", JSON.stringify(normalized)); } catch (e) {}
+
+            // attempt to extract deck/stack from server profile
+            const serverDeck =
+              profile.deck ||
+              profile.stack ||
+              profile.movies ||
+              profile.movies_list ||
+              profile.raw?.deck ||
+              profile.raw?.stack ||
+              null;
+            if (Array.isArray(serverDeck) && serverDeck.length === 4) {
+              setDeck(serverDeck);
+            }
+
             setLoadingRemote(false);
             return;
           }
@@ -95,6 +122,19 @@ export default function ProfilePage({ user: userProp = null }) {
               };
               setUser(normalized2);
               try { localStorage.setItem("stored_profile", JSON.stringify(normalized2)); } catch (e) {}
+
+              const serverDeck2 =
+                profile2.deck ||
+                profile2.stack ||
+                profile2.movies ||
+                profile2.movies_list ||
+                profile2.raw?.deck ||
+                profile2.raw?.stack ||
+                null;
+              if (Array.isArray(serverDeck2) && serverDeck2.length === 4) {
+                setDeck(serverDeck2);
+              }
+
               setLoadingRemote(false);
               return;
             }
