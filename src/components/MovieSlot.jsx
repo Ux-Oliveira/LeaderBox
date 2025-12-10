@@ -27,7 +27,13 @@ export default function MovieSlot({ index, movie, onOpen, onClear }) {
             <div className="slot-title">{movie.title || movie.name}</div>
             <div className="slot-sub">{movie.release_date ? movie.release_date.slice(0,4) : ""}</div>
           </div>
-          <button className="slot-clear" onClick={(e) => { e.stopPropagation(); onClear(); }} aria-label="Remove movie">✕</button>
+          <button
+            className="slot-clear"
+            onClick={(e) => { e.stopPropagation(); onClear(); }}
+            aria-label="Remove movie"
+          >
+            ✕
+          </button>
         </div>
       )}
     </div>
