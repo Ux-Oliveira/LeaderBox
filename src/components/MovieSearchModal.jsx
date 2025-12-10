@@ -170,23 +170,6 @@ export default function MovieSearchModal({ open, onClose, onSelect }) {
             />
             <button className="ms-btn" onClick={() => doSearch(query)} disabled={loading}>Search</button>
           </div>
-
-          {/* Key controls kept but non-blocking: user can save/clear a local key */}
-          <div style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            <input
-              placeholder="Optional: paste TMDB API key (only if you want direct client calls)"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              className="ms-input"
-              style={{ flex: "1 1 320px" }}
-            />
-            <button className="ms-btn" onClick={handleSaveKey}>Save key</button>
-            <button className="ms-btn ms-ghost" onClick={() => { setApiKey(""); localStorage.removeItem("tmdb_api_key"); }}>Clear saved key</button>
-          </div>
-
-          <div className="small" style={{ opacity: 0.8, marginTop: 6 }}>
-            You can use the server proxy (recommended) — or paste a TMDB key to call TMDB directly.
-          </div>
         </div>
 
         <div className="ms-results">
@@ -198,7 +181,6 @@ export default function MovieSearchModal({ open, onClose, onSelect }) {
           )}
 
           {!loading && results.length === 0 && query.trim().length === 0 && (
-            <div className="small" style={{ opacity: 0.8 }}>Start typing to see results.</div>
           )}
 
           <div className="ms-grid">
