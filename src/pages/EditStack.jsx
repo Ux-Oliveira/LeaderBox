@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import NavBar from "../components/NavBar";
 import MovieSlot from "../components/MovieSlot";
 import MovieSearchModal from "../components/MovieSearchModal";
@@ -48,6 +49,8 @@ const REWATCH_DESCRIPTORS = [
 ];
 
 export default function EditStack({ user }) {
+  const navigate = useNavigate();
+
   // deck: array of 4 slots (null or movie object)
   const [deck, setDeck] = useState([null, null, null, null]);
   const [activeSlot, setActiveSlot] = useState(null); // index of slot being edited
@@ -351,12 +354,12 @@ export default function EditStack({ user }) {
               )}
             </div>
 
-            {/* Brush up on the rules button (use direct client nav for reliability) */}
+            {/* Brush up on the rules button (use React Router navigate for reliability) */}
             <div style={{ marginTop: 18 }}>
               <button
                 className="ms-btn"
                 style={{ textDecoration: "none", display: "inline-block" }}
-                onClick={() => { window.location.href = "/rules"; }}
+                onClick={() => navigate("/rules")}
               >
                 Brush up on the rules
               </button>
