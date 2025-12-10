@@ -6,7 +6,7 @@ import "../styles/editstack.css";
 
 const STORAGE_KEY = "leaderbox_deck_v1";
 
-// Level labels (keeps parity with existing site wording)
+// Level labels
 const LEVEL_LABELS = {
   1: "Noob",
   2: "Casual Viewer",
