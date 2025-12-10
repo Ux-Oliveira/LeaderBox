@@ -21,7 +21,6 @@ const LEVEL_LABELS = {
 };
 
 // Secondary descriptor placeholders (10 for pretentiousness, 10 for rewatchability).
-// Replace these strings later as you like.
 const PRETENTIOUS_DESCRIPTORS = [
   "Subtle Avant-Garde",
   "Artsy Casual",
@@ -61,24 +60,55 @@ export default function EditStack({ user }) {
   const [mpModalOpen, setMpModalOpen] = useState(false);
   const saveTimeoutRef = useRef(null);
 
+  // load deck: prefer server-attached deck (if user present and has deck) else localStorage fallback
   useEffect(() => {
-    // load deck from localStorage if present
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length === 4) setDeck(parsed);
+    async function init() {
+      try {
+        // if logged-in user and they have a deck on their profile, prefer that
+        const userId = user && (user.open_id || user.id || user.openId || user.raw?.open_id);
+        if (userId) {
+          try {
+            const res = await fetch(`/api/profile?open_id=${encodeURIComponent(userId)}`, { credentials: "same-origin" });
+            if (res.ok) {
+              const text = await res.text();
+              try {
+                const json = JSON.parse(text);
+                const profile = json.profile || json;
+                if (profile && Array.isArray(profile.deck) && profile.deck.length === 4) {
+                  setDeck(profile.deck);
+                  // set user level from profile if present
+                  if (profile.level) setUserLevel(profile.level);
+                  return;
+                }
+              } catch (e) {
+                // non-json or parse failure, ignore and fall back to local
+              }
+            }
+          } catch (err) {
+            console.warn("Failed fetching profile deck:", err);
+            // fallthrough to localStorage fallback
+          }
+        }
+
+        // local fallback
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed) && parsed.length === 4) setDeck(parsed);
+        }
+
+        // if user has level in app state, reflect it
+        if (user && user.level) setUserLevel(user.level);
+      } catch (e) {
+        console.warn("Failed to load saved deck:", e);
       }
-      // if user has level in app state, reflect it
-      if (user && user.level) setUserLevel(user.level);
-    } catch (e) {
-      console.warn("Failed to load saved deck:", e);
     }
+    init();
   }, [user]);
 
-  // persist deck locally and (if logged) send to server (debounced)
+  // persist deck to server (debounced) and keep a local fallback copy
   useEffect(() => {
-    // persist deck locally
+    // save locally as fallback (harmless), but primary save is to server when user is logged
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(deck));
     } catch (e) {
@@ -89,41 +119,32 @@ export default function EditStack({ user }) {
     if (!user) return;
 
     // determine user id to send
-    const userId = user.id || user.open_id || user.openId || user.openId;
-
+    const userId = user.open_id || user.id || user.openId || user.raw?.open_id || null;
     if (!userId) return;
 
-    // clear previous timeout
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
 
-    // debounce: wait 1s after last change
     saveTimeoutRef.current = setTimeout(() => {
       (async () => {
         try {
-          await fetch("/api/save_deck", {
+          // POST to /api/profile - server handler will create/update profile and store deck
+          await fetch("/api/profile", {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
+            headers: { "Content-Type": "application/json" },
             credentials: "same-origin",
             body: JSON.stringify({
-              userId,
+              open_id: userId,
               deck,
             }),
           });
         } catch (e) {
-          console.warn("Failed to save deck to server:", e);
+          console.warn("Failed to save deck to profile:", e);
         }
       })();
     }, 1000);
 
-    // cleanup on unmount
     return () => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-      }
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     };
   }, [deck, user]);
 
@@ -241,9 +262,6 @@ export default function EditStack({ user }) {
     const value = winner === "pret" ? pret : rewatch;
     if ((value || 0) <= 10) return null;
 
-    // map value 11..100 -> descriptor index 0..9 (approx)
-    // index strategy: Math.min(9, Math.floor((value - 11) / 10))
-    // value=11..20 -> 0, 21..30 ->1, ..., 91..100 ->8 (approx). This gives fine granularity.
     let idx = Math.floor((value - 11) / 10);
     if (isNaN(idx) || idx < 0) idx = 0;
     idx = Math.min(9, idx);
