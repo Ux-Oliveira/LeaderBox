@@ -38,10 +38,10 @@ export default function Terms() {
             <a href="https://www.tiktok.com/@ricks_a_human" target="_blank" style={{ color: "var(--redlink)" }}>@Ricks_a_human</a> on TikTok for management suppport.<br />
           Email: <a href="mailto:leaderbox_management@outlook.com" style={{ color: "var(--redlink)" }}>leaderbox_management@outlook.com</a> for legal or business porposes.</p>
 
-         <p><strong>8. Support the website:
+         <p><strong>8. Support the website:</strong><br />
           Leaderbox is not a paid service! Any form of support is voluntary and could be done so via subscribing to Rick's a Human's <a href="https://www.youtube.com/@ricksahuman" target="_blank" style={{ color: "var(--redlink)" }}>Patreon </a>
             or <a href="https://www.youtube.com/@ricksahuman" target="_blank" style={{ color: "var(--redlink" }}>Youtube!</a><br />
-            Please also support <a className="small" href="https://www.youtube.com/@JangoDisc" target="_blank" rel="noreferrer" style={{color:"var(--redlink)",marginLeft:8}}>JangoDisc </a>on Youtube, as his visual style was the inspiration for the website.</strong></p>
+            Please also support <a className="small" href="https://www.youtube.com/@JangoDisc" target="_blank" rel="noreferrer" style={{color:"var(--redlink)",marginLeft:8}}>JangoDisc </a>on Youtube, as his visual style was the inspiration for the website.</p>
         </div>
       </div>
     </div>
