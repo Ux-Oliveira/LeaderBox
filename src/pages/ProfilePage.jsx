@@ -280,7 +280,7 @@ export default function ProfilePage({ user: userProp = null }) {
                 window.location.reload();
               }}
             >
-              Log out (local)
+              Log out
             </button>
           </div>
         </div>
@@ -321,7 +321,7 @@ export default function ProfilePage({ user: userProp = null }) {
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <div style={{ padding: 12, borderRadius: 8, background: "rgba(255,255,255,0.02)" }}>
-          <div className="small" style={{ color: "#999" }}>Account</div>
+          <div className="small" style={{ color: "#999" }}>Your progress</div>
           <div style={{ marginTop: 8 }}>
             <div><strong>Nickname:</strong> {user.nickname}</div>
             <div><strong>Wins:</strong> {user.wins || 0}</div>
@@ -339,14 +339,14 @@ export default function ProfilePage({ user: userProp = null }) {
               disabled={busyDelete}
               style={{ background: "#b71c1c" }}
             >
-              {busyDelete ? "Deleting…" : "Delete Profile (delete from server if exists)"}
+              {busyDelete ? "Deleting…" : "Delete Your Profile"}
             </button>
 
             <button
               className="modal-btn"
               onClick={() => handleCopyProfileLink(user)}
             >
-              Copy profile link
+              Share your profile (Copy Link)
             </button>
           </div>
         </div>
