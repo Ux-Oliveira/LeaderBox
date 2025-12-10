@@ -21,9 +21,9 @@ export default function Terms() {
             <br />
             You may not harass other users in or outside the website.
             <br />
-            You agree to provide accurate information when signing up/logging in.
+            You agree to provide your own, accurate information when signing up/logging in.
             <br />
-            You agree to not share your or someone else's personal information on the website.
+            You agree to not share yours or someone else's personal information on the website.
           </p>
 
           <p>
@@ -124,8 +124,7 @@ export default function Terms() {
               target="_blank"
               rel="noreferrer"
               style={{ color: "var(--redlink)", fontWeight: "bold", marginLeft: 8 }}
-            >
-              JangoDisc
+            >JangoDisc
             </a>{" "}
             on YouTube, as his visual style was the inspiration for the website.
           </p>
