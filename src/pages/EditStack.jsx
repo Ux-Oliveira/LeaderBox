@@ -57,7 +57,6 @@ export default function EditStack({ user }) {
   // movie points info
   const [mpModalOpen, setMpModalOpen] = useState(false);
   const saveTimeoutRef = useRef(null);
-  const serverSaveRef = useRef(null);
 
   useEffect(() => {
     // load deck from localStorage if present
@@ -74,6 +73,7 @@ export default function EditStack({ user }) {
     }
   }, [user]);
 
+  // persist deck locally and (if logged) send to server (debounced)
   useEffect(() => {
     // persist deck locally
     try {
@@ -83,7 +83,12 @@ export default function EditStack({ user }) {
     }
 
     // if we have a logged-in user, persist deck to server (debounced)
-    if (!user || !user.id) return;
+    if (!user) return;
+
+    // determine user id to send
+    const userId = user.id || user.open_id || user.openId || user.openId;
+
+    if (!userId) return;
 
     // clear previous timeout
     if (saveTimeoutRef.current) {
@@ -99,8 +104,9 @@ export default function EditStack({ user }) {
             headers: {
               "Content-Type": "application/json",
             },
+            credentials: "same-origin",
             body: JSON.stringify({
-              userId: user.id,
+              userId,
               deck,
             }),
           });
@@ -340,16 +346,20 @@ export default function EditStack({ user }) {
                 </div>
               ) : (
                 <div style={{ color: "var(--yellow)", opacity: 0.7 }}>
-                  Tikes! Try shifting your taste.
+                  Yikes! Try shifting your taste.
                 </div>
               )}
             </div>
 
-            {/* Brush up on the rules button */}
+            {/* Brush up on the rules button (use direct client nav for reliability) */}
             <div style={{ marginTop: 18 }}>
-              <a href="/rules" className="ms-btn" style={{ textDecoration: "none", display: "inline-block" }}>
+              <button
+                className="ms-btn"
+                style={{ textDecoration: "none", display: "inline-block" }}
+                onClick={() => { window.location.href = "/rules"; }}
+              >
                 Brush up on the rules
-              </a>
+              </button>
             </div>
           </div>
         </div>
@@ -375,11 +385,11 @@ export default function EditStack({ user }) {
             <h3 style={{ marginTop: 0 }}>What are Movie Points?</h3>
             <p style={{ marginTop: 8 }}>
               Movie Points are the sum of your deck's stats. Pretentiousness and Rewatchability get turned from percentages to raw points (e.g. 32% → 32 points) and,<br />
-              added to your Quality and Popularity stats, giving you your Movie Points.<br />
+              that number is added up with the Quality and Popularity stats, giving you your Movie Points.<br />
               The goal of each duel is to depleate your opponent's Movie points.
             </p>
             <p style={{ marginTop: 6 }}>
-              These points form the basis for each movie's attack points. Your movie points are destribited across your movies on the basis of which movie has the bigger critics score.
+              These points form the basis for each movie's attack points. Your movie points are destributed across your movies on the basis of which movie has the bigger critics score.
             </p>
 
             <div style={{ marginTop: 14, display: "flex", justifyContent: "flex-end" }}>
