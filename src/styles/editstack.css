@@ -17,8 +17,7 @@
   align-items: flex-start;
   justify-content: center;
   padding-bottom: 60px;
-  flex-direction: column; /* so level-caption can sit right under center-stage */
-}
+  flex-direction: column; 
 
 /* center-stage positions the rectangular bar and overlay content */
 .center-stage {
