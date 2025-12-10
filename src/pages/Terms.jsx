@@ -117,7 +117,7 @@ export default function Terms() {
             </a>
             .
             <br />
-            Please also support{""}
+            Please also support{" "}
             <a
               className="small"
               href="https://www.youtube.com/@JangoDisc"
@@ -125,7 +125,7 @@ export default function Terms() {
               rel="noreferrer"
               style={{ color: "var(--redlink)", fontWeight: "bold", marginLeft: 8 }}
             >JangoDisc
-            </a>{""}
+            </a>{" "}
             on YouTube, as his visual style was the inspiration for the website.
           </p>
         </div>
