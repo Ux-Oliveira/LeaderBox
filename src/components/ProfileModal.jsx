@@ -45,6 +45,20 @@ export default function ProfileModal({
     if (user) saveProfileToLocal(user);
   }, [user]);
 
+  // Listen for global profile changes to update modal if user is deleted elsewhere
+  useEffect(() => {
+    function onProfileChange(e) {
+      const newUser = e?.detail?.user ?? null;
+      // if profile removed, ensure modal hides user-specific info
+      if (!newUser) {
+        onUpdateUser(null);
+        setOpen(false);
+      }
+    }
+    window.addEventListener("leaderbox:profile-changed", onProfileChange);
+    return () => window.removeEventListener("leaderbox:profile-changed", onProfileChange);
+  }, [onUpdateUser]);
+
   // click outside the modal to close it
   useEffect(() => {
     function handleDocClick(e) {
@@ -86,8 +100,11 @@ export default function ProfileModal({
       if (ok) {
         clearLocalProfile();
         onUpdateUser(null);
+        // broadcast change to app
+        window.dispatchEvent(new CustomEvent("leaderbox:profile-changed", { detail: { user: null } }));
         setBusyDelete(false);
         alert("Profile deleted.");
+        setOpen(false);
         return;
       } else {
         setBusyDelete(false);
@@ -99,13 +116,17 @@ export default function ProfileModal({
     // Fallback: local-only delete
     clearLocalProfile();
     onUpdateUser(null);
+    window.dispatchEvent(new CustomEvent("leaderbox:profile-changed", { detail: { user: null } }));
     setBusyDelete(false);
+    setOpen(false);
   }
 
   async function doLogout() {
     clearLocalProfile();
     onLogout();
     onUpdateUser(null);
+    // broadcast change so nav bar updates
+    window.dispatchEvent(new CustomEvent("leaderbox:profile-changed", { detail: { user: null } }));
   }
 
   function handleCopyProfileLink(u) {
@@ -182,6 +203,8 @@ export default function ProfileModal({
                     onClick={() => {
                       clearLocalProfile();
                       setOpen(false);
+                      // broadcast change in case other parts depend on the saved profile removal
+                      window.dispatchEvent(new CustomEvent("leaderbox:profile-changed", { detail: { user: null } }));
                     }}
                   >
                     Clear saved profile
@@ -322,4 +345,3 @@ export default function ProfileModal({
     </>
   );
 }
-
