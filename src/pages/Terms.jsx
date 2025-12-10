@@ -35,7 +35,7 @@ export default function Terms() {
               href="https://www.youtube.com/@JangoDisc"
               target="_blank"
               rel="noreferrer"
-              style={{ color: "var(--redlink)", marginLeft: 8 }}
+              style={{ color: "var(--redlink)", fontWeight: "bold", marginLeft: 8 }}
             >
               JangoDisc
             </a>
@@ -45,7 +45,7 @@ export default function Terms() {
               href="https://www.youtube.com/@ricksahuman"
               target="_blank"
               rel="noreferrer"
-              style={{ color: "var(--redlink)", marginLeft: 8 }}
+              style={{ color: "var(--redlink)", fontWeight: "bold", marginLeft: 8 }}
             >
               Rick's a Human.
             </a>
@@ -60,7 +60,7 @@ export default function Terms() {
               href="https://www.themoviedb.org/"
               target="_blank"
               rel="noreferrer"
-              style={{ color: "var(--redlink)", marginLeft: 6 }}
+              style={{ color: "var(--redlink)", , fontWeight: "bold", marginLeft: 6 }}
             >
               TMDB
             </a>.
@@ -89,7 +89,7 @@ export default function Terms() {
               href="https://www.tiktok.com/@ricks_a_human"
               target="_blank"
               rel="noreferrer"
-              style={{ color: "var(--redlink)" }}
+              style={{ color: "var(--redlink)", fontWeight: "bold" }}
             >
               @Ricks_a_human
             </a>{" "}
@@ -97,7 +97,7 @@ export default function Terms() {
             <br />
             Email:
             {" "}
-            <a href="mailto:leaderbox_management@outlook.com" style={{ color: "var(--redlink)" }}>
+            <a href="mailto:leaderbox_management@outlook.com" style={{ color: "var(--redlink)", fontWeight: "bold" }}>
               leaderbox_management@outlook.com
             </a>{" "}
             for legal or business purposes.
@@ -108,11 +108,11 @@ export default function Terms() {
             <br />
             LeaderBox is not a paid service! Any form of support is voluntary and could be done so via subscribing to
             Rick's a Human's{" "}
-            <a href="https://www.youtube.com/@ricksahuman" target="_blank" rel="noreferrer" style={{ color: "var(--redlink)" }}>
+            <a href="https://www.youtube.com/@ricksahuman" target="_blank" rel="noreferrer" style={{ color: "var(--redlink)", fontWeight: "bold" }}>
               Patreon
             </a>{" "}
             or{" "}
-            <a href="https://www.youtube.com/@ricksahuman" target="_blank" rel="noreferrer" style={{ color: "var(--redlink)" }}>
+            <a href="https://www.youtube.com/@ricksahuman" target="_blank" rel="noreferrer" style={{ color: "var(--redlink)", fontWeight: "bold" }}>
               YouTube
             </a>
             .
@@ -123,7 +123,7 @@ export default function Terms() {
               href="https://www.youtube.com/@JangoDisc"
               target="_blank"
               rel="noreferrer"
-              style={{ color: "var(--redlink)", marginLeft: 8 }}
+              style={{ color: "var(--redlink)", fontWeight: "bold", marginLeft: 8 }}
             >
               JangoDisc
             </a>{" "}
