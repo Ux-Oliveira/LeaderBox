@@ -104,7 +104,6 @@ export default function ChooseProfile() {
       {error && <div style={{ color: "#a00", marginBottom: 12 }}>{error}</div>}
 
       <div style={{ marginBottom: 16 }}>
-        <label style={{ display: "block", marginBottom: 6 }}>Nickname</label>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <div style={{ background: "#222", padding: "8px 12px", borderRadius: 6, color: "#ddd" }}>@</div>
           <input
