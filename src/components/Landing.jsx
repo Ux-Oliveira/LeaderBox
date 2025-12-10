@@ -5,12 +5,12 @@ export default function Landing(){
   <>
    <div className="landing" style={{display:"grid",gap:14}}>
     <div className="card">
-      <h1 className="h1-retro">Select your 4 favorite movies and build the perfect stack!</h1>
-      <div className="subtitle">Choose your movies, craft your deck and duel against other cinephiles!
-    </div>
+      <h1 className="h1-retro">Your movie taste sucks!</h1>
+      <div className="subtitle">Build up your deck and prove me wrong!</div>
    </div>
    </div>
   </>
  );
 }
+
 
