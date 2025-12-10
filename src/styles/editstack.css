@@ -61,6 +61,12 @@
   text-align: center; /* ensure headings centered on mobile */
 }
 
+/* ensure the rules button sits above the decorative area */
+.bar-overlay .ms-btn {
+  position: relative;
+  z-index: 60;
+}
+
 /* heading inside overlay */
 .bar-overlay h1,
 .es-title {
@@ -220,6 +226,7 @@
 .pulsing-slot { animation: pulseLarge 2000ms ease-in-out infinite; }
 
 /* LEVEL AREA: positioned inside the bar-block at its bottom */
+/* Prevent the level-area container from stealing clicks while keeping its children interactive */
 .level-area {
   position: absolute;
   bottom: -155px; /* push lower relative to .bar-overlay so it visually sits inside the bar */
@@ -230,9 +237,14 @@
   align-items: center;
   gap: 8px;
   z-index: 50;
-  pointer-events: auto;
+  pointer-events: none; /* container ignores pointer events so it won't block the rules button */
   width: calc(100% - 160px);
   max-width: 520px;
+}
+
+/* allow the level image (and any controls inside) to still receive clicks */
+.level-area * {
+  pointer-events: auto;
 }
 
 /* level image size adjusted to fit inside the lower bar area */
