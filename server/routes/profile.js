@@ -1,3 +1,4 @@
+// server/routes/profile.js
 import express from "express";
 import fs from "fs";
 import path from "path";
@@ -34,7 +35,7 @@ function saveUsers(users) {
 }
 
 function cleanNick(n) {
-  if (!n && n !== "") return null;
+  if (n === undefined || n === null) return null;
   return String(n).trim().replace(/^@+/, "");
 }
 
@@ -47,10 +48,11 @@ router.get("/", (req, res) => {
     const { nickname, open_id } = req.query;
 
     if (nickname) {
-      const q = cleanNick(nickname).toLowerCase();
+      const q = cleanNick(nickname);
+      const qLower = q ? q.toLowerCase() : null;
       const user = users.find(u => {
         const nick = (u.nickname || "").toString().replace(/^@+/, "").toLowerCase();
-        return nick === q || (u.open_id && String(u.open_id).toLowerCase() === q);
+        return (qLower && nick === qLower) || (u.open_id && String(u.open_id).toLowerCase() === String(nickname).toLowerCase());
       });
       if (!user) return res.status(404).json({ ok: false, error: "not_found" });
       return res.json({ ok: true, profile: user });
@@ -94,27 +96,36 @@ router.post("/", (req, res) => {
     const users = loadUsers();
     let user = users.find(u => String(u.open_id) === String(open_id));
 
-    const cleanedNick = cleanNick(body.nickname || body.nick || (body.nickname === "" ? "" : undefined));
+    const cleanedNick = (body.nickname !== undefined) ? cleanNick(body.nickname) : undefined;
 
     if (!user) {
       user = {
         open_id,
         // store nickname WITHOUT leading @
         nickname: cleanedNick ? cleanedNick : String(open_id),
+        nickname_lower: cleanedNick ? cleanedNick.toLowerCase() : null,
         avatar: body.avatar || body.pfp || null,
         wins: Number.isFinite(body.wins) ? parseInt(body.wins, 10) : 0,
         losses: Number.isFinite(body.losses) ? parseInt(body.losses, 10) : 0,
+        draws: Number.isFinite(body.draws) ? parseInt(body.draws, 10) : 0,
         level: Number.isFinite(body.level) ? parseInt(body.level, 10) : 1,
         deck: Array.isArray(body.deck) ? body.deck : [],
         created_at: Date.now(),
         updated_at: Date.now(),
       };
+      // ensure nickname_lower present
+      user.nickname_lower = user.nickname ? user.nickname.toLowerCase() : null;
       users.push(user);
     } else {
-      if (cleanedNick !== undefined && cleanedNick !== null) user.nickname = cleanedNick;
+      if (cleanedNick !== undefined && cleanedNick !== null) {
+        user.nickname = cleanedNick;
+        user.nickname_lower = cleanedNick.toLowerCase();
+      }
       if (body.avatar !== undefined) user.avatar = body.avatar;
       if (body.wins !== undefined) user.wins = Number.isFinite(body.wins) ? parseInt(body.wins, 10) : user.wins;
       if (body.losses !== undefined) user.losses = Number.isFinite(body.losses) ? parseInt(body.losses, 10) : user.losses;
+      if (body.draws !== undefined) user.draws = Number.isFinite(body.draws) ? parseInt(body.draws, 10) : (user.draws || 0);
+      else user.draws = Number.isFinite(user.draws) ? user.draws : 0;
       if (body.level !== undefined) user.level = Number.isFinite(body.level) ? parseInt(body.level, 10) : user.level;
       if (body.deck !== undefined) user.deck = Array.isArray(body.deck) ? body.deck : user.deck;
       user.updated_at = Date.now();
