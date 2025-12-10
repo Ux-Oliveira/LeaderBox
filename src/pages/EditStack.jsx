@@ -1,5 +1,4 @@
-
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import NavBar from "../components/NavBar";
 import MovieSlot from "../components/MovieSlot";
 import MovieSearchModal from "../components/MovieSearchModal";
@@ -21,12 +20,45 @@ const LEVEL_LABELS = {
   9: "Cinephile",
 };
 
+// Secondary descriptor placeholders (10 for pretentiousness, 10 for rewatchability).
+// Replace these strings later as you like.
+const PRETENTIOUS_DESCRIPTORS = [
+  "Subtle Avant-Garde",
+  "Artsy Casual",
+  "Quirky Seeker",
+  "Indie Inclined",
+  "Curated Taste",
+  "Obscure Hunter",
+  "Artsy Purist",
+  "Highbrow Devotee",
+  "Cine-Philosopher",
+  "Gilded Auteur"
+];
+
+const REWATCH_DESCRIPTORS = [
+  "Light Entertainer",
+  "Comfort Watcher",
+  "Rewatch Ready",
+  "Streaming Favorite",
+  "Mainstream Loyal",
+  "Cult Movie Fan",
+  "Binge Magnet",
+  "Evergreen Pick",
+  "Popcorn Powerhouse",
+  "Repeat Legend"
+];
+
 export default function EditStack({ user }) {
   // deck: array of 4 slots (null or movie object)
   const [deck, setDeck] = useState([null, null, null, null]);
   const [activeSlot, setActiveSlot] = useState(null); // index of slot being edited
   const [searchOpen, setSearchOpen] = useState(false);
   const [userLevel, setUserLevel] = useState(user?.level || 1);
+
+  // movie points info
+  const [mpModalOpen, setMpModalOpen] = useState(false);
+  const saveTimeoutRef = useRef(null);
+  const serverSaveRef = useRef(null);
 
   useEffect(() => {
     // load deck from localStorage if present
@@ -44,13 +76,48 @@ export default function EditStack({ user }) {
   }, [user]);
 
   useEffect(() => {
-    // persist deck
+    // persist deck locally
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(deck));
     } catch (e) {
       // ignore
     }
-  }, [deck]);
+
+    // if we have a logged-in user, persist deck to server (debounced)
+    if (!user || !user.id) return;
+
+    // clear previous timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    // debounce: wait 1s after last change
+    saveTimeoutRef.current = setTimeout(() => {
+      (async () => {
+        try {
+          await fetch("/api/save_deck", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              userId: user.id,
+              deck,
+            }),
+          });
+        } catch (e) {
+          console.warn("Failed to save deck to server:", e);
+        }
+      })();
+    }, 1000);
+
+    // cleanup on unmount
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [deck, user]);
 
   function openSlot(i) {
     setActiveSlot(i);
@@ -116,10 +183,74 @@ export default function EditStack({ user }) {
 
   const stats = computeStats(deck);
 
+  // Movie Points: convert pretentious% and rewatch% to raw points (32% -> 32 points), add quality and popularity
+  const moviePointsRaw = stats.pretentious + stats.rewatch + stats.quality + stats.popularity;
+  const moviePoints = Math.round(moviePointsRaw);
+
+  // distribute attack points across movies based on vote_average
+  function distributeAttackPoints(totalPoints, moviesArr) {
+    const movies = moviesArr.filter(Boolean);
+    if (movies.length === 0) return [];
+    // collect raw scores
+    const scores = movies.map(m => (m.vote_average || 0));
+    const sumScores = scores.reduce((a, b) => a + b, 0);
+    if (sumScores === 0) {
+      // equal split if no scores
+      const base = Math.floor(totalPoints / movies.length);
+      const remainder = totalPoints - base * movies.length;
+      return movies.map((m, idx) => base + (idx < remainder ? 1 : 0));
+    }
+    // distribute proportionally rounding to integers, ensure sum equals totalPoints
+    const rawAlloc = scores.map(s => (s / sumScores) * totalPoints);
+    const floored = rawAlloc.map(v => Math.floor(v));
+    let remainder = totalPoints - floored.reduce((a, b) => a + b, 0);
+    // distribute remainder to largest fractional parts
+    const fractions = rawAlloc.map((v, idx) => ({ idx, frac: v - Math.floor(v) }));
+    fractions.sort((a, b) => b.frac - a.frac);
+    const final = [...floored];
+    for (let i = 0; i < remainder; i++) {
+      final[fractions[i].idx] = final[fractions[i].idx] + 1;
+    }
+    return final;
+  }
+
+  // secondary descriptor selection logic
+  function getSecondaryDescriptor(pret, rewatch) {
+    // if both <= 10 -> none
+    if ((pret || 0) <= 10 && (rewatch || 0) <= 10) return null;
+
+    // which is higher wins; if tied, no descriptor (or pick pretentiousness by tie-breaker)
+    if ((pret || 0) === (rewatch || 0)) {
+      // tie: choose the higher tens (if >10) by preferring pretentious
+      if ((pret || 0) > 10) {
+        const idx = Math.min(9, Math.max(0, Math.floor((pret - 11) / 10 + 0)));
+        return PRETENTIOUS_DESCRIPTORS[idx] || null;
+      }
+      return null;
+    }
+
+    const winner = (pret || 0) > (rewatch || 0) ? "pret" : "rew";
+    const value = winner === "pret" ? pret : rewatch;
+    if ((value || 0) <= 10) return null;
+
+    // map value 11..100 -> descriptor index 0..9 (approx)
+    // index strategy: Math.min(9, Math.floor((value - 11) / 10))
+    // value=11..20 -> 0, 21..30 ->1, ..., 91..100 ->8 (approx). This gives fine granularity.
+    let idx = Math.floor((value - 11) / 10);
+    if (isNaN(idx) || idx < 0) idx = 0;
+    idx = Math.min(9, idx);
+    return winner === "pret" ? (PRETENTIOUS_DESCRIPTORS[idx] || null) : (REWATCH_DESCRIPTORS[idx] || null);
+  }
+
+  const secondaryDescriptor = getSecondaryDescriptor(stats.pretentious, stats.rewatch);
+
   // choose a level image file (public folder)
   const levelIndex = Math.min(9, Math.max(1, Number(userLevel || 1)));
   const levelImage = `/level${levelIndex}.png`;
   const levelLabel = LEVEL_LABELS[levelIndex] || `L${levelIndex}`;
+
+  // attack points array for current deck (useful for duels later)
+  const attackPoints = distributeAttackPoints(moviePoints, deck);
 
   return (
     <>
@@ -130,18 +261,21 @@ export default function EditStack({ user }) {
           <div className="bar-block" aria-hidden="true" />
 
           <div className="bar-overlay">
-            <h1>Choose your 4 favorite movies</h1>
+            <h1 className="es-title">Choose your 4 favorite movies</h1>
             <p className="subtitle">Pick the deck that defines your taste.</p>
 
             <div className="slots-row" role="list">
               {deck.map((m, i) => (
-                <MovieSlot
-                  key={i}
-                  index={i}
-                  movie={m}
-                  onOpen={() => openSlot(i)}
-                  onClear={() => clearSlot(i)}
-                />
+                <div key={i} style={{ width: "170px", display: "flex", justifyContent: "center" }}>
+                  <div className="pulsing-slot">
+                    <MovieSlot
+                      index={i}
+                      movie={m}
+                      onOpen={() => openSlot(i)}
+                      onClear={() => clearSlot(i)}
+                    />
+                  </div>
+                </div>
               ))}
             </div>
 
@@ -168,6 +302,23 @@ export default function EditStack({ user }) {
                 </div>
               </div>
 
+              {/* Movie Points tile centered below other stats */}
+              <div style={{ marginTop: 12, display: "flex", justifyContent: "center", width: "100%" }}>
+                <div
+                  className="stat movie-points pulsing"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setMpModalOpen(true)}
+                  onKeyDown={(e) => { if (e.key === "Enter") setMpModalOpen(true); }}
+                  aria-label="Your Movie Points — click to learn more"
+                  title="Movie Points - click to learn more"
+                  style={{ minWidth: 220, maxWidth: 260, textAlign: "center", cursor: "pointer" }}
+                >
+                  <div className="stat-label">Movie Points</div>
+                  <div className="stat-value">{moviePoints} pts</div>
+                </div>
+              </div>
+
               {/* LEVEL AREA: now absolutely positioned and visually inside the bar-block at its bottom */}
               <div className="level-area" aria-hidden={false}>
                 <img
@@ -177,6 +328,29 @@ export default function EditStack({ user }) {
                   onError={(e) => { e.currentTarget.style.opacity = 0.12; }}
                 />
               </div>
+            </div>
+
+            {/* Secondary descriptor(s) placed under stats (yellow) */}
+            <div style={{ marginTop: 12, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+              <div style={{ color: "var(--yellow)", fontWeight: 800 }}>
+                {levelLabel}
+              </div>
+              {secondaryDescriptor ? (
+                <div style={{ color: "var(--yellow)", opacity: 0.95 }}>
+                  {secondaryDescriptor}
+                </div>
+              ) : (
+                <div style={{ color: "var(--yellow)", opacity: 0.7 }}>
+                  No secondary descriptor yet — try shifting your taste!
+                </div>
+              )}
+            </div>
+
+            {/* Brush up on the rules button */}
+            <div style={{ marginTop: 18 }}>
+              <a href="/rules" className="ms-btn" style={{ textDecoration: "none", display: "inline-block" }}>
+                Brush up on the rules
+              </a>
             </div>
           </div>
         </div>
@@ -189,6 +363,33 @@ export default function EditStack({ user }) {
         onClose={closeSearch}
         onSelect={(movie) => setSlotMovie(activeSlot, movie)}
       />
+
+      {/* Movie Points modal */}
+      {mpModalOpen && (
+        <div
+          className="mp-modal-backdrop"
+          onClick={() => setMpModalOpen(false)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="mp-modal" onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ marginTop: 0 }}>What are Movie Points?</h3>
+            <p style={{ marginTop: 8 }}>
+              Movie Points are the sum of your deck's Pretentiousness points + Rewatchability points + Quality + Popularity.
+              Pretentiousness and Rewatchability are shown as percentages on the deck UI but converted to raw points (e.g. 32% → 32 points)
+              and then added together with the average critics score (Quality) and average popularity to produce your Movie Points total.
+            </p>
+            <p style={{ marginTop: 6 }}>
+              These points form the basis for duels and attacks — higher Movie Points mean more total attack power across your four movies.
+            </p>
+
+            <div style={{ marginTop: 14, display: "flex", justifyContent: "flex-end" }}>
+              <button className="ms-btn" onClick={() => setMpModalOpen(false)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Support />
     </>
   );
