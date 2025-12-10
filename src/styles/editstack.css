@@ -6,7 +6,6 @@
   --accent: #FDEE69;
   --yellow: #FDEE69; /* explicit alias requested */
   --white: #ffffff;
-  --mp-bg: rgba(79,82,161,0.95); /* #4F52A1 semi-opaque */
 }
 
 /* page base */
@@ -17,7 +16,8 @@
   align-items: flex-start;
   justify-content: center;
   padding-bottom: 60px;
-  flex-direction: column; 
+  flex-direction: column; /* so level-caption can sit right under center-stage */
+}
 
 /* center-stage positions the rectangular bar and overlay content */
 .center-stage {
@@ -57,18 +57,15 @@
   align-items: center;
   gap: 16px;
   padding: 18px 10px 20px; /* reduced bottom padding because level-area now sits absolutely in bar */
-  text-align: center; /* ensure headings centered on mobile */
 }
 
 /* heading inside overlay */
-.bar-overlay h1,
-.es-title {
+.bar-overlay h1 {
   margin: 8px 0 0 0;
   font-size: 28px;
   color: var(--accent);
   font-weight: 900;
   letter-spacing: 1px;
-  text-align: center;
 }
 
 .bar-overlay .subtitle {
@@ -195,28 +192,6 @@
 }
 .stat-label { font-size: 13px; color: rgba(255,255,255,0.85); margin-bottom: 6px; }
 .stat-value { font-size: 20px; font-weight: 900; color: var(--accent); }
-
-/* Movie Points pulsing + styling */
-.movie-points {
-  box-shadow: 0 12px 40px rgba(79,82,161,0.18);
-}
-
-/* PULSING animation */
-@keyframes pulseLarge {
-  0% { transform: translateY(0) scale(1); box-shadow: 0 8px 26px rgba(79,82,161,0.12); }
-  50% { transform: translateY(-6px) scale(1.02); box-shadow: 0 18px 44px rgba(79,82,161,0.18); }
-  100% { transform: translateY(0) scale(1); box-shadow: 0 8px 26px rgba(79,82,161,0.12); }
-}
-
-.pulsing {
-  animation: pulseLarge 2000ms ease-in-out infinite;
-}
-
-/* wrap slot in a small container to apply pulsing without breaking layout */
-.pulsing-slot { display:inline-block; border-radius:12px; padding:4px; }
-.pulsing-slot .slot-empty,
-.pulsing-slot .slot-filled { transition: transform 160ms ease; }
-.pulsing-slot { animation: pulseLarge 2000ms ease-in-out infinite; }
 
 /* LEVEL AREA: positioned inside the bar-block at its bottom */
 .level-area {
@@ -348,27 +323,6 @@
 .ms-title { font-weight: 800; }
 .ms-sub { opacity: 0.85; font-size: 13px; }
 
-/* Movie Points modal styles */
-.mp-modal-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 10050;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(79,82,161,0.35); /* soft tinted background */
-}
-.mp-modal {
-  width: min(680px, 92vw);
-  background: var(--mp-bg);
-  color: #fff;
-  border-radius: 12px;
-  padding: 18px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
-  max-height: 86vh;
-  overflow: auto;
-}
-
 /* -------- Responsive rules (mobile / tablet) -------- */
 @media (max-width: 920px) {
   .bar-overlay { width: calc(100% - 40px); }
@@ -377,7 +331,7 @@
   .movie-slot { width: 22%; min-width: 110px; }
   .level-image { width: 180px; height: 180px; } /* slightly smaller on tablet */
   .bar-block { height: 640px; } /* slightly less than desktop but still larger than before */
-  .level-area { max-width: 460px; width: calc(100% - 120px); bottom: -220px; } /* push down on tablet */
+  .level-area { max-width: 460px; width: calc(100% - 120px); }
 }
 
 @media (max-width: 720px) {
@@ -389,8 +343,7 @@
   .level-caption { font-size: 16px; }
   .stat { width: 140px; padding: 10px; }
   .stat-value { font-size: 18px; }
-  .level-area { max-width: 380px; width: calc(100% - 80px); bottom: -240px; } /* push it well below content */
-  .es-title { font-size: 24px; }
+  .level-area { max-width: 380px; width: calc(100% - 80px); bottom: 24px; }
 }
 
 @media (max-width: 480px) {
@@ -400,6 +353,5 @@
   .level-image { width: 130px; height: 130px; }
   .level-caption { font-size: 15px; margin-top: 3px; }
   .stat { width: 120px; min-width: 100px; padding: 8px; }
-  .level-area { width: calc(100% - 40px); max-width: 320px; bottom: -260px; } /* push image out of the way on phones */
-  .es-title { font-size: 20px; }
+  .level-area { width: calc(100% - 40px); max-width: 320px; bottom: 26px; }
 }
