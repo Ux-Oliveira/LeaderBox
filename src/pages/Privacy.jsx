@@ -104,8 +104,7 @@ export default function Privacy() {
               target="_blank"
               rel="noreferrer"
               style={{ color: "var(--redlink)", fontWeight: "bold", marginLeft: 8 }}
-            >
-              JangoDisc
+            >JangoDisc
             </a>{" "}
             on YouTube, as his visual style was the inspiration for the website.
           </p>
