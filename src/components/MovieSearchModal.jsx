@@ -164,7 +164,7 @@ export default function MovieSearchModal({ open, onClose, onSelect }) {
           )}
 
           {!loading && results.length === 0 && query.trim().length === 0 && (
-            <div className="small" style={{ opacity: 0.8 }}>Start typing to see results.</div>
+            <div className="small" style={{ opacity: 0.8 }}></div>
           )}
 
           <div className="ms-grid">
