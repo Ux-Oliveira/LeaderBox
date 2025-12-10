@@ -248,7 +248,7 @@ export default function EditStack({ user }) {
   const levelImage = `/level${levelIndex}.png`;
   const levelLabel = LEVEL_LABELS[levelIndex] || `L${levelIndex}`;
 
-  // attack points array for current deck (useful for duels later)
+  // attack points array for current deck
   const attackPoints = distributeAttackPoints(moviePoints, deck);
 
   return (
