@@ -5,8 +5,25 @@ export default function NavBar({ user, onOpenProfile }) {
   const nav = useNavigate();
   const pfp = user?.pfp || user?.avatar || null;
 
+  // keep local copy of user so navbar can react to global profile changes
+  const [currentUser, setCurrentUser] = useState(user || null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
+
+  // sync when prop changes
+  useEffect(() => {
+    setCurrentUser(user || null);
+  }, [user]);
+
+  // Listen for global profile change events (dispatched when profile deleted/logged out)
+  useEffect(() => {
+    function onProfileChange(e) {
+      const newUser = e?.detail?.user ?? null;
+      setCurrentUser(newUser);
+    }
+    window.addEventListener("leaderbox:profile-changed", onProfileChange);
+    return () => window.removeEventListener("leaderbox:profile-changed", onProfileChange);
+  }, []);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -23,9 +40,9 @@ export default function NavBar({ user, onOpenProfile }) {
   }, [dropdownOpen]);
 
   function handleProfileClick() {
-    if (user) {
+    if (currentUser) {
       // prefer nickname slug (without @) — as requested
-      const slug = (user.nickname && String(user.nickname).replace(/^@/, "").trim()) || user.open_id || null;
+      const slug = (currentUser.nickname && String(currentUser.nickname).replace(/^@/, "").trim()) || currentUser.open_id || null;
       if (slug) {
         nav(`/profile/${encodeURIComponent(slug)}`);
         return;
@@ -75,8 +92,8 @@ export default function NavBar({ user, onOpenProfile }) {
                 <i className="fa-regular fa-address-card" />
             </button>
 
-            {/* Signup / Login — hidden on mobile via CSS */}
-            {!user ? (
+            {/* Signup / Login — show only when no currentUser */}
+            {!currentUser ? (
               <>
                 <button className="nav-signup" onClick={() => nav("/signup")} title="Sign up" style={{ marginLeft: 12 }}>
                   Sign up
@@ -150,7 +167,4 @@ export default function NavBar({ user, onOpenProfile }) {
       {/* REMOVED duplicate bg-gif from here — App.jsx now renders a single .bg-gif for the whole app */}
     </>
   );
-
 }
-
-
