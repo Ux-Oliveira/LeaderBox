@@ -20,8 +20,14 @@ export default function ProfilePage({ user: userProp = null }) {
   const nav = useNavigate();
 
   useEffect(() => {
-    // load deck from localStorage if present
+    // load deck: prefer deck attached to local stored profile if present
     try {
+      // if parent passed a userProp with deck prefer that
+      if (userProp && Array.isArray(userProp.deck) && userProp.deck.length === 4) {
+        setDeck(userProp.deck);
+        return;
+      }
+
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
@@ -32,34 +38,63 @@ export default function ProfilePage({ user: userProp = null }) {
     } catch (e) {
       console.warn("Failed to load saved deck:", e);
     }
-  }, []);
+  }, [userProp]);
 
   useEffect(() => {
     // Listen for global profile changes so we update UI if another component deletes/logs out
     function onProfileChange(e) {
       const newUser = e?.detail?.user ?? null;
       setUser(newUser);
+      // when profile changes, if newUser has a deck use it
+      if (newUser && Array.isArray(newUser.deck) && newUser.deck.length === 4) {
+        setDeck(newUser.deck);
+      }
     }
     window.addEventListener("leaderbox:profile-changed", onProfileChange);
     return () => window.removeEventListener("leaderbox:profile-changed", onProfileChange);
   }, []);
 
   useEffect(() => {
-    // If parent passed a userProp (e.g. logged-in), prefer that immediately.
+    // If parent passed a userProp (e.g. logged-in), prefer that immediately and try to fetch fresh data server-side for deck
     if (userProp) {
       setUser(userProp);
-
-      // if userProp includes a deck / stack, use it
-      const upDeck =
-        userProp.deck ||
-        userProp.stack ||
-        userProp.movies ||
-        userProp.raw?.deck ||
-        userProp.raw?.stack ||
-        userProp.raw?.movies ||
-        null;
-      if (Array.isArray(upDeck) && upDeck.length === 4) {
-        setDeck(upDeck);
+      // if userProp has deck, use it
+      if (Array.isArray(userProp.deck) && userProp.deck.length === 4) {
+        setDeck(userProp.deck);
+      } else {
+        // try fetch full profile by open_id to get server-stored deck
+        (async () => {
+          const uid = userProp.open_id || userProp.id || userProp.openId || null;
+          if (!uid) return;
+          try {
+            const res = await fetch(`/api/profile?open_id=${encodeURIComponent(uid)}`, { credentials: "same-origin" });
+            if (res.ok) {
+              const text = await res.text();
+              try {
+                const json = JSON.parse(text);
+                const profile = json.profile || json;
+                if (profile && Array.isArray(profile.deck) && profile.deck.length === 4) {
+                  setDeck(profile.deck);
+                }
+                // normalize and store local copy of profile for other flows
+                const normalized = {
+                  open_id: profile?.open_id || userProp.open_id || userProp.id,
+                  nickname: profile?.nickname || userProp.nickname || userProp.handle,
+                  avatar: profile?.avatar || userProp.avatar || userProp.pfp,
+                  wins: profile?.wins || userProp.wins || 0,
+                  losses: profile?.losses || userProp.losses || 0,
+                  level: profile?.level || userProp.level || 1,
+                  deck: profile?.deck || userProp.deck || []
+                };
+                try { localStorage.setItem("stored_profile", JSON.stringify(normalized)); } catch (e) {}
+              } catch (e) {
+                // ignore parse errors
+              }
+            }
+          } catch (err) {
+            console.warn("Failed to refresh profile deck:", err);
+          }
+        })();
       }
       return;
     }
@@ -68,75 +103,63 @@ export default function ProfilePage({ user: userProp = null }) {
       setLoadingRemote(true);
       try {
         // Attempt server endpoint that looks up by nickname first.
-        // Your server should support something like: GET /api/profile?nickname=rick
         const res = await fetch(`/api/profile?nickname=${encodeURIComponent(slug)}`, { credentials: "same-origin" });
         if (res.ok) {
-          const data = await res.json();
-          // server shape: { ok: true, profile: { ... } } OR direct profile object
-          const profile = data.profile || data;
-          if (profile && (profile.nickname || profile.open_id)) {
-            const normalized = {
-              open_id: profile.open_id,
-              nickname: profile.nickname || (profile.handle ? profile.handle.replace(/^@/, "") : null),
-              avatar: profile.avatar || profile.pfp || null,
-              wins: profile.wins || 0,
-              losses: profile.losses || 0,
-              level: profile.level || 1,
-              raw: profile
-            };
-            setUser(normalized);
-            // also save locally so modal / other flows can use it
-            try { localStorage.setItem("stored_profile", JSON.stringify(normalized)); } catch (e) {}
-
-            // attempt to extract deck/stack from server profile
-            const serverDeck =
-              profile.deck ||
-              profile.stack ||
-              profile.movies ||
-              profile.movies_list ||
-              profile.raw?.deck ||
-              profile.raw?.stack ||
-              null;
-            if (Array.isArray(serverDeck) && serverDeck.length === 4) {
-              setDeck(serverDeck);
+          const text = await res.text();
+          try {
+            const data = JSON.parse(text);
+            const profile = data.profile || data;
+            if (profile && (profile.nickname || profile.open_id)) {
+              const normalized = {
+                open_id: profile.open_id,
+                nickname: profile.nickname || (profile.handle ? profile.handle.replace(/^@/, "") : null),
+                avatar: profile.avatar || profile.pfp || null,
+                wins: profile.wins || 0,
+                losses: profile.losses || 0,
+                level: profile.level || 1,
+                deck: Array.isArray(profile.deck) ? profile.deck : [],
+                raw: profile
+              };
+              setUser(normalized);
+              // attach deck if present
+              if (Array.isArray(profile.deck) && profile.deck.length === 4) {
+                setDeck(profile.deck);
+              }
+              // also save locally so modal / other flows can use it
+              try { localStorage.setItem("stored_profile", JSON.stringify(normalized)); } catch (e) {}
+              setLoadingRemote(false);
+              return;
             }
-
-            setLoadingRemote(false);
-            return;
+          } catch (e) {
+            // non-json
           }
         } else {
           // if server returned 404 or not ok, try fallback by open_id (in case id is raw TikTok id)
           const fallbackRes = await fetch(`/api/profile?open_id=${encodeURIComponent(slug)}`, { credentials: "same-origin" });
           if (fallbackRes.ok) {
-            const d2 = await fallbackRes.json();
-            const profile2 = d2.profile || d2;
-            if (profile2) {
-              const normalized2 = {
-                open_id: profile2.open_id,
-                nickname: profile2.nickname || profile2.handle || null,
-                avatar: profile2.avatar || profile2.pfp || null,
-                wins: profile2.wins || 0,
-                losses: profile2.losses || 0,
-                level: profile2.level || 1,
-                raw: profile2
-              };
-              setUser(normalized2);
-              try { localStorage.setItem("stored_profile", JSON.stringify(normalized2)); } catch (e) {}
-
-              const serverDeck2 =
-                profile2.deck ||
-                profile2.stack ||
-                profile2.movies ||
-                profile2.movies_list ||
-                profile2.raw?.deck ||
-                profile2.raw?.stack ||
-                null;
-              if (Array.isArray(serverDeck2) && serverDeck2.length === 4) {
-                setDeck(serverDeck2);
+            const txt = await fallbackRes.text();
+            try {
+              const d2 = JSON.parse(txt);
+              const profile2 = d2.profile || d2;
+              if (profile2) {
+                const normalized2 = {
+                  open_id: profile2.open_id,
+                  nickname: profile2.nickname || profile2.handle || null,
+                  avatar: profile2.avatar || profile2.pfp || null,
+                  wins: profile2.wins || 0,
+                  losses: profile2.losses || 0,
+                  level: profile2.level || 1,
+                  deck: Array.isArray(profile2.deck) ? profile2.deck : [],
+                  raw: profile2
+                };
+                setUser(normalized2);
+                if (Array.isArray(profile2.deck) && profile2.deck.length === 4) setDeck(profile2.deck);
+                try { localStorage.setItem("stored_profile", JSON.stringify(normalized2)); } catch (e) {}
+                setLoadingRemote(false);
+                return;
               }
-
-              setLoadingRemote(false);
-              return;
+            } catch (e) {
+              // ignore parse
             }
           }
         }
@@ -154,7 +177,10 @@ export default function ProfilePage({ user: userProp = null }) {
 
     try {
       const local = loadProfileFromLocal();
-      if (local) setUser(local);
+      if (local) {
+        setUser(local);
+        if (Array.isArray(local.deck) && local.deck.length === 4) setDeck(local.deck);
+      }
     } catch (e) {
       console.warn("Failed reading profile from localStorage:", e);
     }
