@@ -35,6 +35,16 @@ export default function ProfilePage({ user: userProp = null }) {
   }, []);
 
   useEffect(() => {
+    // Listen for global profile changes so we update UI if another component deletes/logs out
+    function onProfileChange(e) {
+      const newUser = e?.detail?.user ?? null;
+      setUser(newUser);
+    }
+    window.addEventListener("leaderbox:profile-changed", onProfileChange);
+    return () => window.removeEventListener("leaderbox:profile-changed", onProfileChange);
+  }, []);
+
+  useEffect(() => {
     // If parent passed a userProp (e.g. logged-in), prefer that immediately.
     if (userProp) {
       setUser(userProp);
@@ -136,8 +146,12 @@ export default function ProfilePage({ user: userProp = null }) {
       if (ok) {
         clearLocalProfile();
         setUser(null);
+        // broadcast to rest of app
+        window.dispatchEvent(new CustomEvent("leaderbox:profile-changed", { detail: { user: null } }));
         setBusyDelete(false);
         alert("Profile deleted.");
+        // optional: navigate to home
+        nav("/");
         return;
       } else {
         setBusyDelete(false);
@@ -149,7 +163,10 @@ export default function ProfilePage({ user: userProp = null }) {
     // local-only
     clearLocalProfile();
     setUser(null);
+    window.dispatchEvent(new CustomEvent("leaderbox:profile-changed", { detail: { user: null } }));
     setBusyDelete(false);
+    // optional: navigate to home
+    nav("/");
   }
 
   function handleCopyProfileLink(u) {
@@ -199,8 +216,8 @@ export default function ProfilePage({ user: userProp = null }) {
   if (!user && !loadingRemote) {
     return (
       <div style={{ maxWidth: 720, margin: "40px auto", padding: 24 }}>
-        <h2>Profile</h2>
-        <p className="small">No profile loaded. Please log in with TikTok and complete your account.</p>
+        <h2>Hold on...</h2>
+        <p className="small">No profile loaded. Signup or log in on the profile side menu if you're on your phone or in the buttons above on desktop.</p>
       </div>
     );
   }
@@ -277,6 +294,8 @@ export default function ProfilePage({ user: userProp = null }) {
               className="modal-btn"
               onClick={() => {
                 clearLocalProfile();
+                // broadcast change and reload so app-wide state resets
+                window.dispatchEvent(new CustomEvent("leaderbox:profile-changed", { detail: { user: null } }));
                 window.location.reload();
               }}
             >
