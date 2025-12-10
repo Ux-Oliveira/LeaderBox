@@ -392,5 +392,5 @@ export default function EditStack({ user }) {
 
       <Support />
     </>
-  );
+  ); 
 }
