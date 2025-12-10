@@ -30,16 +30,16 @@ export default function Privacy() {
           
           <p><strong>6. Movie data:</strong><br />
           The movie posters and the movie statistics (such as critics score, popularity, etc) utilized on the website are courtesy of
-            <a href="https://www.themoviedb.org/" target="_blank" style={{ color: "var(--accent2)" }}>TMDB</a>.</p>
+            <a href="https://www.themoviedb.org/" target="_blank" style={{ color: "var(--redlink)" }}>TMDB</a>.</p>
 
           <p><strong>7. Contact Information:</strong><br />
-            <a href="https://www.tiktok.com/@ricks_a_human" target="_blank" style={{ color: "var(--accent2)" }}>@Ricks_a_human</a> on TikTok for management suppport.<br />
-          Email: <a href="mailto:leaderbox_management@outlook.com" style={{ color: "var(--accent)" }}>leaderbox_management@outlook.com</a> for legal or business porposes.</p>
+            <a href="https://www.tiktok.com/@ricks_a_human" target="_blank" style={{ color: "var(--redlink)" }}>@Ricks_a_human</a> on TikTok for management suppport.<br />
+          Email: <a href="mailto:leaderbox_management@outlook.com" style={{ color: "var(--redlink)" }}>leaderbox_management@outlook.com</a> for legal or business porposes.</p>
 
           <p><strong>8. Support the website:
-          Leaderbox is not a paid service! Any form of support is voluntary and could be done so via subscribing to Rick's a Human's <a href="https://www.youtube.com/@ricksahuman" target="_blank" style={{ color: "var(--accent2)" }}>Patreon </a>
-            or <a href="https://www.youtube.com/@ricksahuman" target="_blank" style={{ color: "var(--accent2" }}>Youtube!</a><br />
-            Please also support <a className="small" href="https://www.youtube.com/@JangoDisc" target="_blank" rel="noreferrer" style={{color:"var(--accent2)",marginLeft:8}}>JangoDisc </a>on Youtube, as his visual style was the inspiration for the website.</strong></p>
+          Leaderbox is not a paid service! Any form of support is voluntary and could be done so via subscribing to Rick's a Human's <a href="https://www.youtube.com/@ricksahuman" target="_blank" style={{ color: "var(--redlink)" }}>Patreon </a>
+            or <a href="https://www.youtube.com/@ricksahuman" target="_blank" style={{ color: "var(--redlink" }}>Youtube!</a><br />
+            Please also support <a className="small" href="https://www.youtube.com/@JangoDisc" target="_blank" rel="noreferrer" style={{color:"var(--redlink)",marginLeft:8}}>JangoDisc </a>on Youtube, as his visual style was the inspiration for the website.</strong></p>
         </div>
       </div>
     </div>
