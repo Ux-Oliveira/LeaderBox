@@ -3,7 +3,6 @@ import NavBar from "../components/NavBar";
 import MovieSlot from "../components/MovieSlot";
 import MovieSearchModal from "../components/MovieSearchModal";
 import "../styles/editstack.css";
-import Support from "../components/Support";
 
 const STORAGE_KEY = "leaderbox_deck_v1";
 
@@ -341,7 +340,7 @@ export default function EditStack({ user }) {
                 </div>
               ) : (
                 <div style={{ color: "var(--yellow)", opacity: 0.7 }}>
-                  No secondary descriptor yet — try shifting your taste!
+                  Tikes! Try shifting your taste.
                 </div>
               )}
             </div>
@@ -375,12 +374,12 @@ export default function EditStack({ user }) {
           <div className="mp-modal" onClick={(e) => e.stopPropagation()}>
             <h3 style={{ marginTop: 0 }}>What are Movie Points?</h3>
             <p style={{ marginTop: 8 }}>
-              Movie Points are the sum of your deck's Pretentiousness points + Rewatchability points + Quality + Popularity.
-              Pretentiousness and Rewatchability are shown as percentages on the deck UI but converted to raw points (e.g. 32% → 32 points)
-              and then added together with the average critics score (Quality) and average popularity to produce your Movie Points total.
+              Movie Points are the sum of your deck's stats. Pretentiousness and Rewatchability get turned from percentages to raw points (e.g. 32% → 32 points) and,<br />
+              added to your Quality and Popularity stats, giving you your Movie Points.<br />
+              The goal of each duel is to depleate your opponent's Movie points.
             </p>
             <p style={{ marginTop: 6 }}>
-              These points form the basis for duels and attacks — higher Movie Points mean more total attack power across your four movies.
+              These points form the basis for each movie's attack points. Your movie points are destribited across your movies on the basis of which movie has the bigger critics score.
             </p>
 
             <div style={{ marginTop: 14, display: "flex", justifyContent: "flex-end" }}>
@@ -389,8 +388,6 @@ export default function EditStack({ user }) {
           </div>
         </div>
       )}
-
-      <Support />
     </>
   );
 }
