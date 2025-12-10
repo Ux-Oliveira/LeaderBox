@@ -60,7 +60,7 @@ export default function Terms() {
               href="https://www.themoviedb.org/"
               target="_blank"
               rel="noreferrer"
-              style={{ color: "var(--redlink)", , fontWeight: "bold", marginLeft: 6 }}
+              style={{ color: "var(--redlink)", fontWeight: "bold", marginLeft: 6 }}
             >
               TMDB
             </a>.
