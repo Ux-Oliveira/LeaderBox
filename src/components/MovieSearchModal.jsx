@@ -33,12 +33,30 @@ export default function MovieSearchModal({ open, onClose, onSelect }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // keep apiKey and UI reset in sync when modal opens/closes
   useEffect(() => {
     setApiKey(getStoredKey() || "");
     setResults([]);
     setQuery("");
     setError("");
   }, [open]);
+
+  // Debounced live search as the user types
+  useEffect(() => {
+    if (!open) return;
+    const q = (query || "").trim();
+    if (q.length < 1) {
+      // if query cleared, clear results and don't show "No results yet" as an error
+      setResults([]);
+      setError("");
+      return;
+    }
+    const id = setTimeout(() => {
+      doSearch(q);
+    }, 300); // 300ms debounce
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, open]);
 
   async function doSearch(q) {
     if (!q || q.trim().length < 1) return;
@@ -140,48 +158,47 @@ export default function MovieSearchModal({ open, onClose, onSelect }) {
           <button className="ms-close" onClick={onClose}>✕</button>
         </div>
 
+        {/* ALWAYS show the real search bar immediately */}
         <div className="ms-keyarea">
-          {!apiKey ? (
-            <>
-              <input
-                placeholder="Paste your TMDB API key here (optional if you use server proxy)"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                className="ms-input"
-              />
-              <div style={{ display: "flex", gap: 8 }}>
-                <button className="ms-btn" onClick={handleSaveKey}>Save key</button>
-                <button className="ms-btn ms-ghost" onClick={() => { setApiKey(""); localStorage.removeItem("tmdb_api_key"); }}>Forget key</button>
-              </div>
-              <div className="small" style={{ opacity: 0.8, marginTop: 6 }}>
-                If you don't have a TMDB key yet you can sign up at the TMDB website and create an API key.
-              </div>
-            </>
-          ) : (
-            <>
-              <div style={{ display: "flex", gap: 8, alignItems: "center", width: "100%" }}>
-                <input
-                  placeholder="Search movie title..."
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") doSearch(query); }}
-                  className="ms-input"
-                />
-                <button className="ms-btn" onClick={() => doSearch(query)} disabled={loading}>Search</button>
-              </div>
-              <div style={{ marginTop: 8 }}>
-                <button className="ms-btn ms-ghost" onClick={() => { setApiKey(""); localStorage.removeItem("tmdb_api_key"); }}>Clear saved key</button>
-              </div>
-            </>
-          )}
+          <div style={{ display: "flex", gap: 8, alignItems: "center", width: "100%" }}>
+            <input
+              placeholder="Search movie title..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="ms-input"
+              autoFocus
+            />
+            <button className="ms-btn" onClick={() => doSearch(query)} disabled={loading}>Search</button>
+          </div>
+
+          {/* Key controls kept but non-blocking: user can save/clear a local key */}
+          <div style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <input
+              placeholder="Optional: paste TMDB API key (only if you want direct client calls)"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              className="ms-input"
+              style={{ flex: "1 1 320px" }}
+            />
+            <button className="ms-btn" onClick={handleSaveKey}>Save key</button>
+            <button className="ms-btn ms-ghost" onClick={() => { setApiKey(""); localStorage.removeItem("tmdb_api_key"); }}>Clear saved key</button>
+          </div>
+
+          <div className="small" style={{ opacity: 0.8, marginTop: 6 }}>
+            You can use the server proxy (recommended) — or paste a TMDB key to call TMDB directly.
+          </div>
         </div>
 
         <div className="ms-results">
           {loading && <div className="small">Searching…</div>}
           {error && <div style={{ color: "#f66" }}>{error}</div>}
 
-          {!loading && results.length === 0 && (
+          {!loading && results.length === 0 && query.trim().length > 0 && (
             <div className="small" style={{ opacity: 0.8 }}>No results yet — try a different query.</div>
+          )}
+
+          {!loading && results.length === 0 && query.trim().length === 0 && (
+            <div className="small" style={{ opacity: 0.8 }}>Start typing to see results.</div>
           )}
 
           <div className="ms-grid">
