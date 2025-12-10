@@ -1,3 +1,4 @@
+// src/App.jsx
 import React, { useState, useEffect } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
 
@@ -17,6 +18,8 @@ import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import EditStack from "./pages/EditStack";
 import ComingSoon from "./pages/ComingSoon";
+
+import Support from "./components/Support"; // <- Added import
 
 import { loadProfileFromLocal, saveProfileToLocal } from "./lib/profileLocal";
 import { fetchProfileByOpenId } from "./lib/api";
@@ -122,12 +125,13 @@ export default function App() {
   }
 
   return (
-    <>
+    <div className="app-root">
       <NavBar user={user} onOpenProfile={() => setModalOpen(true)} />
 
       {/* Single persistent background GIF for the entire app */}
       <div className="bg-gif" aria-hidden="true" />
 
+      {/* main flexible container — this will expand and push the footer to the bottom */}
       <div className="app-container">
         <Routes>
           <Route path="/" element={<Landing />} />
@@ -160,6 +164,7 @@ export default function App() {
         </Routes>
       </div>
 
+      {/* Profile modal stays outside app-container (overlays) */}
       <ProfileModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
@@ -168,17 +173,8 @@ export default function App() {
         onUpdateUser={(u) => setUser(u)}
       />
 
-      <footer
-        style={{
-          marginTop: "60px",
-          padding: "20px",
-          textAlign: "center",
-          color: "#888",
-          fontSize: "14px",
-        }}
-      >
-        <br />
-      </footer>
-    </>
+      {/* Support (footer/section) — placed in normal document flow so it appears after the gif and page content */}
+      <Support />
+    </div>
   );
 }
