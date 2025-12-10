@@ -34,7 +34,7 @@
 /* rectangular block that replaces bar.gif (same visual footprint) */
 .bar-block {
   width: 100%;
-  height: 600px;              /* increased to fit level image + caption inside */
+  height: 660px;              /* increased to fit level image + caption inside */
   background: #101221; /* requested color */
   border-radius: 14px;
   box-shadow: 0 8px 40px rgba(0,0,0,0.6);
