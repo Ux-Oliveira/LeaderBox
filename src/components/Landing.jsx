@@ -1,5 +1,4 @@
 import React from "react";
-import Support from "./Support";
 
 export default function Landing(){
  return (
@@ -10,8 +9,8 @@ export default function Landing(){
       <div className="subtitle">Choose your movies, craft your deck and duel against other cinephiles!
     </div>
    </div>
-    <Support />
    </div>
   </>
  );
 }
+
