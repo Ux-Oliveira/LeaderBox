@@ -1,5 +1,5 @@
 // api/profile/index.js  (serverless handler - Firestore)
-import { getFirestore } from "../../server/lib/firestore.js"; // keep your path
+import { getFirestore } from "../../server/lib/firestore.js"; // adjust path if needed
 const COLLECTION = "profiles";
 
 /**
@@ -70,7 +70,7 @@ export default async function handler(req, res) {
     // ----- POST (create or update by open_id) -----
     if (req.method === "POST") {
       const payload = (req.body && Object.keys(req.body).length ? req.body : {});
-      const { open_id, nickname, avatar, wins, losses, level, deck } = payload;
+      const { open_id, nickname, avatar, wins, losses, draws, level, deck } = payload;
       if (!open_id) return res.status(400).json({ error: "Missing open_id" });
 
       const ref = db.collection(COLLECTION).doc(String(open_id));
@@ -90,6 +90,7 @@ export default async function handler(req, res) {
           avatar: avatar || null,
           wins: Number.isFinite(wins) ? Number(wins) : 0,
           losses: Number.isFinite(losses) ? Number(losses) : 0,
+          draws: Number.isFinite(draws) ? Number(draws) : 0,
           level: Number.isFinite(level) ? Number(level) : 1,
           deck: Array.isArray(deck) ? deck : [],
           created_at: now,
@@ -110,6 +111,9 @@ export default async function handler(req, res) {
         if (avatar !== undefined) updated.avatar = avatar;
         if (wins !== undefined) updated.wins = Number.isFinite(wins) ? Number(wins) : data.wins;
         if (losses !== undefined) updated.losses = Number.isFinite(losses) ? Number(losses) : data.losses;
+        // DRAWs handling: merge when provided, otherwise preserve existing (or default to 0)
+        if (draws !== undefined) updated.draws = Number.isFinite(draws) ? Number(draws) : (data.draws || 0);
+        else updated.draws = Number.isFinite(data.draws) ? data.draws : 0;
         if (level !== undefined) updated.level = Number.isFinite(level) ? Number(level) : data.level;
         if (deck !== undefined) updated.deck = Array.isArray(deck) ? deck : data.deck;
 
