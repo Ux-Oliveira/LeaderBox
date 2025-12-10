@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { loadProfileFromLocal, clearLocalProfile } from "../lib/profileLocal";
 import { useParams, useNavigate } from "react-router-dom";
-import Support from "../components/Support";
 
 const STORAGE_KEY = "leaderbox_deck_v1";
 
@@ -369,7 +368,6 @@ export default function ProfilePage({ user: userProp = null }) {
           Profile link copied to clipboard!
         </div>
       )}
-      <Support />
     </div>
   );
 }
