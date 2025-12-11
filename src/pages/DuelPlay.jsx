@@ -756,19 +756,27 @@ export default function DuelPlay() {
   }
 
   /* ❗ MOBILE FIX: Make it MUCH TALLER and lower from top */
+  /* NEW */
+.bar-block {
+  /* keep content column constrained by center-stage while making the bar wider */
+  width: calc(100% + 160px);   /* bar is 160px wider than center-stage */
+  max-width: none;             /* let it exceed parent's max-width */
+  margin: 0 -80px;             /* pull it left/right to stay centered visually */
+  box-sizing: border-box;
+  /* vertical size */
+  min-height: 780px;           /* desktop height — tweak as needed */
+}
+
+/* mobile variant: still bigger but won't overflow viewport */
+@media (max-width: 920px) {
   .bar-block {
-    position: relative !important;
-    left: auto !important;
-    right: auto !important;
-    top: auto !important;
-    margin: 10px auto 0 !important;    /* ⬅ adds top space */
-    width: 38px) !important;
-    max-width: 730px !important;
-    height: auto !important;
-    min-height: 700px !important;      /* ⬅ BIG FIX: more vertical space */
-    padding: 36px !important;          /* ⬅ more padding so card looks full */
-    overflow: visible !important;
+    width: calc(100% + 40px); /* slightly wider than container on mobile */
+    margin: 0 -20px;          /* center the wider bar */
+    min-height: 600px;        /* mobile needs more vertical space (your previous value) */
+    padding: 22px;            /* keep interior padding */
   }
+}
+
 
   .bar-overlay {
     width: 100% !important;
