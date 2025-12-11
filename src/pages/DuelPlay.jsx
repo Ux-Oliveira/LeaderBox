@@ -765,7 +765,7 @@ export default function DuelPlay() {
     width: 38px) !important;
     max-width: 730px !important;
     height: auto !important;
-    min-height: 600px !important;      /* ⬅ BIG FIX: more vertical space */
+    min-height: 700px !important;      /* ⬅ BIG FIX: more vertical space */
     padding: 36px !important;          /* ⬅ more padding so card looks full */
     overflow: visible !important;
   }
