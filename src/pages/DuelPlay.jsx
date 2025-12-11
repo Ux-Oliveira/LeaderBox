@@ -1,6 +1,6 @@
 // src/pages/DuelPlay.jsx
-import React, { useEffect, useRef, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 
 const BACKGROUND_SONGS = [
   "/audios/city_battle_stars.mp3",
