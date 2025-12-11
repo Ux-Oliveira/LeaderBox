@@ -21,7 +21,7 @@ import { useParams, useNavigate } from "react-router-dom";
  *    /audios/song1.mp3
  *    /audios/song2.mp3
  *    ...
- * - Attack/MP calculations are placeholders but show how to render attack points beneath each slot.
+ * - Attack/MP calculations now match EditStack logic (pretentious + rewatch + quality + popularity).
  */
 
 const BACKGROUND_SONGS = [
@@ -75,6 +75,67 @@ async function fetchProfileBySlug(slug) {
   return null;
 }
 
+/* compute stats using same algorithm as EditStack */
+function computeStats(deckArr) {
+  const movies = (deckArr || []).filter(Boolean);
+  if (movies.length === 0) return { pretentious: 0, rewatch: 0, quality: 0, popularity: 0 };
+
+  const scores = movies.map(m => (m.vote_average || 0)); // 0..10
+  const pops = movies.map(m => (m.popularity || 0)); // unbounded
+
+  // Normalize popularity within this deck to 0..1
+  const minPop = Math.min(...pops);
+  const maxPop = Math.max(...pops);
+  const normPops = pops.map(p => (maxPop === minPop ? 0.5 : (p - minPop) / (maxPop - minPop)));
+
+  // Normalize scores 0..1 (TMDB vote_average ~0..10)
+  const normScores = scores.map(s => Math.min(1, Math.max(0, s / 10)));
+
+  // Quality = average score (0..10)
+  const quality = scores.reduce((a, b) => a + b, 0) / scores.length;
+
+  // Popularity average (raw)
+  const popularity = pops.reduce((a, b) => a + b, 0) / pops.length;
+
+  // Pretentiousness: high score AND low popularity -> pretentious
+  const pretArr = normScores.map((ns, idx) => ns * (1 - normPops[idx]));
+  const pretentious = (pretArr.reduce((a, b) => a + b, 0) / pretArr.length) * 100; // 0..100
+
+  // Rewatchability: high score * high popularity
+  const rewatchArr = normScores.map((ns, idx) => ns * normPops[idx]);
+  const rewatch = (rewatchArr.reduce((a, b) => a + b, 0) / rewatchArr.length) * 100;
+
+  return {
+    pretentious: Math.round(pretentious),
+    rewatch: Math.round(rewatch),
+    quality: +(quality.toFixed(2)),
+    popularity: +(popularity.toFixed(2)),
+  };
+}
+
+/* distribute attack points like EditStack */
+function distributeAttackPoints(totalPoints, moviesArr) {
+  const movies = (moviesArr || []).filter(Boolean);
+  if (movies.length === 0) return [];
+  const scores = movies.map(m => (m.vote_average || 0));
+  const sumScores = scores.reduce((a, b) => a + b, 0);
+  if (sumScores === 0) {
+    const base = Math.floor(totalPoints / movies.length);
+    const remainder = totalPoints - base * movies.length;
+    return movies.map((m, idx) => base + (idx < remainder ? 1 : 0));
+  }
+  const rawAlloc = scores.map(s => (s / sumScores) * totalPoints);
+  const floored = rawAlloc.map(v => Math.floor(v));
+  let remainder = totalPoints - floored.reduce((a, b) => a + b, 0);
+  const fractions = rawAlloc.map((v, idx) => ({ idx, frac: v - Math.floor(v) }));
+  fractions.sort((a, b) => b.frac - a.frac);
+  const final = [...floored];
+  for (let i = 0; i < remainder; i++) {
+    final[fractions[i].idx] = final[fractions[i].idx] + 1;
+  }
+  return final;
+}
+
 export default function DuelPlay() {
   const { challenger: challengerSlug, opponent: opponentSlug } = useParams();
   const navigate = useNavigate();
@@ -92,7 +153,6 @@ export default function DuelPlay() {
   const silentAudioRef = useRef(null);
   const mountedRef = useRef(true);
 
-  // On mount: fetch profiles, attempt silent unlock, pick bg song, then start reveal sequence
   useEffect(() => {
     mountedRef.current = true;
 
@@ -100,7 +160,10 @@ export default function DuelPlay() {
       setLoading(true);
       setError(null);
       try {
-        const [c, o] = await Promise.all([fetchProfileBySlug(challengerSlug), fetchProfileBySlug(opponentSlug)]);
+        const [c, o] = await Promise.all([
+          fetchProfileBySlug(challengerSlug),
+          fetchProfileBySlug(opponentSlug),
+        ]);
         if (!mountedRef.current) return;
 
         if (!c || !o) {
@@ -109,7 +172,7 @@ export default function DuelPlay() {
           return;
         }
 
-        // normalize fields we rely on
+        // normalize
         c.wins = Number.isFinite(c.wins) ? c.wins : 0;
         c.losses = Number.isFinite(c.losses) ? c.losses : 0;
         c.draws = Number.isFinite(c.draws) ? c.draws : 0;
@@ -125,18 +188,17 @@ export default function DuelPlay() {
         setChallenger(c);
         setOpponent(o);
 
-        // audio: try to play a short silent audio to unlock (best effort)
+        // silent unlock attempt
         try {
           if (SILENT_AUDIO) {
             const s = new Audio(SILENT_AUDIO);
             s.volume = 0;
-            // don't await; best-effort
             s.play().catch(() => {});
             silentAudioRef.current = s;
           }
         } catch (e) {}
 
-        // load slot audio
+        // slot audio preload
         slotAudioRef.current = new Audio(SLOT_AUDIO);
         slotAudioRef.current.preload = "auto";
 
@@ -155,13 +217,10 @@ export default function DuelPlay() {
         bg.volume = 0.14;
         bg.preload = "auto";
         bgAudioRef.current = bg;
-        // try to play bg (may be blocked if silent unlock failed)
-        bg.play().catch(() => { /* will rely on user gesture if blocked */ });
+        bg.play().catch(() => { /* may be blocked */ });
 
-        // start reveal sequence after a short delay so user can see modal appear
-        setTimeout(() => {
-          startRevealSequence(c, o);
-        }, 400);
+        // start reveal sequence shortly after render
+        setTimeout(() => startRevealSequence(c, o), 400);
       } catch (err) {
         console.error("duel play init error", err);
         if (mountedRef.current) setError(String(err));
@@ -171,7 +230,6 @@ export default function DuelPlay() {
     }
 
     function startRevealSequence(c, o) {
-      // We'll reveal across 8 steps (4 top then 4 bottom) or fewer if decks are smaller.
       const topCount = Math.max(4, (o && o.deck ? o.deck.length : 0));
       const bottomCount = Math.max(4, (c && c.deck ? c.deck.length : 0));
       const total = topCount + bottomCount;
@@ -179,8 +237,8 @@ export default function DuelPlay() {
 
       const revealTick = () => {
         if (!mountedRef.current) return;
-        setRevealIndex(step); // step = 0 -> first reveal (top index 0)
-        // play slot audio
+        setRevealIndex(step);
+        // play slot audio clone for each reveal
         try {
           if (slotAudioRef.current) {
             const a = slotAudioRef.current.cloneNode(true);
@@ -192,13 +250,13 @@ export default function DuelPlay() {
         if (step < total) {
           setTimeout(revealTick, 500);
         } else {
-          // after reveal finished: show "1st Turn: Go!" for 1 second
           setTimeout(() => {
             setShowGoMessage(true);
             setTimeout(() => setShowGoMessage(false), 1000);
           }, 250);
         }
       };
+
       revealTick();
     }
 
@@ -206,7 +264,6 @@ export default function DuelPlay() {
 
     return () => {
       mountedRef.current = false;
-      // cleanup audios
       try { if (bgAudioRef.current) { bgAudioRef.current.pause(); bgAudioRef.current.src = ""; } } catch (e) {}
       try { if (slotAudioRef.current) { slotAudioRef.current.pause(); slotAudioRef.current.src = ""; } } catch (e) {}
       try { if (silentAudioRef.current) { silentAudioRef.current.pause(); silentAudioRef.current.src = ""; } } catch (e) {}
@@ -214,45 +271,18 @@ export default function DuelPlay() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [challengerSlug, opponentSlug]);
 
-  // convenience: attack points distribution (mirrors editstack logic)
-  function computeMoviePoints(deckArr) {
-    const movies = deckArr.filter(Boolean);
-    if (movies.length === 0) return { total: 0, perMovie: [] };
-    const scores = movies.map(m => (m.vote_average || 0));
-    const quality = scores.reduce((a, b) => a + b, 0) / scores.length;
-    const popularity = movies.map(m => (m.popularity || 0)).reduce((a, b) => a + b, 0) / movies.length;
-    // simplified pretentious/rewatch percentages for demo
-    const pret = 20;
-    const rew = 20;
-    const mpRaw = pret + rew + quality + popularity;
-    const totalPoints = Math.max(1, Math.round(mpRaw));
-    // distribute proportional to vote_average
-    const sum = scores.reduce((a, b) => a + b, 0);
-    if (sum === 0) {
-      const base = Math.floor(totalPoints / movies.length);
-      const rem = totalPoints - base * movies.length;
-      return {
-        total: totalPoints,
-        perMovie: movies.map((m, i) => base + (i < rem ? 1 : 0)),
-      };
-    }
-    const rawAlloc = scores.map(s => (s / sum) * totalPoints);
-    const floored = rawAlloc.map(v => Math.floor(v));
-    let remainder = totalPoints - floored.reduce((a, b) => a + b, 0);
-    const fractions = rawAlloc.map((v, idx) => ({ idx, frac: v - Math.floor(v) }));
-    fractions.sort((a, b) => b.frac - a.frac);
-    const final = [...floored];
-    for (let i = 0; i < remainder; i++) {
-      final[fractions[i].idx] = final[fractions[i].idx] + 1;
-    }
-    return { total: totalPoints, perMovie: final };
+  // compute accurate movie points using editstack formulas
+  function computeMoviePointsFromDeck(deckArr) {
+    const stats = computeStats(deckArr);
+    const moviePointsRaw = stats.pretentious + stats.rewatch + stats.quality + stats.popularity;
+    const moviePoints = Math.round(moviePointsRaw);
+    const perMovie = distributeAttackPoints(moviePoints, deckArr);
+    return { total: moviePoints, perMovie, stats };
   }
 
-  // mapping helpers:
-  // revealIndex indicates how many reveals have happened (0..total-1). Top reveals occupy indices [0..topCount-1], bottoms [topCount..topCount+bottomCount-1]
-  function topVisible(i) {
+  // helper mapping for reveal
+  function topVisible(i, topCount = 4) {
     if (revealIndex < 0) return false;
-    // visible when revealIndex >= i
     return revealIndex >= i;
   }
   function bottomVisible(i, topCount = 4) {
@@ -260,7 +290,6 @@ export default function DuelPlay() {
     return revealIndex >= (topCount + i);
   }
 
-  // small UI early returns
   if (loading) {
     return (
       <div style={{ padding: 24 }}>
@@ -287,15 +316,15 @@ export default function DuelPlay() {
     );
   }
 
-  // compute movie points + attack arrays
-  const challengerPoints = computeMoviePoints(challenger.deck || []);
-  const opponentPoints = computeMoviePoints(opponent.deck || []);
+  // compute challenger points (accurate)
+  const challengerPoints = computeMoviePointsFromDeck(challenger.deck || []);
 
-  // counts for mapping reveal indices
+  // intentionally DO NOT compute or show opponent's points (so challenger cannot see them)
+  // but we'll still compute opponent stats server-side if needed for later — we avoid showing them now.
+
   const topCount = Math.max(4, (opponent && opponent.deck ? opponent.deck.length : 0));
   const bottomCount = Math.max(4, (challenger && challenger.deck ? challenger.deck.length : 0));
 
-  // helper to render MovieThumb-like blocks inline (kept small)
   return (
     <div style={{ padding: 24, display: "flex", justifyContent: "center" }}>
       <div className="center-stage">
@@ -305,7 +334,13 @@ export default function DuelPlay() {
           <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "center", marginTop: 6 }}>
             <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
               <div style={{ width: 72, height: 72, overflow: "hidden", borderRadius: 10 }}>
-                {opponent.avatar ? <img src={opponent.avatar} alt={opponent.nickname} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "72px", height: "72px", background: "#111", display:"flex", alignItems:"center", justifyContent:"center", color:"#ddd" }}>{(opponent.nickname||"U").slice(0,1)}</div>}
+                {opponent.avatar ? (
+                  <img src={opponent.avatar} alt={opponent.nickname} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                ) : (
+                  <div style={{ width: "72px", height: "72px", background: "#111", display: "flex", alignItems: "center", justifyContent: "center", color: "#ddd" }}>
+                    {(opponent.nickname || "U").slice(0, 1)}
+                  </div>
+                )}
               </div>
               <div style={{ textAlign: "left" }}>
                 <div style={{ fontWeight: 900, color: "var(--accent)", fontSize: 18 }}>{opponent.nickname}</div>
@@ -319,7 +354,7 @@ export default function DuelPlay() {
             {Array.from({ length: 4 }).map((_, i) => {
               const m = (opponent.deck && opponent.deck[i]) ? opponent.deck[i] : null;
               const poster = posterFor(m);
-              const visible = topVisible(i);
+              const visible = topVisible(i, topCount);
               return (
                 <div
                   key={`opp-slot-${i}`}
@@ -338,13 +373,20 @@ export default function DuelPlay() {
                       transition: "transform 420ms cubic-bezier(.2,.9,.2,1), opacity 360ms"
                     }}
                   >
-                    {poster && visible ? <img src={poster} alt={m.title || m.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /> : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#666" }}>—</div>}
+                    {poster && visible ? (
+                      <img src={poster} alt={m.title || m.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                    ) : (
+                      <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#666" }}>—</div>
+                    )}
                   </div>
+
                   <div style={{ width: 92, height: 36, textAlign: "center", fontSize: 12, fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", color: "#fff", opacity: visible ? 1 : 0.3, transition: "opacity 300ms" }}>
                     {m ? (m.title || m.name) : ""}
                   </div>
+
+                  {/* intentionally do NOT show opponent attack numbers */}
                   <div style={{ fontSize: 12, fontWeight: 800, color: "var(--accent)", minHeight: 18 }}>
-                    {visible && (opponentPoints.perMovie[i] !== undefined ? `${opponentPoints.perMovie[i]} atk` : "—")}
+                    { /* hidden on purpose */ }
                   </div>
                 </div>
               );
@@ -364,7 +406,6 @@ export default function DuelPlay() {
               )}
             </div>
 
-            {/* Play controls could go here - center has space */}
             <div style={{ height: 6 }} />
 
             {/* Challenger slots (bottom row) */}
@@ -391,11 +432,17 @@ export default function DuelPlay() {
                         transition: "transform 420ms cubic-bezier(.2,.9,.2,1), opacity 360ms"
                       }}
                     >
-                      {poster && visible ? <img src={poster} alt={m.title || m.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /> : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#666" }}>—</div>}
+                      {poster && visible ? (
+                        <img src={poster} alt={m.title || m.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                      ) : (
+                        <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#666" }}>—</div>
+                      )}
                     </div>
+
                     <div style={{ width: 92, height: 36, textAlign: "center", fontSize: 12, fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", color: "#fff", opacity: visible ? 1 : 0.3, transition: "opacity 300ms" }}>
                       {m ? (m.title || m.name) : ""}
                     </div>
+
                     <div style={{ fontSize: 12, fontWeight: 800, color: "var(--accent)", minHeight: 18 }}>
                       {visible && (challengerPoints.perMovie[i] !== undefined ? `${challengerPoints.perMovie[i]} atk` : "—")}
                     </div>
@@ -404,20 +451,22 @@ export default function DuelPlay() {
               })}
             </div>
 
-            {/* Movie Points totals */}
+            {/* Movie Points totals (only show challenger's points) */}
             <div style={{ display: "flex", gap: 18, marginTop: 12, alignItems: "center", justifyContent: "center" }}>
               <div style={{ textAlign: "center" }}>
                 <div className="small" style={{ color: "#999" }}>Opponent Movie Points</div>
-                <div style={{ fontWeight: 900, color: "var(--accent)" }}>{opponentPoints.total} pts</div>
+                {/* intentionally hidden value */}
+                <div style={{ fontWeight: 900, color: "var(--accent)" }}>— pts</div>
               </div>
+
               <div style={{ width: 1, height: 28, background: "rgba(255,255,255,0.03)" }} />
+
               <div style={{ textAlign: "center" }}>
                 <div className="small" style={{ color: "#999" }}>Your Movie Points</div>
                 <div style={{ fontWeight: 900, color: "var(--accent)" }}>{challengerPoints.total} pts</div>
               </div>
             </div>
 
-            {/* small spacer */}
             <div style={{ height: 8 }} />
           </div>
 
@@ -425,7 +474,13 @@ export default function DuelPlay() {
           <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "center", marginTop: 8 }}>
             <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
               <div style={{ width: 72, height: 72, overflow: "hidden", borderRadius: 10 }}>
-                {challenger.avatar ? <img src={challenger.avatar} alt={challenger.nickname} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "72px", height: "72px", background: "#111", display:"flex", alignItems:"center", justifyContent:"center", color:"#ddd" }}>{(challenger.nickname||"U").slice(0,1)}</div>}
+                {challenger.avatar ? (
+                  <img src={challenger.avatar} alt={challenger.nickname} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                ) : (
+                  <div style={{ width: "72px", height: "72px", background: "#111", display: "flex", alignItems: "center", justifyContent: "center", color: "#ddd" }}>
+                    {(challenger.nickname || "U").slice(0, 1)}
+                  </div>
+                )}
               </div>
               <div style={{ textAlign: "left" }}>
                 <div style={{ fontWeight: 900, color: "var(--accent)", fontSize: 18 }}>{challenger.nickname}</div>
@@ -440,7 +495,6 @@ export default function DuelPlay() {
       {/* small accessibility: if audio blocked, show a notice/button to enable */}
       <div style={{ position: "fixed", left: 18, bottom: 18 }}>
         <button className="ms-btn" onClick={() => {
-          // user gesture to resume background audio
           try {
             if (bgAudioRef.current) bgAudioRef.current.play().catch(() => {});
           } catch (e) {}
