@@ -132,7 +132,7 @@ export default function DuelPlay() {
   const mountedRef = useRef(true);
   const bgStartedRef = useRef(false);
 
-  // BEGIN overlay state (mobile only) — kept but not actively used here
+  // BEGIN overlay state (mobile only)
   const [showBeginOverlay, setShowBeginOverlay] = useState(false);
   const scaledRef = useRef(false); // whether we've applied the auto-scale
   const rootRef = useRef(null); // root container to transform
@@ -446,8 +446,61 @@ export default function DuelPlay() {
     <div
       ref={rootRef}
       className="duel-play-root"
-      style={{ padding: 24, display: "flex", justifyContent: "center" }}
+      style={{ padding: 24, display: "flex", justifyContent: "center", position: "relative" }}
     >
+      {/* BEGIN overlay for mobile */}
+      {showBeginOverlay && (
+        <div
+          className="duel-begin-overlay"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 9999,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "linear-gradient(180deg, rgba(2,2,6,0.85), rgba(2,2,6,0.9))",
+            padding: 24,
+          }}
+        >
+          <div style={{ width: "100%", maxWidth: 520, textAlign: "center", color: "#fff" }}>
+            <h2 className="h1-retro" style={{ marginBottom: 8 }}>Prepare for battle</h2>
+            <p style={{ color: "rgba(255,255,255,0.85)", marginBottom: 18 }}>Tap BEGIN to fit this duel nicely on your device.</p>
+            <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
+              <button
+                onClick={handleBeginClick}
+                style={{
+                  padding: "12px 18px",
+                  borderRadius: 10,
+                  background: "linear-gradient(90deg,#FDEE69,#ffd85a)",
+                  color: "#111",
+                  fontWeight: 900,
+                  border: 0,
+                  cursor: "pointer",
+                  fontSize: 16,
+                }}
+              >
+                BEGIN
+              </button>
+              <button
+                onClick={() => { setShowBeginOverlay(false); scaledRef.current = true; }}
+                style={{
+                  padding: "12px 16px",
+                  borderRadius: 10,
+                  background: "transparent",
+                  color: "#fff",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  cursor: "pointer"
+                }}
+              >
+                Skip
+              </button>
+            </div>
+            <div style={{ marginTop: 12, color: "rgba(255,255,255,0.6)", fontSize: 13 }}>You can always use pinch-to-zoom in your browser if needed.</div>
+          </div>
+        </div>
+      )}
+
       <div
         className="center-stage"
         style={{
@@ -482,7 +535,7 @@ export default function DuelPlay() {
           </div>
 
           {/* Opponent slots (top row) */}
-          <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 8 }}>
+          <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 8, overflowX: "auto" }}>
             {Array.from({ length: 4 }).map((_, i) => {
               const m = (opponent.deck && opponent.deck[i]) ? opponent.deck[i] : null;
               const poster = posterFor(m);
@@ -540,7 +593,7 @@ export default function DuelPlay() {
             <div style={{ height: 6 }} />
 
             {/* Challenger slots (bottom row) */}
-            <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 8 }}>
+            <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 8, overflowX: "auto" }}>
               {Array.from({ length: 4 }).map((_, i) => {
                 const m = (challenger.deck && challenger.deck[i]) ? challenger.deck[i] : null;
                 const poster = posterFor(m);
@@ -643,7 +696,7 @@ export default function DuelPlay() {
         .bar-block { width: 100%; height: 690px; background: #101221; border-radius: 14px; box-shadow: 0 8px 40px rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.02); position: absolute; top: 24px; left: 0; right: 0; z-index: 10; }
         .bar-overlay { position: relative; width: calc(100% - 80px); margin: 0 40px; z-index: 40; color: var(--white); display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 18px 10px 20px; text-align: center; }
 
-        /* MOBILE: center the bar visually and constrain width so it never slides off-screen */
+        /* Mobile: apply the mobile rules from your components DuelPlay */
         @media (max-width: 920px) {
           .duel-play-root { padding-left: 10px !important; padding-right: 10px !important; }
 
@@ -653,8 +706,7 @@ export default function DuelPlay() {
             max-width: 100% !important;
             padding: 10px !important;
             box-sizing: border-box !important;
-
-            /* slight left shift + small scale to get more visible area */
+            /* slight left shift + small scale to get more visible area by default */
             transform: translateX(-4%) scale(0.98);
             transform-origin: top center;
           }
@@ -681,6 +733,7 @@ export default function DuelPlay() {
             padding: 12px !important;
             box-sizing: border-box !important;
             overflow: visible !important;
+            align-items: center !important;
           }
 
           /* Make slot rows center and not push width */
@@ -701,6 +754,19 @@ export default function DuelPlay() {
           .center-stage { max-width: 820px !important; padding: 32px !important; }
           .bar-block { max-height: calc(100vh - 260px) !important; overflow: hidden !important; }
           .bar-overlay { max-height: calc(100vh - 320px) !important; overflow: auto !important; }
+        }
+
+        /* small body tweak so if you toggle the duel-open class elsewhere you keep a slight shift */
+        body.duel-open .center-stage {
+          transform: translateX(1px) !important;
+        }
+
+        /* Protect against inner-centering neutralizing pre-shift on duel-open (conservative rule) */
+        body.duel-open .bar-overlay > div,
+        body.duel-open .bar-overlay .duel-slot,
+        body.duel-open .bar-overlay .slot-poster-wrap {
+          margin-left: 0 !important;
+          margin-right: 0 !important;
         }
       `}</style>
     </div>
