@@ -747,8 +747,12 @@ export default function DuelPlay() {
     max-width: 100% !important;
     padding: 10px !important;
     box-sizing: border-box !important;
-    transform: translateX(-520px) scale(0.98) !important;;
+    transform: translateX(-520px) scale(0.98) !important;
     transform-origin: top center;
+  }
+
+  .duel-slot {
+  transform: translateY(-100px) scale(0.98) !important;;
   }
 
   /* ❗ MOBILE FIX: Make it MUCH TALLER and lower from top */
