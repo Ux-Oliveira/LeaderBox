@@ -676,8 +676,7 @@ export default function DuelPlay() {
         </div>
       </div>
 
-     <style>{`
-     
+      <style>{`
 .duel-slot.hidden { opacity: 0.0; transform: translateY(0); }
 .duel-slot.visible { opacity: 1; }
 .duel-slot.from-top { transform-origin: top center; }
@@ -691,9 +690,7 @@ export default function DuelPlay() {
 .slot-poster-wrap img { transition: transform 240ms ease; display:block; }
 .slot-poster-wrap:hover img { transform: scale(1.02); }
 
-/* ========================= */
 /*   DESKTOP DEFAULT         */
-/* ========================= */
 .center-stage {
   width: 100%;
   max-width: 1100px;
@@ -704,7 +701,7 @@ export default function DuelPlay() {
   padding:24px;
 }
 
-/* ❗ Desktop: Make block MUCH taller so pfp + level stay inside */
+/* Desktop: Make block MUCH taller so pfp + level stay inside */
 .bar-block {
   width: 100%;
   height: 780px;                     /* ⬅ increased from 690px */
@@ -730,13 +727,10 @@ export default function DuelPlay() {
   flex-direction: column;
   align-items: center;
   gap: 16px;
-  padding: 22px 10px 28px;           /* ⬅ a bit more breathing */
+  padding: 22px 10px 28px;       
   text-align: center;
 }
-
-/* ========================= */
 /*   MOBILE FIXES            */
-/* ========================= */
 @media (max-width: 920px) {
   .duel-play-root { padding-left: 10px !important; padding-right: 10px !important; }
 
@@ -749,7 +743,7 @@ export default function DuelPlay() {
     transform-origin: top center;
   }
 
-  /* ❗ MOBILE FIX: Make it MUCH TALLER and lower from top */
+  /* MOBILE FIX: Make it MUCH TALLER and lower from top */
   .bar-block {
     position: relative !important;
     left: auto !important;
@@ -785,18 +779,13 @@ export default function DuelPlay() {
   .duel-slot { width: 94px !important; }
 }
 
-/* ========================= */
 /*   LARGE-TALL SCREENS      */
-/* ========================= */
 @media (min-width: 1080px) && (min-height: 2340px) {
   .center-stage { max-width: 820px !important; padding: 32px !important; }
   .bar-block { max-height: calc(100vh - 160px) !important; }    /* ⬅ deeper */
   .bar-overlay { max-height: calc(100vh - 200px) !important; overflow: auto !important; }
 }
-
-/* ========================= */
 /*   DUEL-OPEN TWEAKS        */
-/* ========================= */
 body.duel-open .center-stage { transform: translateX(1px) !important; }
 
 body.duel-open .bar-overlay > div,
@@ -806,3 +795,6 @@ body.duel-open .bar-overlay .slot-poster-wrap {
   margin-right: 0 !important;
 }
 `}</style>
+    </div>
+  );
+}
