@@ -408,7 +408,7 @@ export default function DuelPlay(props) {
           minHeight: "100vh",
           boxSizing: "border-box",
           padding: "12px 18px",
-          transform: "translateX(-35px)", // shift ~1cm left
+          transform: "translateX(-33px)", // shift ~1cm left
         }}
       >
         <div
