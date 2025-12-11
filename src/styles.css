@@ -634,3 +634,93 @@ div[style*="#525DA9"], section[style*="#525DA9"] {
 .duel-slot.visible.from-top .slot-poster-wrap { transform: translateY(0) scale(1); opacity: 1; transition: transform 420ms cubic-bezier(.2,.9,.2,1), opacity 360ms; }
 .duel-slot.hidden.from-bottom .slot-poster-wrap { transform: translateY(18px) scale(0.98); opacity: 0; }
 .duel-slot.visible.from-bottom .slot-poster-wrap { transform: translateY(0) scale(1); opacity: 1; transition: transform 420ms cubic-bezier(.2,.9,.2,1), opacity 360ms; }
+
+/* --------------------------
+   Mobile auto-zoom -> virtual 750 x 2456
+   and centered support footer
+   Append at BOTTOM of styles.css
+   -------------------------- */
+
+@media (max-width: 920px) {
+  /* Prevent horizontal scrolling during transform */
+  html, body { overflow-x: hidden; }
+
+  /* Target values (virtual design size you requested) */
+  :root {
+    --duel-virtual-w: 750;   /* virtual width */
+    --duel-virtual-h: 2456;  /* virtual height */
+  }
+
+  /*
+    Scale the main app container so the layout behaves as if it's 750px wide.
+    - We scale by (viewport width / 750).
+    - Set transform-origin to top center so it "zooms out" from top and stays centered.
+    - We set an explicit virtual width so the scaled layout keeps proportions.
+  */
+  .app-container,
+  .page-wrapper,
+  .center-stage {
+    transform-origin: top center;
+    transform: scale(calc(100vw / var(--duel-virtual-w)));
+    width: var(--duel-virtual-w)px;                         /* virtual design width */
+    /* scaled height equals virtual height * scale factor */
+    min-height: calc(var(--duel-virtual-h) * (100vw / var(--duel-virtual-w)));
+    margin-left: auto;
+    margin-right: auto;
+    box-sizing: border-box;
+    /* keep internal overscroll from pushing layout horizontally */
+    max-width: none !important;
+  }
+
+  /*
+    Make the big duel card position inside the scaled container behave normally:
+    keep the bar centered and allow it to size by content (so everything is visible).
+  */
+  .bar-block {
+    position: relative;         /* avoid being clipped off-screen by absolute positioning */
+    left: 0;
+    right: 0;
+    margin: 24px auto 0 auto;   /* center inside the virtual canvas */
+    height: auto;               /* allow content to define height inside virtual canvas */
+    min-height: 560px;          /* keep a sensible minimum */
+  }
+
+  .bar-overlay {
+    padding-top: 42px;
+    padding-bottom: 28px;
+    width: calc(100% - 80px);
+    margin: 0 40px;
+    box-sizing: border-box;
+  }
+
+  /* Ensure duel poster slots shrink a bit so they fit within the virtual canvas */
+  .duel-slot { transform-origin: center; }
+  .slot-poster-wrap { max-width: 92px; max-height: 136px; }
+
+  /* Ensure any fixed-position elements do not appear off to the left */
+  .navbar, .profile-knob { left: 0; right: 0; }
+
+  /* Center the support footer horizontally and keep it above native phone UI */
+  .support {
+    position: fixed !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    bottom: 18px !important;
+    z-index: 9999 !important;
+    width: min(92vw, 760px) !important;
+    display: flex !important;
+    justify-content: center !important;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+    box-sizing: border-box;
+  }
+
+  /* inside-support card stays centered */
+  .support .card { margin: 0 auto; }
+
+  /* Minor defensive adjustments */
+  /* avoid unexpected horizontal scrollbars on very small screens */
+  html, body { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+}
+
+/* Desktop / normal behavior unchanged (the mobile block only runs when viewport <= 920px) */
