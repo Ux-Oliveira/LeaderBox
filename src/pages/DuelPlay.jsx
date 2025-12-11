@@ -357,13 +357,14 @@ export default function DuelPlay() {
     }
   }
 
-  if (loading) {
+ if (loading) {
   return (
     <div style={{ padding: 24 }}>
       <h2 className="h1-retro">Loading duel…</h2>
     </div>
   );
 }
+
 if (error) {
   return (
     <div style={{ padding: 24 }}>
@@ -375,6 +376,7 @@ if (error) {
     </div>
   );
 }
+
 if (!challenger || !opponent) {
   return (
     <div style={{ padding: 24 }}>
@@ -383,11 +385,11 @@ if (!challenger || !opponent) {
   );
 }
 
-// compute challenger points (accurate)
+// compute challenger points
 const challengerPoints = computeMoviePointsFromDeck(challenger.deck || []);
 
-const topCount = Math.max(4, (opponent && opponent.deck ? opponent.deck.length : 0));
-const bottomCount = Math.max(4, (challenger && challenger.deck ? challenger.deck.length : 0));
+const topCount = Math.max(4, (opponent.deck ? opponent.deck.length : 0));
+const bottomCount = Math.max(4, (challenger.deck ? challenger.deck.length : 0));
 
 return (
   <div
@@ -399,11 +401,12 @@ return (
     <div
       className="center-stage"
       style={{
-        maxWidth: "100%",
         width: "100%",
+        maxWidth: "720px", // <-- constrain width like navbar
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
+        margin: "0 auto", // <-- center horizontally
       }}
     >
       <div className="bar-block" aria-hidden />
@@ -426,7 +429,7 @@ return (
               {opponent.avatar ? (
                 <img src={opponent.avatar} alt={opponent.nickname} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
               ) : (
-                <div style={{ width: "72px", height: "72px", background: "#111", display: "flex", alignItems: "center", justifyContent: "center", color: "#ddd" }}>
+                <div style={{ width: 72, height: 72, background: "#111", display: "flex", alignItems: "center", justifyContent: "center", color: "#ddd" }}>
                   {(opponent.nickname || "U").slice(0, 1)}
                 </div>
               )}
@@ -468,15 +471,10 @@ return (
                     <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#666" }}>—</div>
                   )}
                 </div>
-
                 <div style={{ width: 92, height: 36, textAlign: "center", fontSize: 12, fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", color: "#fff", opacity: visible ? 1 : 0.3, transition: "opacity 300ms" }}>
                   {m ? (m.title || m.name) : ""}
                 </div>
-
-                {/* intentionally do NOT show opponent attack numbers */}
-                <div style={{ fontSize: 12, fontWeight: 800, color: "var(--accent)", minHeight: 18 }}>
-                  { /* hidden on purpose */ }
-                </div>
+                <div style={{ fontSize: 12, fontWeight: 800, color: "var(--accent)", minHeight: 18 }} />
               </div>
             );
           })}
@@ -502,7 +500,7 @@ return (
             {Array.from({ length: 4 }).map((_, i) => {
               const m = (challenger.deck && challenger.deck[i]) ? challenger.deck[i] : null;
               const poster = posterFor(m);
-              const visible = bottomVisible(i, topCount);
+              const visible = bottomVisible(i, bottomCount);
               return (
                 <div
                   key={`you-slot-${i}`}
@@ -527,11 +525,9 @@ return (
                       <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#666" }}>—</div>
                     )}
                   </div>
-
                   <div style={{ width: 92, height: 36, textAlign: "center", fontSize: 12, fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", color: "#fff", opacity: visible ? 1 : 0.3, transition: "opacity 300ms" }}>
                     {m ? (m.title || m.name) : ""}
                   </div>
-
                   <div style={{ fontSize: 12, fontWeight: 800, color: "var(--accent)", minHeight: 18 }}>
                     {visible && (challengerPoints.perMovie[i] !== undefined ? `${challengerPoints.perMovie[i]} atk` : "—")}
                   </div>
@@ -546,9 +542,7 @@ return (
               <div className="small" style={{ color: "#999" }}>Opponent Movie Points</div>
               <div style={{ fontWeight: 900, color: "var(--accent)" }}>— pts</div>
             </div>
-
             <div style={{ width: 1, height: 28, background: "rgba(255,255,255,0.03)" }} />
-
             <div style={{ textAlign: "center" }}>
               <div className="small" style={{ color: "#999" }}>Your Movie Points</div>
               <div style={{ fontWeight: 900, color: "var(--accent)" }}>{challengerPoints.total} pts</div>
@@ -558,14 +552,14 @@ return (
           <div style={{ height: 8 }} />
         </div>
 
-        {/* Bottom: Challenger header */}
+        {/* Bottom — Challenger header */}
         <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "center", marginTop: 8 }}>
           <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
             <div style={{ width: 72, height: 72, overflow: "hidden", borderRadius: 10 }}>
               {challenger.avatar ? (
                 <img src={challenger.avatar} alt={challenger.nickname} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
               ) : (
-                <div style={{ width: "72px", height: "72px", background: "#111", display: "flex", alignItems: "center", justifyContent: "center", color: "#ddd" }}>
+                <div style={{ width: 72, height: 72, background: "#111", display: "flex", alignItems: "center", justifyContent: "center", color: "#ddd" }}>
                   {(challenger.nickname || "U").slice(0, 1)}
                 </div>
               )}
