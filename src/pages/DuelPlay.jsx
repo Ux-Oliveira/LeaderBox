@@ -131,6 +131,9 @@ export default function DuelPlay() {
   const silentAudioRef = useRef(null);
   const mountedRef = useRef(true);
 
+  // small flag to track whether background music has been started
+  const bgStartedRef = useRef(false);
+
   // BEGIN overlay state (mobile only)
   const [showBeginOverlay, setShowBeginOverlay] = useState(false);
   const scaledRef = useRef(false); // whether we've applied the auto-scale
@@ -235,7 +238,36 @@ export default function DuelPlay() {
           if (slotAudioRef.current) {
             const a = slotAudioRef.current.cloneNode(true);
             a.volume = 0.9;
-            a.play().catch(() => {});
+            // when slot sound starts (some browsers require user gesture), use that opportunity to start bg audio once
+            a.play().then(() => {
+              try {
+                if (bgAudioRef.current && !bgStartedRef.current) {
+                  // try to play bg audio; if blocked, attempt muted fallback
+                  bgAudioRef.current.play().catch(async (err) => {
+                    try {
+                      bgAudioRef.current.muted = true;
+                      await bgAudioRef.current.play();
+                      // if muted play succeeds, unmute if allowed
+                      bgAudioRef.current.muted = false;
+                    } catch (e2) {
+                      // ignore
+                    }
+                  }).finally(() => {
+                    bgStartedRef.current = true;
+                  });
+                }
+              } catch (e) {
+                // ignore bg play errors
+              }
+            }).catch(() => {
+              // slot play blocked — still try bg as best effort
+              try {
+                if (bgAudioRef.current && !bgStartedRef.current) {
+                  bgAudioRef.current.play().catch(() => {});
+                  bgStartedRef.current = true;
+                }
+              } catch (e) {}
+            });
           }
         } catch (e) {}
         step++;
@@ -354,6 +386,7 @@ export default function DuelPlay() {
     // attempt to play background audio (silent already played); optional
     if (bgAudioRef.current) {
       bgAudioRef.current.play().catch(() => { /* ignore blocked play */ });
+      bgStartedRef.current = true;
     }
   }
 
