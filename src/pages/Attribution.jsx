@@ -1,3 +1,4 @@
+// src/pages/Attribution.jsx
 import React from "react";
 
 export default function Attribution() {
@@ -16,38 +17,59 @@ export default function Attribution() {
               target="_blank"
               rel="noreferrer"
               style={{ color: "var(--redlink)", fontWeight: "bold", marginLeft: 8 }}
-            >JangoDisc
+            >
+              JangoDisc
             </a>{" "}
             for the visual style and conceptual inspiration;
-            <br />
           </p>
 
           <div style={{ marginTop: 12, color: "rgba(255,255,255,0.92)", lineHeight: 1.5 }}>
-           <h1 className="h1-retro">Movie posters and statistics:</h1>
-            <p></p><strong>Source of The Movie Database <a
-              className="small"
-              href="https://www.youtube.com/@JangoDisc"
-              target="_blank"
-              rel="noreferrer"
-              style={{ color: "var(--redlink)", fontWeight: "bold", marginLeft: 8 }}
-            >(TMDB)</a>{" "}.</strong><br />
-            <img />  
+            <h2 className="h1-retro" style={{ fontSize: 20, marginTop: 8 }}>
+              Movie posters and statistics
+            </h2>
+
+            <p style={{ marginTop: 8 }}>
+              <strong>
+                Source: The Movie Database (TMDB)
+                <a
+                  className="small"
+                  href="https://www.themoviedb.org"
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ color: "var(--redlink)", fontWeight: "bold", marginLeft: 8 }}
+                >
+                  (TMDB)
+                </a>
+                .
+              </strong>
+            </p>
+
+            {/* optional decorative image placeholder — replace src with a real asset if desired */}
+            <div style={{ marginTop: 12 }}>
+              <img
+                src="/placeholder-tmdb.png"
+                alt="TMDB / movie posters"
+                style={{ maxWidth: "100%", height: "auto", borderRadius: 6, display: "block" }}
+              />
+            </div>
           </div>
 
+          <div style={{ marginTop: 18, color: "rgba(255,255,255,0.92)", lineHeight: 1.5 }}>
+            <p>
+              <strong>Music and sound effects:</strong>
+              <br />
+              Many sound effects and background music used during development and in prototypes
+              were sourced from freesound.org and various royalty-free collections. Please consult
+              each audio file's license when publishing.
+            </p>
 
-          <div style={{ marginTop: 12, color: "rgba(255,255,255,0.92)", lineHeight: 1.5 }}>
-          <p><strong>Music and sound effects found on freesound.org:</strong><br />
-            
-
-
-
-
-
-
-
-
-            
-          </p>
+            <ul style={{ marginTop: 8, color: "rgba(255,255,255,0.88)" }}>
+              <li>
+                Freesound.org (soundFX) — attribution where required by contributor license.
+              </li>
+              <li>Royalty-free collections (various artists) — check individual track licenses.</li>
+            </ul>
+          </div>
         </div>
       </div>
     </div>
