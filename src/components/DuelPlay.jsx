@@ -126,6 +126,19 @@ export default function DuelPlay(props) {
   const bgStartedRef = useRef(false);
   const rootRef = useRef(null);
 
+  // add body class while modal is open so CSS can hide the navbar
+  useEffect(() => {
+    if (open) {
+      document.body.classList.add("duel-open");
+    } else {
+      document.body.classList.remove("duel-open");
+    }
+    // cleanup on unmount in case component is removed
+    return () => {
+      document.body.classList.remove("duel-open");
+    };
+  }, [open]);
+
   // make sure page can't scroll under the full-screen modal
   useEffect(() => {
     if (!open) return;
@@ -395,7 +408,7 @@ export default function DuelPlay(props) {
           minHeight: "100vh",
           boxSizing: "border-box",
           padding: "12px 18px",
-          transform: "translateX(-36px)", // shift ~1cm left
+          transform: "translateX(-35px)", // shift ~1cm left
         }}
       >
         <div
