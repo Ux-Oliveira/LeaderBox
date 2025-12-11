@@ -131,6 +131,9 @@ export default function DuelPlay() {
   const silentAudioRef = useRef(null);
   const mountedRef = useRef(true);
 
+  // NEW: audio prompt modal visible until user accepts
+  const [audioPromptVisible, setAudioPromptVisible] = useState(true); // show by default
+
   useEffect(() => {
     mountedRef.current = true;
 
@@ -166,7 +169,7 @@ export default function DuelPlay() {
         setChallenger(c);
         setOpponent(o);
 
-        // silent unlock attempt
+        // silent unlock attempt (harmless)
         try {
           if (SILENT_AUDIO) {
             const s = new Audio(SILENT_AUDIO);
@@ -190,12 +193,14 @@ export default function DuelPlay() {
           idx = Math.floor(Math.random() * BACKGROUND_SONGS.length);
         }
         localStorage.setItem("leaderbox_last_song_idx", String(idx));
+
+        // prepare bg audio but do NOT force-play (we'll attempt play later from user gesture)
         const bg = new Audio(BACKGROUND_SONGS[idx]);
         bg.loop = true;
         bg.volume = 0.14;
         bg.preload = "auto";
         bgAudioRef.current = bg;
-        bg.play().catch(() => { /* may be blocked */ });
+        // don't auto-play here (may be blocked) — wait for user gesture via modal
 
         // start reveal sequence shortly after render
         setTimeout(() => startRevealSequence(c, o), 400);
@@ -249,6 +254,31 @@ export default function DuelPlay() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [challengerSlug, opponentSlug]);
 
+  // NEW: attempt to start background audio from a user gesture,
+  // hide the audio prompt if successful (or on any click).
+  async function handleEnableAudio() {
+    try {
+      // if we have an existing prepared bg audio, try to play it
+      if (bgAudioRef.current) {
+        await bgAudioRef.current.play();
+        setAudioPromptVisible(false);
+        return;
+      }
+      // else create one and play (fallback to first track)
+      const a = new Audio(BACKGROUND_SONGS[0]);
+      a.loop = true;
+      a.volume = 0.14;
+      a.preload = "auto";
+      bgAudioRef.current = a;
+      await a.play();
+      setAudioPromptVisible(false);
+    } catch (err) {
+      // If play fails, still hide prompt but keep bgAudioRef ready to attempt later
+      console.warn("Audio enable failed:", err);
+      setAudioPromptVisible(false);
+    }
+  }
+
   // compute accurate movie points using editstack formulas
   function computeMoviePointsFromDeck(deckArr) {
     const stats = computeStats(deckArr);
@@ -296,8 +326,6 @@ export default function DuelPlay() {
 
   // compute challenger points (accurate)
   const challengerPoints = computeMoviePointsFromDeck(challenger.deck || []);
-
-  // intentionally DO NOT compute or show opponent's points (so challenger cannot see them)
 
   const topCount = Math.max(4, (opponent && opponent.deck ? opponent.deck.length : 0));
   const bottomCount = Math.max(4, (challenger && challenger.deck ? challenger.deck.length : 0));
@@ -351,7 +379,7 @@ export default function DuelPlay() {
                     }}
                   >
                     {poster && visible ? (
-                      <img src={poster} alt={m.title || m.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                      <img src={poster} alt={m?.title || m?.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                     ) : (
                       <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#666" }}>—</div>
                     )}
@@ -410,7 +438,7 @@ export default function DuelPlay() {
                       }}
                     >
                       {poster && visible ? (
-                        <img src={poster} alt={m.title || m.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                        <img src={poster} alt={m?.title || m?.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
                       ) : (
                         <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#666" }}>—</div>
                       )}
@@ -432,6 +460,7 @@ export default function DuelPlay() {
             <div style={{ display: "flex", gap: 18, marginTop: 12, alignItems: "center", justifyContent: "center" }}>
               <div style={{ textAlign: "center" }}>
                 <div className="small" style={{ color: "#999" }}>Opponent Movie Points</div>
+                {/* intentionally hidden value */}
                 <div style={{ fontWeight: 900, color: "var(--accent)" }}>— pts</div>
               </div>
 
@@ -468,14 +497,21 @@ export default function DuelPlay() {
         </div>
       </div>
 
-      {/* small accessibility: if audio blocked, show a notice/button to enable */}
-      <div style={{ position: "fixed", left: 18, bottom: 18 }}>
-        <button className="ms-btn" onClick={() => {
-          try {
-            if (bgAudioRef.current) bgAudioRef.current.play().catch(() => {});
-          } catch (e) {}
-        }}>Enable Audio</button>
-      </div>
+      {/* NEW: centered audio prompt modal */}
+      {audioPromptVisible && (
+        <div className="audio-modal-overlay" role="dialog" aria-modal="true" onClick={() => setAudioPromptVisible(false)}>
+          <div className="audio-modal" onClick={e => e.stopPropagation()}>
+            <div style={{ fontWeight: 900, fontSize: 18, marginBottom: 8 }}>Enable audio</div>
+            <div className="small" style={{ marginBottom: 14, color: "#ddd", maxWidth: 420 }}>
+              To hear background music and slot sounds, please enable audio. This is required for the full Duel experience.
+            </div>
+            <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+              <button className="ms-btn" onClick={handleEnableAudio} style={{ padding: "10px 16px" }}>Enable audio</button>
+              <button className="modal-btn" onClick={() => setAudioPromptVisible(false)} style={{ padding: "10px 16px" }}>Maybe later</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         /* Duel Play specific slot animations */
@@ -487,7 +523,6 @@ export default function DuelPlay() {
         /* Use CSS transitions for smooth sliding: when visible, we translate to 0, otherwise offset */
         .duel-slot.hidden.from-top .slot-poster-wrap { transform: translateY(-18px) scale(0.98); opacity: 0.0; }
         .duel-slot.visible.from-top .slot-poster-wrap { transform: translateY(0) scale(1); opacity: 1; }
-
         .duel-slot.hidden.from-bottom .slot-poster-wrap { transform: translateY(18px) scale(0.98); opacity: 0.0; }
         .duel-slot.visible.from-bottom .slot-poster-wrap { transform: translateY(0) scale(1); opacity: 1; }
 
@@ -495,11 +530,32 @@ export default function DuelPlay() {
         .slot-poster-wrap img { transition: transform 240ms ease; display:block; }
         .slot-poster-wrap:hover img { transform: scale(1.02); }
 
-        /* message animation */
-        @keyframes pulseAccent {
-          0% { transform: scale(1); opacity: 1; }
-          50% { transform: scale(1.04); opacity: 1; }
-          100% { transform: scale(1); opacity: 1; }
+        /* audio modal styles */
+        .audio-modal-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(0,0,0,0.55);
+          z-index: 10050;
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          padding: 18px;
+        }
+        .audio-modal {
+          background: linear-gradient(180deg, rgba(8,9,12,0.98), rgba(16,18,24,0.98));
+          border-radius: 12px;
+          padding: 20px;
+          box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+          color: var(--white);
+          text-align:center;
+          max-width: 520px;
+          width: 92%;
+        }
+        .ms-btn { background: linear-gradient(90deg,var(--accent), #ffd85a); color: var(--black); border: none; font-weight:900; padding: 10px 14px; border-radius: 8px; cursor: pointer; }
+        .modal-btn { background: transparent; border: 1px solid rgba(255,255,255,0.06); color: var(--white); padding: 10px 14px; border-radius: 8px; cursor: pointer; }
+
+        @media (max-width: 480px) {
+          .audio-modal { padding: 14px; max-width: 420px; }
         }
       `}</style>
     </div>
