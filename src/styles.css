@@ -591,3 +591,26 @@ div[style*="#525DA9"], section[style*="#525DA9"] {
   align-items: center;
   gap: 12px;
 }
+
+/* DuelPlay additional styles (append) */
+
+.duel-slot.hidden { opacity: 0; pointer-events: none; }
+.duel-slot.visible { opacity: 1; pointer-events: auto; }
+
+/* top slide down animation */
+.duel-slot.hidden.from-top .slot-poster-wrap { transform: translateY(-20px) scale(0.98); opacity: 0; }
+.duel-slot.visible.from-top .slot-poster-wrap { transform: translateY(0) scale(1); opacity: 1; transition: transform 420ms cubic-bezier(.2,.9,.2,1), opacity 360ms; }
+
+/* bottom slide up animation */
+.duel-slot.hidden.from-bottom .slot-poster-wrap { transform: translateY(20px) scale(0.98); opacity: 0; }
+.duel-slot.visible.from-bottom .slot-poster-wrap { transform: translateY(0) scale(1); opacity: 1; transition: transform 420ms cubic-bezier(.2,.9,.2,1), opacity 360ms; }
+
+/* small poster hover */
+.slot-poster-wrap img { transition: transform 240ms ease; }
+.slot-poster-wrap:hover img { transform: scale(1.02); }
+
+/* center-stage (already defined in your CSS, included for safety) */
+.center-stage { width: 100%; max-width: 1100px; position: relative; display:flex; align-items:center; justify-content:center; padding:24px; }
+.bar-block { width: 100%; height: 660px; background: #101221; border-radius: 14px; box-shadow: 0 8px 40px rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.02); position: absolute; top: 24px; left: 0; right: 0; z-index: 10; }
+.bar-overlay { position: relative; width: calc(100% - 80px); margin: 0 40px; z-index: 40; color: var(--white); display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 18px 10px 20px; text-align: center; }
+
