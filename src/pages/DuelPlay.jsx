@@ -762,7 +762,7 @@ export default function DuelPlay() {
     right: auto !important;
     top: auto !important;
     margin: 10px auto 0 !important;    /* ⬅ adds top space */
-    width: calc(100% - 38px) !important;
+    width: 38px) !important;
     max-width: 730px !important;
     height: auto !important;
     min-height: 600px !important;      /* ⬅ BIG FIX: more vertical space */
@@ -777,7 +777,7 @@ export default function DuelPlay() {
     padding: 18px !important;          /* ⬅ increased */
     overflow: visible !important;
     align-items: center !important;
-    transform: translateY(-600px) scale(0.98) !important;
+    transform: translateY(-620px) scale(0.98) !important;
   }
 
   .bar-overlay > div[style*="display: flex"] {
