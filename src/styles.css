@@ -18,7 +18,7 @@
 
 /* 1) Shift the duel modal to the right when active */
 body.duel-open .center-stage {
-  transform: translateX(5px) !important; /* tweak px until it's perfect */
+  transform: translateX(4px) !important; /* tweak px until it's perfect */
 }
 
 /* 2) Prevent inner-centering from neutralizing the visual shift.
