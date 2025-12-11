@@ -743,8 +743,7 @@ export default function DuelPlay() {
   .duel-play-root { padding-left: 10px !important; padding-right: 10px !important; }
 
   .center-stage {
-    width: 60px !important;
-    height: 100px !important;
+    width: 100% !important;
     max-width: 100% !important;
     padding: 10px !important;
     box-sizing: border-box !important;
