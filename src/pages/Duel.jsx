@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { fetchAllProfiles } from "../lib/api";
 import { useNavigate } from "react-router-dom";
+import DuelPlay from "../components/DuelPlay";
 
 const LEVELS = [
   { level: 1, name: "Noob" },
@@ -68,6 +69,11 @@ export default function Duel() {
   const [detail, setDetail] = useState(null); // currently focused profile (full)
   const nav = useNavigate();
 
+  // Duel modal state
+  const [duelOpen, setDuelOpen] = useState(false);
+  const [duelChallenger, setDuelChallenger] = useState(null);
+  const [duelOpponent, setDuelOpponent] = useState(null);
+
   useEffect(() => {
     (async () => {
       setLoading(true);
@@ -131,16 +137,14 @@ export default function Duel() {
     return null;
   }
 
-  function handleChallenge(profile) {
+  // NEW: open DuelPlay modal with full profile objects
+  function openDuelModal(opponentProfile) {
     try {
-      // Ensure challenger (you) is present locally — we use stored_profile / tiktok_profile
       const challengerSlug = slugFromProfile(me);
-      const opponentSlug = slugFromProfile(profile);
+      const opponentSlug = slugFromProfile(opponentProfile);
 
       if (!challengerSlug) {
-        // If user not logged in / no local profile, ask them to login first
         alert("Please log in or set your profile before challenging another player.");
-        // optionally navigate to login or profile page:
         nav("/profile");
         return;
       }
@@ -149,15 +153,17 @@ export default function Duel() {
         return;
       }
 
-      // keep legacy local storage for opponent
-      localStorage.setItem("leaderbox_opponent", JSON.stringify(profile));
+      // keep legacy local storage for opponent (optional)
+      localStorage.setItem("leaderbox_opponent", JSON.stringify(opponentProfile));
 
-      // navigate to the duel play route with both slugs encoded
-      nav(`/duel/play/${encodeURIComponent(challengerSlug)}/${encodeURIComponent(opponentSlug)}`);
+      // set modal data and open
+      setDuelChallenger(me);
+      setDuelOpponent(opponentProfile);
+      setDuelOpen(true);
+      // DuelPlay will attempt silent audio and start reveal when it mounts.
     } catch (e) {
-      console.warn("handleChallenge failed", e);
-      // fallback: use previous behavior
-      localStorage.setItem("leaderbox_opponent", JSON.stringify(profile));
+      console.warn("openDuelModal failed, falling back to navigation", e);
+      localStorage.setItem("leaderbox_opponent", JSON.stringify(opponentProfile));
       window.location.href = "/duel/play";
     }
   }
@@ -198,6 +204,16 @@ export default function Duel() {
     return String(p.nickname || "").toLowerCase().includes(query.toLowerCase());
   }).sort((a, b) => (a.nickname || "").localeCompare(b.nickname || ""));
 
+  // lock body scroll when duel modal open
+  useEffect(() => {
+    if (duelOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => { document.body.style.overflow = ""; };
+  }, [duelOpen]);
+
   return (
     <div style={{ width: "100%" }}>
       <h2 className="h1-retro">Duel Arena</h2>
@@ -235,7 +251,8 @@ export default function Duel() {
                   <LevelPill level={p.level || 1} />
                 </div>
                 <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                  <img src="/play.png" alt="play" style={{ width: 36, height: 36, cursor: "pointer", animation: "subtlePulse 2.5s infinite" }} onClick={() => handleChallenge(p)} />
+                  {/* Play now opens DuelPlay modal. DuelPlay will attempt the silent audio/reveal on mount. */}
+                  <img src="/play.png" alt="play" style={{ width: 36, height: 36, cursor: "pointer", animation: "subtlePulse 2.5s infinite" }} onClick={() => openDuelModal(p)} />
                 </div>
               </div>
             ))}
@@ -266,11 +283,24 @@ export default function Duel() {
 
             {/* Play area */}
             <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "center", marginTop: 6 }}>
-              <img src="/play.png" alt="challenge" style={{ width: 56, height: 56, cursor: "pointer", animation: "subtlePulse 2.5s infinite" }} onClick={() => handleChallenge(detail)} />
+              <img src="/play.png" alt="challenge" style={{ width: 56, height: 56, cursor: "pointer", animation: "subtlePulse 2.5s infinite" }} onClick={() => openDuelModal(detail)} />
             </div>
           </div>
         </div>
       )}
+
+      {/* DuelPlay modal (component) */}
+      <DuelPlay
+        open={duelOpen}
+        onClose={() => {
+          setDuelOpen(false);
+          setDuelOpponent(null);
+          setDuelChallenger(null);
+        }}
+        challenger={duelChallenger}
+        opponent={duelOpponent}
+        playOnMount={true}
+      />
 
       <style>{`@keyframes subtlePulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }`}</style>
     </div>
