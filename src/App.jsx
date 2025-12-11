@@ -18,6 +18,8 @@ import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import EditStack from "./pages/EditStack";
 import ComingSoon from "./pages/ComingSoon";
+import DuelPlay from "./pages/DuelPlay";
+import Attribution from "./pages/Attribution";
 
 import Support from "./components/Support"; // <- Added import
 
@@ -161,6 +163,12 @@ export default function App() {
           <Route path="/privacy" element={<Privacy />} />
 
           <Route path="/coming-soon" element={<ComingSoon />} />
+
+          
+          <Route path="/attribution" element={<Attribution />} />
+          
+          <Route path="/duel/play/:challenger/:opponent" element={<DuelPlay />} />
+
         </Routes>
       </div>
 
