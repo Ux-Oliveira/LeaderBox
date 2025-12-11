@@ -16,7 +16,7 @@ export default function Attribution() {
               href="https://www.youtube.com/@JangoDisc"
               target="_blank"
               rel="noreferrer"
-              style={{ color: "var(--redlink)", fontWeight: "bold", marginLeft: 8 }}
+              style={{ color: "var(--accent)", fontWeight: "bold", marginLeft: 8 }}
             >
               JangoDisc
             </a>{" "}
@@ -30,13 +30,13 @@ export default function Attribution() {
 
             <p style={{ marginTop: 8 }}>
               <strong>
-                Source: The Movie Database (TMDB)
+                Source: The Movie Database
                 <a
                   className="small"
                   href="https://www.themoviedb.org"
                   target="_blank"
                   rel="noreferrer"
-                  style={{ color: "var(--redlink)", fontWeight: "bold", marginLeft: 8 }}
+                  style={{ color: "var(--accent)", fontWeight: "bold", marginLeft: 8 }}
                 >
                   (TMDB)
                 </a>
@@ -46,11 +46,15 @@ export default function Attribution() {
 
             {/* optional decorative image placeholder — replace src with a real asset if desired */}
             <div style={{ marginTop: 12 }}>
-              <img
-                src="/placeholder-tmdb.png"
-                alt="TMDB / movie posters"
+               <a
+                  className="small"
+                  href="https://www.themoviedb.org"
+                  target="_blank"
+                  rel="noreferrer"><img
+                src="/tmdb.svg"
+                alt="TMDB Logo"
                 style={{ maxWidth: "100%", height: "auto", borderRadius: 6, display: "block" }}
-              />
+              /></a>
             </div>
           </div>
 
