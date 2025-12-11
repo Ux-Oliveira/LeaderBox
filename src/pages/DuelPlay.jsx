@@ -131,9 +131,6 @@ export default function DuelPlay() {
   const silentAudioRef = useRef(null);
   const mountedRef = useRef(true);
 
-  // small flag to track whether background music has been started
-  const bgStartedRef = useRef(false);
-
   // BEGIN overlay state (mobile only)
   const [showBeginOverlay, setShowBeginOverlay] = useState(false);
   const scaledRef = useRef(false); // whether we've applied the auto-scale
@@ -238,36 +235,7 @@ export default function DuelPlay() {
           if (slotAudioRef.current) {
             const a = slotAudioRef.current.cloneNode(true);
             a.volume = 0.9;
-            // when slot sound starts (some browsers require user gesture), use that opportunity to start bg audio once
-            a.play().then(() => {
-              try {
-                if (bgAudioRef.current && !bgStartedRef.current) {
-                  // try to play bg audio; if blocked, attempt muted fallback
-                  bgAudioRef.current.play().catch(async (err) => {
-                    try {
-                      bgAudioRef.current.muted = true;
-                      await bgAudioRef.current.play();
-                      // if muted play succeeds, attempt to unmute (some browsers permit)
-                      try { bgAudioRef.current.muted = false; } catch (e) {}
-                    } catch (e2) {
-                      // ignore
-                    }
-                  }).finally(() => {
-                    bgStartedRef.current = true;
-                  });
-                }
-              } catch (e) {
-                // ignore bg play errors
-              }
-            }).catch(() => {
-              // slot play blocked — still try bg as best effort
-              try {
-                if (bgAudioRef.current && !bgStartedRef.current) {
-                  bgAudioRef.current.play().catch(() => {});
-                  bgStartedRef.current = true;
-                }
-              } catch (e) {}
-            });
+            a.play().catch(() => {});
           }
         } catch (e) {}
         step++;
@@ -334,7 +302,6 @@ export default function DuelPlay() {
   }
 
   // Called when mobile user taps BEGIN: compute a scale that fits both width and height
-  // IMPORTANT: we calculate a **pre-scale translateX** so after scale the content centers in viewport
   function handleBeginClick() {
     // apply transform to the duel-play-root (rootRef)
     const root = rootRef.current || document.querySelector(".duel-play-root");
@@ -344,24 +311,15 @@ export default function DuelPlay() {
       return;
     }
 
-    // ensure center-stage and bar-block are positioned so measurements are consistent
-    const centerStage = root.querySelector(".center-stage") || root;
-    if (centerStage) centerStage.style.position = "relative";
-    const barBlock = root.querySelector(".bar-block");
-    if (barBlock) {
-      barBlock.style.position = "relative";
-      barBlock.style.left = "";
-      barBlock.style.right = "";
-      barBlock.style.top = "";
-      barBlock.style.margin = "24px auto 0 auto";
-    }
-
     // measure natural sizes
+    // We need bounding box of the content we want to fit (center-stage)
+    const centerStage = root.querySelector(".center-stage") || root;
     const bounding = centerStage.getBoundingClientRect();
     const contentW = Math.max(1, bounding.width);
     const contentH = Math.max(1, bounding.height);
 
     // compute available viewport space (account for navbar + some safe margins + support footer)
+    // Try to reserve space for navbar (64px) and bottom UI (approx 92px), but compute actual support footer if possible
     const navbarHeight = 64;
     let supportHeight = 92;
     const supportEl = document.querySelector(".support");
@@ -379,40 +337,23 @@ export default function DuelPlay() {
     // compute scale that fits both axis
     const scaleW = availableW / contentW;
     const scaleH = availableH / contentH;
-    // use 0.98 multiplier so things don't touch edges
+    // use 0.95 multiplier so things don't touch edges
     let scale = Math.min(1, scaleW * 0.98, scaleH * 0.98);
-    // clamp to 0.5 min
+    // don't allow absurdly small scaling; clamp to 0.5 min
     scale = Math.max(0.5, scale);
 
-    // Centering: after scaling, the element may need a translateX to truly sit centered.
-    // We'll compute the pixel offset and convert to a pre-scale translate so scale keeps the translation correct.
-    const scaledContentWidth = contentW * scale;
-    const extraSpace = Math.max(0, window.innerWidth - scaledContentWidth);
-    // translateX in **pre-scale** units = (extraSpace / 2) / scale
-    const translateXPreScale = (extraSpace / 2) / (scale || 1);
-
-    // apply transform with translateX pre-scale so after scale it is centered properly
+    // apply transform
     root.style.transition = "transform 280ms cubic-bezier(.2,.9,.2,1)";
     root.style.transformOrigin = "top center";
-    root.style.transform = `translateX(${translateXPreScale}px) scale(${scale})`;
+    root.style.transform = `scale(${scale})`;
 
     // hide overlay
     setShowBeginOverlay(false);
     scaledRef.current = true;
 
     // attempt to play background audio (silent already played); optional
-    if (bgAudioRef.current && !bgStartedRef.current) {
-      bgAudioRef.current.play().catch(async (err) => {
-        try {
-          bgAudioRef.current.muted = true;
-          await bgAudioRef.current.play();
-          try { bgAudioRef.current.muted = false; } catch (e) {}
-        } catch (e2) {
-          // unable to start bg audio
-        }
-      }).finally(() => {
-        bgStartedRef.current = true;
-      });
+    if (bgAudioRef.current) {
+      bgAudioRef.current.play().catch(() => { /* ignore blocked play */ });
     }
   }
 
