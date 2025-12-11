@@ -22,7 +22,7 @@ const BACKGROUND_SONGS = [
 ];
 
 const SLOT_AUDIO = "/audios/slot.mp3";
-const SILENT_AUDIO = "/audios/silent.mp3"; // fake audio to initiate audio playing
+const SILENT_AUDIO = "/audios/silent.mp3";
 
 function posterFor(movie) {
   if (!movie) return null;
@@ -37,60 +37,43 @@ function posterFor(movie) {
 
 async function fetchProfileBySlug(slug) {
   if (!slug) return null;
-  // try nickname first
   try {
     const byNick = await fetch(`/api/profile?nickname=${encodeURIComponent(slug)}`, { credentials: "same-origin" });
     if (byNick.ok) {
       const txt = await byNick.text();
-      try {
-        const json = JSON.parse(txt);
-        const profile = json.profile || json;
-        return profile;
-      } catch (e) {}
+      try { const json = JSON.parse(txt); return json.profile || json; } catch (e) {}
     }
   } catch (e) {}
-  // fallback by open_id
   try {
     const byId = await fetch(`/api/profile?open_id=${encodeURIComponent(slug)}`, { credentials: "same-origin" });
     if (byId.ok) {
       const txt = await byId.text();
-      try {
-        const json = JSON.parse(txt);
-        const profile = json.profile || json;
-        return profile;
-      } catch (e) {}
+      try { const json = JSON.parse(txt); return json.profile || json; } catch (e) {}
     }
   } catch (e) {}
   return null;
 }
 
-/* compute stats using same algorithm as EditStack */
+/* computeStats / distributeAttackPoints - same logic as before */
 function computeStats(deckArr) {
   const movies = (deckArr || []).filter(Boolean);
   if (movies.length === 0) return { pretentious: 0, rewatch: 0, quality: 0, popularity: 0 };
 
-  const scores = movies.map(m => (m.vote_average || 0)); // 0..10
-  const pops = movies.map(m => (m.popularity || 0)); // unbounded
+  const scores = movies.map(m => (m.vote_average || 0));
+  const pops = movies.map(m => (m.popularity || 0));
 
-  // Normalize popularity within this deck to 0..1
   const minPop = Math.min(...pops);
   const maxPop = Math.max(...pops);
   const normPops = pops.map(p => (maxPop === minPop ? 0.5 : (p - minPop) / (maxPop - minPop)));
 
-  // Normalize scores 0..1 (TMDB vote_average ~0..10)
   const normScores = scores.map(s => Math.min(1, Math.max(0, s / 10)));
 
-  // Quality = average score (0..10)
   const quality = scores.reduce((a, b) => a + b, 0) / scores.length;
-
-  // Popularity average (raw)
   const popularity = pops.reduce((a, b) => a + b, 0) / pops.length;
 
-  // Pretentiousness: high score AND low popularity -> pretentious
   const pretArr = normScores.map((ns, idx) => ns * (1 - normPops[idx]));
-  const pretentious = (pretArr.reduce((a, b) => a + b, 0) / pretArr.length) * 100; // 0..100
+  const pretentious = (pretArr.reduce((a, b) => a + b, 0) / pretArr.length) * 100;
 
-  // Rewatchability: high score * high popularity
   const rewatchArr = normScores.map((ns, idx) => ns * normPops[idx]);
   const rewatch = (rewatchArr.reduce((a, b) => a + b, 0) / rewatchArr.length) * 100;
 
@@ -102,7 +85,6 @@ function computeStats(deckArr) {
   };
 }
 
-/* distribute attack points like EditStack */
 function distributeAttackPoints(totalPoints, moviesArr) {
   const movies = (moviesArr || []).filter(Boolean);
   if (movies.length === 0) return [];
@@ -150,20 +132,16 @@ export default function DuelPlay(props) {
   const mountedRef = useRef(false);
   const bgStartedRef = useRef(false);
   const rootRef = useRef(null);
-  const scaledRef = useRef(false);
 
-  // Load data when modal opens (fetch by slug if objects not provided)
   useEffect(() => {
     if (!open) return;
     mountedRef.current = true;
     setLoading(true);
     setError(null);
-
     let cancelled = false;
 
     async function init() {
       try {
-        // fetch if needed
         const [c, o] = await Promise.all([
           challengerProp ? Promise.resolve(challengerProp) : (challengerSlug ? fetchProfileBySlug(challengerSlug) : null),
           opponentProp ? Promise.resolve(opponentProp) : (opponentSlug ? fetchProfileBySlug(opponentSlug) : null),
@@ -176,7 +154,6 @@ export default function DuelPlay(props) {
           return;
         }
 
-        // normalize shapes
         c.wins = Number.isFinite(c.wins) ? c.wins : 0;
         c.losses = Number.isFinite(c.losses) ? c.losses : 0;
         c.draws = Number.isFinite(c.draws) ? c.draws : 0;
@@ -192,22 +169,19 @@ export default function DuelPlay(props) {
         setChallenger(c);
         setOpponent(o);
 
-        // silent audio attempt (for autoplay unlock) — only when requested by parent via playOnMount
+        // optionally try a silent audio play to unlock audio (parent may already have done it)
         try {
           if (playOnMount && SILENT_AUDIO) {
             const s = new Audio(SILENT_AUDIO);
             s.volume = 0;
-            // don't await — browsers may block; ignore rejections
             s.play().catch(() => {});
             silentAudioRef.current = s;
           }
         } catch (e) {}
 
-        // prepare slot audio
         slotAudioRef.current = new Audio(SLOT_AUDIO);
         slotAudioRef.current.preload = "auto";
 
-        // background track choice
         const lastIdxRaw = localStorage.getItem("leaderbox_last_song_idx");
         let idx = 0;
         try {
@@ -224,7 +198,6 @@ export default function DuelPlay(props) {
         bg.preload = "auto";
         bgAudioRef.current = bg;
 
-        // kick off reveal shortly after modal appears
         setTimeout(() => startRevealSequence(c, o), 300);
       } catch (err) {
         console.error("DuelPlay init error", err);
@@ -245,12 +218,10 @@ export default function DuelPlay(props) {
       cancelled = true;
       mountedRef.current = false;
       window.removeEventListener("keydown", onKey);
-      // cleanup audios
       try { if (bgAudioRef.current) { bgAudioRef.current.pause(); bgAudioRef.current.src = ""; } } catch (e) {}
       try { if (slotAudioRef.current) { slotAudioRef.current.pause(); slotAudioRef.current.src = ""; } } catch (e) {}
       try { if (silentAudioRef.current) { silentAudioRef.current.pause(); silentAudioRef.current.src = ""; } } catch (e) {}
     };
-    // only run when opened
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -263,7 +234,6 @@ export default function DuelPlay(props) {
     const revealTick = () => {
       if (!mountedRef.current) return;
       setRevealIndex(step);
-      // play slot audio clone for each reveal
       try {
         if (slotAudioRef.current) {
           const a = slotAudioRef.current.cloneNode(true);
@@ -276,12 +246,8 @@ export default function DuelPlay(props) {
                     bgAudioRef.current.muted = true;
                     await bgAudioRef.current.play();
                     try { bgAudioRef.current.muted = false; } catch (e) {}
-                  } catch (e2) {
-                    // ignore
-                  }
-                }).finally(() => {
-                  bgStartedRef.current = true;
-                });
+                  } catch (e2) {}
+                }).finally(() => { bgStartedRef.current = true; });
               }
             } catch (e) {}
           }).catch(() => {
@@ -298,10 +264,7 @@ export default function DuelPlay(props) {
       if (step < total) {
         setTimeout(revealTick, 500);
       } else {
-        setTimeout(() => {
-          setShowGoMessage(true);
-          setTimeout(() => setShowGoMessage(false), 1000);
-        }, 250);
+        setTimeout(() => { setShowGoMessage(true); setTimeout(() => setShowGoMessage(false), 1000); }, 250);
       }
     };
 
@@ -325,7 +288,6 @@ export default function DuelPlay(props) {
     return revealIndex >= (topCount + i);
   }
 
-  // when user clicks overlay background -> close
   function handleOverlayClick(e) {
     if (e.target === e.currentTarget && typeof onClose === "function") onClose();
   }
@@ -335,7 +297,7 @@ export default function DuelPlay(props) {
   if (loading) {
     return (
       <div role="dialog" aria-modal="true" className="duel-modal-root" style={{ position: "fixed", inset: 0, zIndex: 12000, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ padding: 24, background: "rgba(0,0,0,0.6)", borderRadius: 12 }}>
+        <div style={{ padding: 24, background: "rgba(0,0,0,0.85)", borderRadius: 12 }}>
           <h2 className="h1-retro">Loading duel…</h2>
         </div>
       </div>
@@ -345,12 +307,9 @@ export default function DuelPlay(props) {
   if (error) {
     return (
       <div role="dialog" aria-modal="true" className="duel-modal-root" style={{ position: "fixed", inset: 0, zIndex: 12000, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ padding: 24, background: "rgba(0,0,0,0.6)", borderRadius: 12 }}>
+        <div style={{ padding: 24, background: "rgba(0,0,0,0.85)", borderRadius: 12 }}>
           <h2 className="h1-retro">Duel error</h2>
           <div style={{ color: "#f66", marginTop: 8 }}>{String(error)}</div>
-          <div style={{ marginTop: 12 }}>
-            <button className="ms-btn" onClick={() => typeof onClose === "function" ? onClose() : null}>Close</button>
-          </div>
         </div>
       </div>
     );
@@ -359,7 +318,7 @@ export default function DuelPlay(props) {
   if (!challenger || !opponent) {
     return (
       <div role="dialog" aria-modal="true" className="duel-modal-root" style={{ position: "fixed", inset: 0, zIndex: 12000, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ padding: 24, background: "rgba(0,0,0,0.6)", borderRadius: 12 }}>
+        <div style={{ padding: 24, background: "rgba(0,0,0,0.85)", borderRadius: 12 }}>
           <h2 className="h1-retro">Missing duel participants</h2>
         </div>
       </div>
@@ -388,134 +347,116 @@ export default function DuelPlay(props) {
         padding: 18,
       }}
     >
+      {/* bar-block becomes an actual centered block container with the overlay placed inside */}
       <div className="center-stage" style={{ width: "100%", maxWidth: 920, display: "flex", flexDirection: "column", alignItems: "center", margin: "0 auto", position: "relative" }}>
-        {/* floating close button */}
-        <button
-          aria-label="Close duel"
-          onClick={() => typeof onClose === "function" && onClose()}
-          style={{
-            position: "absolute",
-            top: -18,
-            right: -18,
-            background: "linear-gradient(90deg,var(--accent), #ffd85a)",
-            border: "none",
-            padding: 10,
-            borderRadius: 999,
-            cursor: "pointer",
-            fontWeight: 900,
-            zIndex: 13000,
-          }}
-        >
-          ✕
-        </button>
-
-        <div className="bar-block" aria-hidden style={{ width: "100%", background: "#101221", borderRadius: 14, boxShadow: "0 30px 90px rgba(0,0,0,0.6)", border: "1px solid rgba(255,255,255,0.02)", padding: 28 }} />
-
-        <div className="bar-overlay" style={{ position: "absolute", width: "calc(100% - 56px)", margin: "0 28px", zIndex: 40, color: "var(--white)", display: "flex", flexDirection: "column", alignItems: "center", gap: 18, padding: "8px 10px 20px", textAlign: "center" }}>
-          {/* Top header */}
-          <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "center", marginTop: 6 }}>
-            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-              <div style={{ width: 72, height: 72, overflow: "hidden", borderRadius: 10 }}>
-                {opponent.avatar ? (
-                  <img src={opponent.avatar} alt={opponent.nickname} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                ) : (
-                  <div style={{ width: 72, height: 72, background: "#111", display: "flex", alignItems: "center", justifyContent: "center", color: "#ddd" }}>
-                    {(opponent.nickname || "U").slice(0, 1)}
-                  </div>
-                )}
-              </div>
-              <div style={{ textAlign: "left" }}>
-                <div style={{ fontWeight: 900, color: "var(--accent)", fontSize: 18 }}>{opponent.nickname}</div>
-                <div className="small" style={{ color: "#ddd" }}>Level {opponent.level}</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Opponent slots */}
-          <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 8 }}>
-            {Array.from({ length: 4 }).map((_, i) => {
-              const m = (opponent.deck && opponent.deck[i]) ? opponent.deck[i] : null;
-              const poster = posterFor(m);
-              const visible = topVisible(i);
-              return (
-                <div key={`opp-slot-${i}`} className={`duel-slot ${visible ? "visible from-top" : "hidden from-top"}`} style={{ width: 110, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-                  <div className="slot-poster-wrap" style={{ width: 92, height: 136, borderRadius: 8, overflow: "hidden", background: "#0d0d10", boxShadow: visible ? "0 8px 18px rgba(0,0,0,0.6)" : "none", transition: "transform 420ms cubic-bezier(.2,.9,.2,1), opacity 360ms" }}>
-                    {poster && visible ? (<img src={poster} alt={m?.title || m?.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />) : (<div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#666" }}>—</div>)}
-                  </div>
-                  <div style={{ width: 92, height: 36, textAlign: "center", fontSize: 12, fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", color: "#fff", opacity: visible ? 1 : 0.3, transition: "opacity 300ms" }}>
-                    {m ? (m.title || m.name) : ""}
-                  </div>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: "var(--accent)", minHeight: 18 }} />
+        <div className="bar-block" aria-hidden style={{ width: "100%", background: "#101221", borderRadius: 14, boxShadow: "0 30px 90px rgba(0,0,0,0.6)", border: "1px solid rgba(255,255,255,0.02)", padding: 28, boxSizing: "border-box" }}>
+          <div className="bar-overlay" style={{ width: "100%", color: "var(--white)", display: "flex", flexDirection: "column", alignItems: "center", gap: 18, padding: "8px 10px 20px", textAlign: "center", boxSizing: "border-box" }}>
+            {/* Top header */}
+            <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "center", marginTop: 6 }}>
+              <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                <div style={{ width: 72, height: 72, overflow: "hidden", borderRadius: 10 }}>
+                  {opponent.avatar ? (
+                    <img src={opponent.avatar} alt={opponent.nickname} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  ) : (
+                    <div style={{ width: 72, height: 72, background: "#111", display: "flex", alignItems: "center", justifyContent: "center", color: "#ddd" }}>
+                      {(opponent.nickname || "U").slice(0, 1)}
+                    </div>
+                  )}
                 </div>
-              );
-            })}
-          </div>
-
-          {/* Message + challenger slots */}
-          <div style={{ marginTop: 18, display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
-            <div style={{ minHeight: 42 }}>
-              {showGoMessage ? (<div style={{ fontSize: 22, fontWeight: 900, color: "var(--accent)" }}>1st Turn: Go!</div>) : (<div style={{ height: 0 }} />)}
+                <div style={{ textAlign: "left" }}>
+                  <div style={{ fontWeight: 900, color: "var(--accent)", fontSize: 18 }}>{opponent.nickname}</div>
+                  <div className="small" style={{ color: "#ddd" }}>Level {opponent.level}</div>
+                </div>
+              </div>
             </div>
 
-            <div style={{ height: 6 }} />
-
-            <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 8 }}>
+            {/* Opponent slots */}
+            <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 8, flexWrap: "wrap" }}>
               {Array.from({ length: 4 }).map((_, i) => {
-                const m = (challenger.deck && challenger.deck[i]) ? challenger.deck[i] : null;
+                const m = (opponent.deck && opponent.deck[i]) ? opponent.deck[i] : null;
                 const poster = posterFor(m);
-                const visible = bottomVisible(i, topCount);
+                const visible = topVisible(i);
                 return (
-                  <div key={`you-slot-${i}`} className={`duel-slot ${visible ? "visible from-bottom" : "hidden from-bottom"}`} style={{ width: 110, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+                  <div key={`opp-slot-${i}`} className={`duel-slot ${visible ? "visible from-top" : "hidden from-top"}`} style={{ width: 110, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
                     <div className="slot-poster-wrap" style={{ width: 92, height: 136, borderRadius: 8, overflow: "hidden", background: "#0d0d10", boxShadow: visible ? "0 8px 18px rgba(0,0,0,0.6)" : "none", transition: "transform 420ms cubic-bezier(.2,.9,.2,1), opacity 360ms" }}>
                       {poster && visible ? (<img src={poster} alt={m?.title || m?.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />) : (<div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#666" }}>—</div>)}
                     </div>
-
                     <div style={{ width: 92, height: 36, textAlign: "center", fontSize: 12, fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", color: "#fff", opacity: visible ? 1 : 0.3, transition: "opacity 300ms" }}>
                       {m ? (m.title || m.name) : ""}
                     </div>
-
-                    <div style={{ fontSize: 12, fontWeight: 800, color: "var(--accent)", minHeight: 18 }}>
-                      {visible && (challengerPoints.perMovie[i] !== undefined ? `${challengerPoints.perMovie[i]} atk` : "—")}
-                    </div>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: "var(--accent)", minHeight: 18 }} />
                   </div>
                 );
               })}
             </div>
 
-            <div style={{ display: "flex", gap: 18, marginTop: 12, alignItems: "center", justifyContent: "center" }}>
-              <div style={{ textAlign: "center" }}>
-                <div className="small" style={{ color: "#999" }}>Opponent Movie Points</div>
-                <div style={{ fontWeight: 900, color: "var(--accent)" }}>— pts</div>
+            {/* Message + challenger slots */}
+            <div style={{ marginTop: 18, display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+              <div style={{ minHeight: 42 }}>
+                {showGoMessage ? (<div style={{ fontSize: 22, fontWeight: 900, color: "var(--accent)" }}>1st Turn: Go!</div>) : (<div style={{ height: 0 }} />)}
               </div>
 
-              <div style={{ width: 1, height: 28, background: "rgba(255,255,255,0.03)" }} />
+              <div style={{ height: 6 }} />
 
-              <div style={{ textAlign: "center" }}>
-                <div className="small" style={{ color: "#999" }}>Your Movie Points</div>
-                <div style={{ fontWeight: 900, color: "var(--accent)" }}>{challengerPoints.total} pts</div>
+              <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 8, flexWrap: "wrap" }}>
+                {Array.from({ length: 4 }).map((_, i) => {
+                  const m = (challenger.deck && challenger.deck[i]) ? challenger.deck[i] : null;
+                  const poster = posterFor(m);
+                  const visible = bottomVisible(i, topCount);
+                  return (
+                    <div key={`you-slot-${i}`} className={`duel-slot ${visible ? "visible from-bottom" : "hidden from-bottom"}`} style={{ width: 110, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+                      <div className="slot-poster-wrap" style={{ width: 92, height: 136, borderRadius: 8, overflow: "hidden", background: "#0d0d10", boxShadow: visible ? "0 8px 18px rgba(0,0,0,0.6)" : "none", transition: "transform 420ms cubic-bezier(.2,.9,.2,1), opacity 360ms" }}>
+                        {poster && visible ? (<img src={poster} alt={m?.title || m?.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />) : (<div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#666" }}>—</div>)}
+                      </div>
+
+                      <div style={{ width: 92, height: 36, textAlign: "center", fontSize: 12, fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", color: "#fff", opacity: visible ? 1 : 0.3, transition: "opacity 300ms" }}>
+                        {m ? (m.title || m.name) : ""}
+                      </div>
+
+                      <div style={{ fontSize: 12, fontWeight: 800, color: "var(--accent)", minHeight: 18 }}>
+                        {visible && (challengerPoints.perMovie[i] !== undefined ? `${challengerPoints.perMovie[i]} atk` : "—")}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div style={{ display: "flex", gap: 18, marginTop: 12, alignItems: "center", justifyContent: "center", flexWrap: "wrap" }}>
+                <div style={{ textAlign: "center" }}>
+                  <div className="small" style={{ color: "#999" }}>Opponent Movie Points</div>
+                  <div style={{ fontWeight: 900, color: "var(--accent)" }}>— pts</div>
+                </div>
+
+                <div style={{ width: 1, height: 28, background: "rgba(255,255,255,0.03)" }} />
+
+                <div style={{ textAlign: "center" }}>
+                  <div className="small" style={{ color: "#999" }}>Your Movie Points</div>
+                  <div style={{ fontWeight: 900, color: "var(--accent)" }}>{challengerPoints.total} pts</div>
+                </div>
+              </div>
+
+              <div style={{ height: 8 }} />
+            </div>
+
+            {/* Challenger header bottom */}
+            <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "center", marginTop: 8 }}>
+              <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                <div style={{ width: 72, height: 72, overflow: "hidden", borderRadius: 10 }}>
+                  {challenger.avatar ? (
+                    <img src={challenger.avatar} alt={challenger.nickname} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  ) : (
+                    <div style={{ width: 72, height: 72, background: "#111", display: "flex", alignItems: "center", justifyContent: "center", color: "#ddd" }}>
+                      {(challenger.nickname || "U").slice(0, 1)}
+                    </div>
+                  )}
+                </div>
+                <div style={{ textAlign: "left" }}>
+                  <div style={{ fontWeight: 900, color: "var(--accent)", fontSize: 18 }}>{challenger.nickname}</div>
+                  <div className="small" style={{ color: "#ddd" }}>Level {challenger.level}</div>
+                </div>
               </div>
             </div>
 
-            <div style={{ height: 8 }} />
-          </div>
-
-          {/* Challenger header bottom */}
-          <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "center", marginTop: 8 }}>
-            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-              <div style={{ width: 72, height: 72, overflow: "hidden", borderRadius: 10 }}>
-                {challenger.avatar ? (
-                  <img src={challenger.avatar} alt={challenger.nickname} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                ) : (
-                  <div style={{ width: 72, height: 72, background: "#111", display: "flex", alignItems: "center", justifyContent: "center", color: "#ddd" }}>
-                    {(challenger.nickname || "U").slice(0, 1)}
-                  </div>
-                )}
-              </div>
-              <div style={{ textAlign: "left" }}>
-                <div style={{ fontWeight: 900, color: "var(--accent)", fontSize: 18 }}>{challenger.nickname}</div>
-                <div className="small" style={{ color: "#ddd" }}>Level {challenger.level}</div>
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -537,6 +478,7 @@ export default function DuelPlay(props) {
         /* responsive tweaks for modal */
         @media (max-width: 920px) {
           .center-stage { max-width: 92vw !important; padding: 12px !important; }
+          .bar-block { padding: 16px !important; }
           .bar-overlay { width: calc(100% - 32px) !important; margin: 0 !important; }
           .slot-poster-wrap { width: 78px !important; height: 116px !important; }
           .duel-slot { width: 94px !important; }
