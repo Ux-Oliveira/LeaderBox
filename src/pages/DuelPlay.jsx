@@ -1,38 +1,15 @@
-// src/pages/DuelPlay.jsx
 import React, { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 
-/**
- * DuelPlay.jsx
- *
- * Route pattern: /duel/play/:challenger/:opponent
- *
- * Behavior:
- * - Fetch challenger & opponent profiles by nickname/open_id via /api/profile?nickname=... or ?open_id=...
- * - Try to play a tiny silent audio to unlock autoplay in some browsers.
- * - Pick a background song from /audios/song1.mp3... stored in localStorage index to rotate songs.
- * - Reveal slots top->center->bottom with animations and play /audios/slot.mp3 on each reveal.
- * - After reveal, show "1st Turn: Go!" for 1s.
- *
- * Notes:
- * - Audio files are expected to be in public/audios/:
- *    /audios/silent.mp3    (very short silent file, optional)
- *    /audios/slot.mp3
- *    /audios/song1.mp3
- *    /audios/song2.mp3
- *    ...
- * - Attack/MP calculations now match EditStack logic (pretentious + rewatch + quality + popularity).
- */
-
 const BACKGROUND_SONGS = [
-  "/audios/song1.mp3",
-  "/audios/song2.mp3",
-  "/audios/song3.mp3",
-  "/audios/song4.mp3",
+  "/audios/city_battle_stars.mp3",
+  "/audios/cinematic_battle.mp3",
+  "/audios/fun_battle.mp3",
+  "/audios/retro_battle.mp3",
 ];
 
 const SLOT_AUDIO = "/audios/slot.mp3";
-const SILENT_AUDIO = "/audios/silent.mp3"; // optional short silent file in public/audios
+const SILENT_AUDIO = "/audios/silent.mp3"; // fake audio to iniitate audio playing
 
 function posterFor(movie) {
   if (!movie) return null;
