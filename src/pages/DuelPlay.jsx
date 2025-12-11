@@ -132,7 +132,7 @@ export default function DuelPlay() {
   const mountedRef = useRef(true);
   const bgStartedRef = useRef(false);
 
-  // BEGIN overlay state (mobile only) — kept but not shown (you removed BEGIN button)
+  // BEGIN overlay state (mobile only) — kept but not used
   const [showBeginOverlay, setShowBeginOverlay] = useState(false);
   const scaledRef = useRef(false); // whether we've applied the auto-scale
   const rootRef = useRef(null); // root container to transform
@@ -204,8 +204,8 @@ export default function DuelPlay() {
         bg.preload = "auto";
         bgAudioRef.current = bg;
 
-        // show BEGIN overlay automatically on small screens only
-        const mobileBreakpoint = 920; // same threshold you've used
+        // show BEGIN overlay automatically on small screens only (rare)
+        const mobileBreakpoint = 920;
         if (typeof window !== "undefined" && window.innerWidth <= mobileBreakpoint) {
           setShowBeginOverlay(true);
         } else {
@@ -337,7 +337,7 @@ export default function DuelPlay() {
       return;
     }
 
-    // measure natural sizes
+    // ensure center-stage and bar-block are positioned so measurements are consistent
     const centerStage = root.querySelector(".center-stage") || root;
     if (centerStage) centerStage.style.position = "relative";
     const barBlock = root.querySelector(".bar-block");
@@ -349,6 +349,7 @@ export default function DuelPlay() {
       barBlock.style.margin = "24px auto 0 auto";
     }
 
+    // measure natural sizes
     const bounding = centerStage.getBoundingClientRect();
     const contentW = Math.max(1, bounding.width);
     const contentH = Math.max(1, bounding.height);
@@ -376,9 +377,11 @@ export default function DuelPlay() {
     // clamp to 0.5 min
     scale = Math.max(0.5, scale);
 
-    // Centering: compute pre-scale translateX so scaled content centers
+    // Centering: after scaling, the element may need a translateX to truly sit centered.
+    // We'll compute the pixel offset and convert to a pre-scale translate so scale keeps the translation correct.
     const scaledContentWidth = contentW * scale;
     const extraSpace = Math.max(0, window.innerWidth - scaledContentWidth);
+    // translateX in **pre-scale** units = (extraSpace / 2) / scale
     const translateXPreScale = (extraSpace / 2) / (scale || 1);
 
     // apply transform with translateX pre-scale so after scale it is centered properly
@@ -513,7 +516,7 @@ export default function DuelPlay() {
                   </div>
 
                   <div style={{ fontSize: 12, fontWeight: 800, color: "var(--accent)", minHeight: 18 }}>
-                    { /* hidden on purpose for opponent */ }
+                    { /* intentionally hidden for opponent */ }
                   </div>
                 </div>
               );
@@ -619,8 +622,6 @@ export default function DuelPlay() {
         </div>
       </div>
 
-      {/* NOTE: BEGIN overlay removed as requested */}
-
       <style>{`
         /* Duel Play specific slot animations */
         .duel-slot.hidden { opacity: 0.0; transform: translateY(0); }
@@ -628,7 +629,6 @@ export default function DuelPlay() {
         .duel-slot.from-top { transform-origin: top center; }
         .duel-slot.from-bottom { transform-origin: bottom center; }
 
-        /* Use CSS transitions for smooth sliding: when visible, we translate to 0, otherwise offset */
         .duel-slot.hidden.from-top .slot-poster-wrap { transform: translateY(-18px) scale(0.98); opacity: 0.0; }
         .duel-slot.visible.from-top .slot-poster-wrap { transform: translateY(0) scale(1); opacity: 1; }
         .duel-slot.hidden.from-bottom .slot-poster-wrap { transform: translateY(18px) scale(0.98); opacity: 0.0; }
@@ -637,10 +637,65 @@ export default function DuelPlay() {
         .slot-poster-wrap img { transition: transform 240ms ease; display:block; }
         .slot-poster-wrap:hover img { transform: scale(1.02); }
 
-        /* BEGIN overlay styles removed (no BEGIN button) */
+        /* Desktop / default styles: keep the bar absolute to create the floating card look */
+        .center-stage { width: 100%; max-width: 1100px; position: relative; display:flex; align-items:center; justify-content:center; padding:24px; }
+        .bar-block { width: 100%; height: 690px; background: #101221; border-radius: 14px; box-shadow: 0 8px 40px rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.02); position: absolute; top: 24px; left: 0; right: 0; z-index: 10; }
+        .bar-overlay { position: relative; width: calc(100% - 80px); margin: 0 40px; z-index: 40; color: var(--white); display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 18px 10px 20px; text-align: center; }
 
-        @media (min-width: 921px) {
-          /* nothing here related to BEGIN overlay anymore */
+        /* MOBILE: center the bar visually and constrain width so it never slides off-screen */
+        @media (max-width: 920px) {
+          .duel-play-root { padding-left: 12px !important; padding-right: 12px !important; }
+
+          /* Constrain center-stage to viewport width and remove large absolute bleed */
+          .center-stage {
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 12px !important;
+            box-sizing: border-box !important;
+          }
+
+          /* Put the bar-block into the flow visually centered */
+          .bar-block {
+            position: relative !important;           /* becomes a normal block (not absolute) so it stays centered */
+            left: auto !important;
+            right: auto !important;
+            top: auto !important;
+            margin: 0 auto !important;
+            width: calc(100% - 24px) !important;     /* leave small horizontal padding */
+            max-width: 720px !important;
+            height: auto !important;                 /* let content determine height on mobile */
+            padding: 18px !important;
+            overflow: visible !important;
+          }
+
+          /* Ensure overlay fits inside the bar and can scroll if tall */
+          .bar-overlay {
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 16px !important;
+            box-sizing: border-box !important;
+            overflow: visible !important;
+          }
+
+          /* Make slot rows center and not push width */
+          .bar-overlay > div[style*="display: flex"] {
+            justify-content: center !important;
+            width: 100% !important;
+            max-width: 640px;
+            margin: 0 auto;
+          }
+
+          /* Reduce poster sizes slightly on small screens so everything fits */
+          .slot-poster-wrap { width: 84px !important; height: 124px !important; }
+          .duel-slot { width: 100px !important; }
+        }
+
+        /* Large tall screen (extra defensive) */
+        @media (min-width: 1080px) and (min-height: 2340px) {
+          .center-stage { max-width: 820px !important; padding: 32px !important; }
+          .bar-block { max-height: calc(100vh - 260px) !important; overflow: hidden !important; }
+          .bar-overlay { max-height: calc(100vh - 320px) !important; overflow: auto !important; }
         }
       `}</style>
     </div>
