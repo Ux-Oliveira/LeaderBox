@@ -14,6 +14,24 @@
   --card-bg: rgba(255,255,255,0.03);
 }
 
+/* Put near the end of styles.css (after the big media query) */
+
+/* 1) Shift the duel modal to the right when active */
+body.duel-open .center-stage {
+  transform: translateX(6px) !important; /* tweak px until it's perfect */
+}
+
+/* 2) Prevent inner-centering from neutralizing the visual shift.
+   This keeps layout intact but avoids forcing everything back to center
+   while duel is open. */
+body.duel-open .bar-overlay > div,
+body.duel-open .bar-overlay .duel-slot,
+body.duel-open .bar-overlay .slot-poster-wrap {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+
 /*base*/
 *{box-sizing:border-box;margin:0;padding:0}
 html,body,#root{height:100%}
@@ -608,24 +626,6 @@ div[style*="#525DA9"], section[style*="#525DA9"] {
     padding-top: 0 !important; /* avoid extra top padding interfering with centering */
     padding-bottom: 0 !important;
   }
-
-
-  /* Put near the end of styles.css (after the big media query) */
-
-/* 1) Shift the duel modal to the right when active */
-body.duel-open .center-stage {
-  transform: translateX(6px) !important; /* tweak px until it's perfect */
-}
-
-/* 2) Prevent inner-centering from neutralizing the visual shift.
-   This keeps layout intact but avoids forcing everything back to center
-   while duel is open. */
-body.duel-open .bar-overlay > div,
-body.duel-open .bar-overlay .duel-slot,
-body.duel-open .bar-overlay .slot-poster-wrap {
-  margin-left: 0 !important;
-  margin-right: 0 !important;
-}
 
 
   /* Constrain the stage width (like the navbar) and center vertically */
