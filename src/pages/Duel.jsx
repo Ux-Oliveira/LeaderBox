@@ -114,17 +114,52 @@ export default function Duel() {
     }
   })();
 
+  // helper to build a safe slug from a profile (prefer nickname without @, else open_id)
+  function slugFromProfile(p) {
+    if (!p) return null;
+    if (p.nickname) {
+      try {
+        return String(p.nickname).replace(/^@+/, "").trim();
+      } catch (e) {}
+    }
+    if (p.handle) {
+      try {
+        return String(p.handle).replace(/^@+/, "").trim();
+      } catch (e) {}
+    }
+    if (p.open_id) return String(p.open_id);
+    return null;
+  }
+
   function handleChallenge(profile) {
     try {
-      if (me && String(me.open_id) === String(profile.open_id)) {
-        alert("You can't challenge yourself — pick another player.");
+      // Ensure challenger (you) is present locally — we use stored_profile / tiktok_profile
+      const challengerSlug = slugFromProfile(me);
+      const opponentSlug = slugFromProfile(profile);
+
+      if (!challengerSlug) {
+        // If user not logged in / no local profile, ask them to login first
+        alert("Please log in or set your profile before challenging another player.");
+        // optionally navigate to login or profile page:
+        nav("/profile");
         return;
       }
+      if (!opponentSlug) {
+        alert("Opponent missing identifier; cannot start duel.");
+        return;
+      }
+
+      // keep legacy local storage for opponent
+      localStorage.setItem("leaderbox_opponent", JSON.stringify(profile));
+
+      // navigate to the duel play route with both slugs encoded
+      nav(`/duel/play/${encodeURIComponent(challengerSlug)}/${encodeURIComponent(opponentSlug)}`);
     } catch (e) {
-      console.warn("Self-check failed", e);
+      console.warn("handleChallenge failed", e);
+      // fallback: use previous behavior
+      localStorage.setItem("leaderbox_opponent", JSON.stringify(profile));
+      window.location.href = "/duel/play";
     }
-    localStorage.setItem("leaderbox_opponent", JSON.stringify(profile));
-    window.location.href = "/duel/play";
   }
 
   async function openDetail(profile) {
