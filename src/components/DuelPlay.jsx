@@ -119,6 +119,8 @@ export default function DuelPlay(props) {
   const [revealIndex, setRevealIndex] = useState(-1);
   const [showGoMessage, setShowGoMessage] = useState(false);
 
+  const [posterLoaded, setPosterLoaded] = useState({}); // optional, for preloading status
+
   const slotAudioRef = useRef(null);
   const bgAudioRef = useRef(null);
   const silentAudioRef = useRef(null);
@@ -126,16 +128,22 @@ export default function DuelPlay(props) {
   const bgStartedRef = useRef(false);
   const rootRef = useRef(null);
 
-  // add body class while modal is open so CSS can hide the navbar
+  // add body class while modal is open so CSS can hide the navbar (but also proactively hide navbar element to avoid CSS conflicts)
   useEffect(() => {
+    const nav = document.querySelector(".navbar");
+    const prevNavDisplay = nav ? nav.style.display : null;
+
     if (open) {
       document.body.classList.add("duel-open");
+      if (nav) nav.style.display = "none";
     } else {
       document.body.classList.remove("duel-open");
+      if (nav) nav.style.display = prevNavDisplay || "";
     }
-    // cleanup on unmount in case component is removed
+
     return () => {
       document.body.classList.remove("duel-open");
+      if (nav) nav.style.display = prevNavDisplay || "";
     };
   }, [open]);
 
@@ -146,6 +154,20 @@ export default function DuelPlay(props) {
     document.body.style.overflow = "hidden";
     return () => { document.body.style.overflow = prevOverflow; };
   }, [open]);
+
+  // helper: preload a poster and mark load result
+  function preloadPoster(src, key) {
+    if (!src) {
+      setPosterLoaded(prev => ({ ...prev, [key]: false }));
+      return;
+    }
+    // avoid re-preloading same key
+    if (posterLoaded[key] !== undefined) return;
+    const img = new Image();
+    img.onload = () => setPosterLoaded(prev => ({ ...prev, [key]: true }));
+    img.onerror = () => setPosterLoaded(prev => ({ ...prev, [key]: false }));
+    img.src = src;
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -182,6 +204,20 @@ export default function DuelPlay(props) {
 
         setChallenger(c);
         setOpponent(o);
+
+        // Preload posters for both decks (seeds posterLoaded state)
+        try {
+          (c.deck || []).forEach((m, i) => {
+            const src = posterFor(m);
+            preloadPoster(src, `you-${i}`);
+          });
+          (o.deck || []).forEach((m, i) => {
+            const src = posterFor(m);
+            preloadPoster(src, `opp-${i}`);
+          });
+        } catch (e) {
+          // ignore preload failures
+        }
 
         // optional silent audio
         try {
@@ -375,8 +411,7 @@ export default function DuelPlay(props) {
   const topCount = Math.max(4, (opponent.deck ? opponent.deck.length : 0));
   const bottomCount = Math.max(4, (challenger.deck ? challenger.deck.length : 0));
 
-  // Move left by ~1cm (approx 36px), compress spacing, smaller posters so rows fit horizontally.
-  // We keep z-index 74 so profile modal (75) will still appear above this modal.
+  // Slightly shifted to the right compared to earlier -30px; more compact spacing.
   return (
     <div
       ref={rootRef}
@@ -394,7 +429,7 @@ export default function DuelPlay(props) {
         padding: 0,
       }}
     >
-      {/* center-stage fills the screen and is slightly shifted left (≈1cm) */}
+      {/* center-stage fills the screen and is slightly shifted right compared to old -30px */}
       <div
         className="center-stage"
         style={{
@@ -408,7 +443,7 @@ export default function DuelPlay(props) {
           minHeight: "100vh",
           boxSizing: "border-box",
           padding: "12px 18px",
-          transform: "translateX(-30px)", // shift ~1cm left
+          transform: "translateX(-10px)", // moved right vs previous -30px
         }}
       >
         <div
@@ -450,7 +485,10 @@ export default function DuelPlay(props) {
               <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                 <div style={{ width: 64, height: 64, overflow: "hidden", borderRadius: 10 }}>
                   {opponent.avatar ? (
-                    <img src={opponent.avatar} alt={opponent.nickname} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    <img src={opponent.avatar} alt={opponent.nickname} style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/images/fallback_poster.png"; }}
+                      loading="eager"
+                    />
                   ) : (
                     <div style={{ width: 64, height: 64, background: "#111", display: "flex", alignItems: "center", justifyContent: "center", color: "#ddd" }}>
                       {(opponent.nickname || "U").slice(0, 1)}
@@ -487,7 +525,17 @@ export default function DuelPlay(props) {
                 return (
                   <div key={`opp-slot-${i}`} className={`duel-slot ${visible ? "visible from-top" : "hidden from-top"}`} style={{ flex: "0 0 auto", width: 100, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
                     <div className="slot-poster-wrap" style={{ width: 82, height: 122, borderRadius: 8, overflow: "hidden", background: "#0d0d10", boxShadow: visible ? "0 8px 18px rgba(0,0,0,0.6)" : "none", transition: "transform 360ms cubic-bezier(.2,.9,.2,1), opacity 300ms" }}>
-                      {poster && visible ? (<img src={poster} alt={m?.title || m?.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />) : (<div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#666" }}>—</div>)}
+                      {poster && visible ? (
+                        <img
+                          src={poster}
+                          alt={m?.title || m?.name || "poster"}
+                          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                          onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/images/fallback_poster.png"; setPosterLoaded(prev => ({ ...prev, [`opp-${i}`]: false })); }}
+                          loading="eager"
+                        />
+                      ) : (
+                        <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#666" }}>—</div>
+                      )}
                     </div>
                     <div style={{ width: 82, height: 36, textAlign: "center", fontSize: 11, fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", color: "#fff", opacity: visible ? 1 : 0.3, transition: "opacity 240ms" }}>
                       {m ? (m.title || m.name) : ""}
@@ -528,7 +576,17 @@ export default function DuelPlay(props) {
                   return (
                     <div key={`you-slot-${i}`} className={`duel-slot ${visible ? "visible from-bottom" : "hidden from-bottom"}`} style={{ flex: "0 0 auto", width: 100, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
                       <div className="slot-poster-wrap" style={{ width: 82, height: 122, borderRadius: 8, overflow: "hidden", background: "#0d0d10", boxShadow: visible ? "0 8px 18px rgba(0,0,0,0.6)" : "none", transition: "transform 360ms cubic-bezier(.2,.9,.2,1), opacity 300ms" }}>
-                        {poster && visible ? (<img src={poster} alt={m?.title || m?.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />) : (<div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#666" }}>—</div>)}
+                        {poster && visible ? (
+                          <img
+                            src={poster}
+                            alt={m?.title || m?.name || "poster"}
+                            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                            onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/images/fallback_poster.png"; setPosterLoaded(prev => ({ ...prev, [`you-${i}`]: false })); }}
+                            loading="eager"
+                          />
+                        ) : (
+                          <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#666" }}>—</div>
+                        )}
                       </div>
 
                       <div style={{ width: 82, height: 36, textAlign: "center", fontSize: 11, fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", color: "#fff", opacity: visible ? 1 : 0.3, transition: "opacity 240ms" }}>
@@ -564,7 +622,10 @@ export default function DuelPlay(props) {
               <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                 <div style={{ width: 64, height: 64, overflow: "hidden", borderRadius: 10 }}>
                   {challenger.avatar ? (
-                    <img src={challenger.avatar} alt={challenger.nickname} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    <img src={challenger.avatar} alt={challenger.nickname} style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/images/fallback_poster.png"; }}
+                      loading="eager"
+                    />
                   ) : (
                     <div style={{ width: 64, height: 64, background: "#111", display: "flex", alignItems: "center", justifyContent: "center", color: "#ddd" }}>
                       {(challenger.nickname || "U").slice(0, 1)}
