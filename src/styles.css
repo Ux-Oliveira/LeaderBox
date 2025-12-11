@@ -723,4 +723,11 @@ div[style*="#525DA9"], section[style*="#525DA9"] {
   html, body { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
 }
 
-/* Desktop / normal behavior unchanged (the mobile block only runs when viewport <= 920px) */
+/* tiny defensive fixes for DuelPlay centering */
+.center-stage { position: relative !important; }
+.duel-play-root { width: 100%; box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+@media (max-width: 920px) {
+  html, body { overflow-x: hidden; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+  /* keep support above OS UI */
+  .support { position: fixed !important; left: 50% !important; transform: translateX(-50%) !important; bottom: 18px !important; z-index: 9999 !important; width: min(92vw, 760px) !important; }
+}
