@@ -6,12 +6,11 @@ import React, { useEffect, useRef, useState } from "react";
 
   Props:
     - open: boolean (show/hide)
-    - onClose: function called when modal requests close (overlay click or Esc)
     - challenger: full profile object OR null
     - opponent: full profile object OR null
-    - challengerSlug: string (optional) — used to fetch if challenger object not provided
-    - opponentSlug: string (optional) — used to fetch if opponent object not provided
-    - playOnMount: boolean (if true will attempt to play SILENT_AUDIO on mount — useful when Play button triggers the modal)
+    - challengerSlug / opponentSlug: optional (to fetch if objects not provided)
+    - playOnMount: boolean (attempt to play SILENT_AUDIO on mount)
+  NOTE: This modal is persistent: overlay click and Escape do NOT close it.
 */
 
 const BACKGROUND_SONGS = [
@@ -54,7 +53,7 @@ async function fetchProfileBySlug(slug) {
   return null;
 }
 
-/* computeStats / distributeAttackPoints - same logic as before */
+/* Stats / distribute helpers (same as your logic) */
 function computeStats(deckArr) {
   const movies = (deckArr || []).filter(Boolean);
   if (movies.length === 0) return { pretentious: 0, rewatch: 0, quality: 0, popularity: 0 };
@@ -110,7 +109,6 @@ function distributeAttackPoints(totalPoints, moviesArr) {
 export default function DuelPlay(props) {
   const {
     open,
-    onClose,
     challenger: challengerProp,
     opponent: opponentProp,
     challengerSlug,
@@ -132,6 +130,14 @@ export default function DuelPlay(props) {
   const mountedRef = useRef(false);
   const bgStartedRef = useRef(false);
   const rootRef = useRef(null);
+
+  // Save/restore body overflow to prevent scrolling under the modal
+  useEffect(() => {
+    if (!open) return;
+    const prev = { overflow: document.body.style.overflow || "" };
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev.overflow || ""; };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -169,7 +175,7 @@ export default function DuelPlay(props) {
         setChallenger(c);
         setOpponent(o);
 
-        // optionally try a silent audio play to unlock audio (parent may already have done it)
+        // optional silent audio to help unlock audio
         try {
           if (playOnMount && SILENT_AUDIO) {
             const s = new Audio(SILENT_AUDIO);
@@ -209,15 +215,10 @@ export default function DuelPlay(props) {
 
     init();
 
-    const onKey = (e) => {
-      if (e.key === "Escape" && typeof onClose === "function") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-
+    // NOTE: Escape no longer closes modal per your request (persistent modal).
     return () => {
       cancelled = true;
       mountedRef.current = false;
-      window.removeEventListener("keydown", onKey);
       try { if (bgAudioRef.current) { bgAudioRef.current.pause(); bgAudioRef.current.src = ""; } } catch (e) {}
       try { if (slotAudioRef.current) { slotAudioRef.current.pause(); slotAudioRef.current.src = ""; } } catch (e) {}
       try { if (silentAudioRef.current) { silentAudioRef.current.pause(); silentAudioRef.current.src = ""; } } catch (e) {}
@@ -288,16 +289,26 @@ export default function DuelPlay(props) {
     return revealIndex >= (topCount + i);
   }
 
-  function handleOverlayClick(e) {
-    if (e.target === e.currentTarget && typeof onClose === "function") onClose();
-  }
-
+  // persistent modal — overlay doesn't close
   if (!open) return null;
 
   if (loading) {
     return (
-      <div role="dialog" aria-modal="true" className="duel-modal-root" style={{ position: "fixed", inset: 0, zIndex: 12000, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ padding: 24, background: "rgba(0,0,0,0.85)", borderRadius: 12 }}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="duel-modal-root"
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 70,                // intentionally above nav (60) but below profile modal (75)
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "rgba(0,0,0,0.98)",
+        }}
+      >
+        <div style={{ padding: 28, background: "#070708", borderRadius: 12 }}>
           <h2 className="h1-retro">Loading duel…</h2>
         </div>
       </div>
@@ -306,8 +317,21 @@ export default function DuelPlay(props) {
 
   if (error) {
     return (
-      <div role="dialog" aria-modal="true" className="duel-modal-root" style={{ position: "fixed", inset: 0, zIndex: 12000, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ padding: 24, background: "rgba(0,0,0,0.85)", borderRadius: 12 }}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="duel-modal-root"
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 70,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "rgba(0,0,0,0.98)",
+        }}
+      >
+        <div style={{ padding: 28, background: "#070708", borderRadius: 12 }}>
           <h2 className="h1-retro">Duel error</h2>
           <div style={{ color: "#f66", marginTop: 8 }}>{String(error)}</div>
         </div>
@@ -317,8 +341,21 @@ export default function DuelPlay(props) {
 
   if (!challenger || !opponent) {
     return (
-      <div role="dialog" aria-modal="true" className="duel-modal-root" style={{ position: "fixed", inset: 0, zIndex: 12000, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ padding: 24, background: "rgba(0,0,0,0.85)", borderRadius: 12 }}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="duel-modal-root"
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 70,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "rgba(0,0,0,0.98)",
+        }}
+      >
+        <div style={{ padding: 28, background: "#070708", borderRadius: 12 }}>
           <h2 className="h1-retro">Missing duel participants</h2>
         </div>
       </div>
@@ -335,22 +372,58 @@ export default function DuelPlay(props) {
       role="dialog"
       aria-modal="true"
       className="duel-modal-root"
-      onClick={handleOverlayClick}
       style={{
         position: "fixed",
         inset: 0,
-        zIndex: 12000,
+        zIndex: 70, // above nav (60) but leave room for profile modal at 75
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "linear-gradient(180deg, rgba(0,0,0,0.45), rgba(0,0,0,0.6))",
+        background: "rgba(0,0,0,0.98)", // nearly opaque so only duel is visible
         padding: 18,
       }}
     >
-      {/* bar-block becomes an actual centered block container with the overlay placed inside */}
-      <div className="center-stage" style={{ width: "100%", maxWidth: 920, display: "flex", flexDirection: "column", alignItems: "center", margin: "0 auto", position: "relative" }}>
-        <div className="bar-block" aria-hidden style={{ width: "100%", background: "#101221", borderRadius: 14, boxShadow: "0 30px 90px rgba(0,0,0,0.6)", border: "1px solid rgba(255,255,255,0.02)", padding: 28, boxSizing: "border-box" }}>
-          <div className="bar-overlay" style={{ width: "100%", color: "var(--white)", display: "flex", flexDirection: "column", alignItems: "center", gap: 18, padding: "8px 10px 20px", textAlign: "center", boxSizing: "border-box" }}>
+      {/* Centered bar-block (the black background) */}
+      <div
+        className="center-stage"
+        style={{
+          width: "100%",
+          maxWidth: 980,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          margin: "0 auto",
+          position: "relative",
+          boxSizing: "border-box",
+        }}
+      >
+        <div
+          className="bar-block"
+          aria-hidden
+          style={{
+            width: "100%",
+            background: "#101221",
+            borderRadius: 12,
+            boxShadow: "0 40px 120px rgba(0,0,0,0.6)",
+            border: "1px solid rgba(255,255,255,0.02)",
+            padding: 28,
+            boxSizing: "border-box",
+          }}
+        >
+          <div
+            className="bar-overlay"
+            style={{
+              width: "100%",
+              color: "var(--white)",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 18,
+              padding: "8px 10px 20px",
+              textAlign: "center",
+              boxSizing: "border-box",
+            }}
+          >
             {/* Top header */}
             <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "center", marginTop: 6 }}>
               <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
@@ -475,7 +548,6 @@ export default function DuelPlay(props) {
         .slot-poster-wrap img { transition: transform 240ms ease; display:block; }
         .slot-poster-wrap:hover img { transform: scale(1.02); }
 
-        /* responsive tweaks for modal */
         @media (max-width: 920px) {
           .center-stage { max-width: 92vw !important; padding: 12px !important; }
           .bar-block { padding: 16px !important; }
