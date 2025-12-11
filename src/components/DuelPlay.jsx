@@ -1,11 +1,12 @@
 // src/components/DuelPlay.jsx
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useMemo } from "react";
 
 /*
   DuelPlay component (modal-style)
   - Full-screen page/modal — should cover navbar and page content.
-  - Slots forced horizontal (no wrapping). When space is tight they scroll horizontally.
-  - ProfileModal (if present) will still render above this because ProfileModal uses z-index:75.
+  - Slots now wrap instead of horizontally scrolling (no scrollbar).
+  - Images always rendered (hidden/shown by opacity) so browser will fetch posters reliably.
+  - Defensive stats/points computation to avoid NaN/missing values.
 */
 
 const BACKGROUND_SONGS = [
@@ -48,13 +49,13 @@ async function fetchProfileBySlug(slug) {
   return null;
 }
 
-/* computeStats / distributeAttackPoints (same as your previous implementation) */
+/* computeStats / distributeAttackPoints (defensive) */
 function computeStats(deckArr) {
   const movies = (deckArr || []).filter(Boolean);
   if (movies.length === 0) return { pretentious: 0, rewatch: 0, quality: 0, popularity: 0 };
 
-  const scores = movies.map(m => (m.vote_average || 0));
-  const pops = movies.map(m => (m.popularity || 0));
+  const scores = movies.map(m => (Number.isFinite(m.vote_average) ? m.vote_average : 0));
+  const pops = movies.map(m => (Number.isFinite(m.popularity) ? m.popularity : 0));
 
   const minPop = Math.min(...pops);
   const maxPop = Math.max(...pops);
@@ -62,14 +63,14 @@ function computeStats(deckArr) {
 
   const normScores = scores.map(s => Math.min(1, Math.max(0, s / 10)));
 
-  const quality = scores.reduce((a, b) => a + b, 0) / scores.length;
-  const popularity = pops.reduce((a, b) => a + b, 0) / pops.length;
+  const quality = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
+  const popularity = pops.length ? pops.reduce((a, b) => a + b, 0) / pops.length : 0;
 
   const pretArr = normScores.map((ns, idx) => ns * (1 - normPops[idx]));
-  const pretentious = (pretArr.reduce((a, b) => a + b, 0) / pretArr.length) * 100;
+  const pretentious = pretArr.length ? (pretArr.reduce((a, b) => a + b, 0) / pretArr.length) * 100 : 0;
 
   const rewatchArr = normScores.map((ns, idx) => ns * normPops[idx]);
-  const rewatch = (rewatchArr.reduce((a, b) => a + b, 0) / rewatchArr.length) * 100;
+  const rewatch = rewatchArr.length ? (rewatchArr.reduce((a, b) => a + b, 0) / rewatchArr.length) * 100 : 0;
 
   return {
     pretentious: Math.round(pretentious),
@@ -82,7 +83,7 @@ function computeStats(deckArr) {
 function distributeAttackPoints(totalPoints, moviesArr) {
   const movies = (moviesArr || []).filter(Boolean);
   if (movies.length === 0) return [];
-  const scores = movies.map(m => (m.vote_average || 0));
+  const scores = movies.map(m => (Number.isFinite(m.vote_average) ? m.vote_average : 0));
   const sumScores = scores.reduce((a, b) => a + b, 0);
   if (sumScores === 0) {
     const base = Math.floor(totalPoints / movies.length);
@@ -119,7 +120,7 @@ export default function DuelPlay(props) {
   const [revealIndex, setRevealIndex] = useState(-1);
   const [showGoMessage, setShowGoMessage] = useState(false);
 
-  const [posterLoaded, setPosterLoaded] = useState({}); // optional, for preloading status
+  const [posterLoaded, setPosterLoaded] = useState({}); // optional, status map
 
   const slotAudioRef = useRef(null);
   const bgAudioRef = useRef(null);
@@ -128,7 +129,7 @@ export default function DuelPlay(props) {
   const bgStartedRef = useRef(false);
   const rootRef = useRef(null);
 
-  // add body class while modal is open so CSS can hide the navbar (but also proactively hide navbar element to avoid CSS conflicts)
+  // add body class while modal is open so CSS can hide the navbar (also hide element directly)
   useEffect(() => {
     const nav = document.querySelector(".navbar");
     const prevNavDisplay = nav ? nav.style.display : null;
@@ -147,7 +148,7 @@ export default function DuelPlay(props) {
     };
   }, [open]);
 
-  // make sure page can't scroll under the full-screen modal
+  // prevent scrolling under modal
   useEffect(() => {
     if (!open) return;
     const prevOverflow = document.body.style.overflow || "";
@@ -205,7 +206,7 @@ export default function DuelPlay(props) {
         setChallenger(c);
         setOpponent(o);
 
-        // Preload posters for both decks (seeds posterLoaded state)
+        // Preload posters so posterLoaded gets seeded early
         try {
           (c.deck || []).forEach((m, i) => {
             const src = posterFor(m);
@@ -215,11 +216,9 @@ export default function DuelPlay(props) {
             const src = posterFor(m);
             preloadPoster(src, `opp-${i}`);
           });
-        } catch (e) {
-          // ignore preload failures
-        }
+        } catch (e) {}
 
-        // optional silent audio
+        // optional silent audio unlock
         try {
           if (playOnMount && SILENT_AUDIO) {
             const s = new Audio(SILENT_AUDIO);
@@ -316,10 +315,10 @@ export default function DuelPlay(props) {
   }
 
   function computeMoviePointsFromDeck(deckArr) {
-    const stats = computeStats(deckArr);
-    const moviePointsRaw = stats.pretentious + stats.rewatch + stats.quality + stats.popularity;
-    const moviePoints = Math.round(moviePointsRaw);
-    const perMovie = distributeAttackPoints(moviePoints, deckArr);
+    const stats = computeStats(deckArr || []);
+    const moviePointsRaw = (Number(stats.pretentious) || 0) + (Number(stats.rewatch) || 0) + (Number(stats.quality) || 0) + (Number(stats.popularity) || 0);
+    const moviePoints = Number.isFinite(moviePointsRaw) ? Math.round(moviePointsRaw) : 0;
+    const perMovie = distributeAttackPoints(moviePoints, deckArr || []);
     return { total: moviePoints, perMovie, stats };
   }
 
@@ -343,7 +342,7 @@ export default function DuelPlay(props) {
         style={{
           position: "fixed",
           inset: 0,
-          zIndex: 74,                // above navbar (60) but below profile modal (75)
+          zIndex: 74,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -407,7 +406,7 @@ export default function DuelPlay(props) {
     );
   }
 
-  const challengerPoints = computeMoviePointsFromDeck(challenger.deck || []);
+  const challengerPoints = useMemo(() => computeMoviePointsFromDeck(challenger.deck || []), [challenger]);
   const topCount = Math.max(4, (opponent.deck ? opponent.deck.length : 0));
   const bottomCount = Math.max(4, (challenger.deck ? challenger.deck.length : 0));
 
@@ -421,7 +420,7 @@ export default function DuelPlay(props) {
       style={{
         position: "fixed",
         inset: 0,
-        zIndex: 74, // above nav (60) but below profile modal (75)
+        zIndex: 74,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -429,7 +428,6 @@ export default function DuelPlay(props) {
         padding: 0,
       }}
     >
-      {/* center-stage fills the screen and is slightly shifted right compared to old -30px */}
       <div
         className="center-stage"
         style={{
@@ -443,7 +441,7 @@ export default function DuelPlay(props) {
           minHeight: "100vh",
           boxSizing: "border-box",
           padding: "12px 18px",
-          transform: "translateX(-10px)", // moved right vs previous -30px
+          transform: "translateX(-10px)",
         }}
       >
         <div
@@ -473,7 +471,7 @@ export default function DuelPlay(props) {
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
-              gap: 12, // slightly compressed
+              gap: 12,
               padding: "6px 6px 14px",
               textAlign: "center",
               boxSizing: "border-box",
@@ -485,7 +483,10 @@ export default function DuelPlay(props) {
               <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                 <div style={{ width: 64, height: 64, overflow: "hidden", borderRadius: 10 }}>
                   {opponent.avatar ? (
-                    <img src={opponent.avatar} alt={opponent.nickname} style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    <img
+                      src={opponent.avatar}
+                      alt={opponent.nickname}
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
                       onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/images/fallback_poster.png"; }}
                       loading="eager"
                     />
@@ -502,7 +503,7 @@ export default function DuelPlay(props) {
               </div>
             </div>
 
-            {/* Opponent slots — horizontally forced, scrolls if too wide */}
+            {/* Opponent slots — WRAP instead of horizontal scroll (no scrollbar) */}
             <div
               className="slots-row opponent-row"
               style={{
@@ -511,10 +512,10 @@ export default function DuelPlay(props) {
                 justifyContent: "center",
                 alignItems: "flex-start",
                 marginTop: 8,
-                overflowX: "auto",
+                overflowX: "hidden",        // <-- removed horizontal scroll
                 padding: "6px 6px",
                 WebkitOverflowScrolling: "touch",
-                flexWrap: "nowrap",
+                flexWrap: "wrap",           // <-- allow wrapping into new lines
                 width: "100%",
               }}
             >
@@ -522,14 +523,15 @@ export default function DuelPlay(props) {
                 const m = (opponent.deck && opponent.deck[i]) ? opponent.deck[i] : null;
                 const poster = posterFor(m);
                 const visible = topVisible(i);
+                // Always render <img> if poster exists so browser will fetch it.
                 return (
                   <div key={`opp-slot-${i}`} className={`duel-slot ${visible ? "visible from-top" : "hidden from-top"}`} style={{ flex: "0 0 auto", width: 100, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
                     <div className="slot-poster-wrap" style={{ width: 82, height: 122, borderRadius: 8, overflow: "hidden", background: "#0d0d10", boxShadow: visible ? "0 8px 18px rgba(0,0,0,0.6)" : "none", transition: "transform 360ms cubic-bezier(.2,.9,.2,1), opacity 300ms" }}>
-                      {poster && visible ? (
+                      {poster ? (
                         <img
                           src={poster}
                           alt={m?.title || m?.name || "poster"}
-                          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", opacity: visible ? 1 : 0, transition: "opacity 260ms ease" }}
                           onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/images/fallback_poster.png"; setPosterLoaded(prev => ({ ...prev, [`opp-${i}`]: false })); }}
                           loading="eager"
                         />
@@ -537,9 +539,11 @@ export default function DuelPlay(props) {
                         <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#666" }}>—</div>
                       )}
                     </div>
+
                     <div style={{ width: 82, height: 36, textAlign: "center", fontSize: 11, fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", color: "#fff", opacity: visible ? 1 : 0.3, transition: "opacity 240ms" }}>
                       {m ? (m.title || m.name) : ""}
                     </div>
+
                     <div style={{ fontSize: 11, fontWeight: 800, color: "var(--accent)", minHeight: 16 }} />
                   </div>
                 );
@@ -562,10 +566,10 @@ export default function DuelPlay(props) {
                   justifyContent: "center",
                   alignItems: "flex-start",
                   marginTop: 8,
-                  overflowX: "auto",
+                  overflowX: "hidden",    // <-- no scrollbar
                   padding: "6px 6px",
                   WebkitOverflowScrolling: "touch",
-                  flexWrap: "nowrap",
+                  flexWrap: "wrap",       // <-- wrap
                   width: "100%",
                 }}
               >
@@ -573,14 +577,15 @@ export default function DuelPlay(props) {
                   const m = (challenger.deck && challenger.deck[i]) ? challenger.deck[i] : null;
                   const poster = posterFor(m);
                   const visible = bottomVisible(i, topCount);
+                  const atk = (Array.isArray(challengerPoints.perMovie) && challengerPoints.perMovie[i] !== undefined) ? challengerPoints.perMovie[i] : null;
                   return (
                     <div key={`you-slot-${i}`} className={`duel-slot ${visible ? "visible from-bottom" : "hidden from-bottom"}`} style={{ flex: "0 0 auto", width: 100, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
                       <div className="slot-poster-wrap" style={{ width: 82, height: 122, borderRadius: 8, overflow: "hidden", background: "#0d0d10", boxShadow: visible ? "0 8px 18px rgba(0,0,0,0.6)" : "none", transition: "transform 360ms cubic-bezier(.2,.9,.2,1), opacity 300ms" }}>
-                        {poster && visible ? (
+                        {poster ? (
                           <img
                             src={poster}
                             alt={m?.title || m?.name || "poster"}
-                            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", opacity: visible ? 1 : 0, transition: "opacity 260ms ease" }}
                             onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = "/images/fallback_poster.png"; setPosterLoaded(prev => ({ ...prev, [`you-${i}`]: false })); }}
                             loading="eager"
                           />
@@ -594,7 +599,7 @@ export default function DuelPlay(props) {
                       </div>
 
                       <div style={{ fontSize: 11, fontWeight: 800, color: "var(--accent)", minHeight: 16 }}>
-                        {visible && (challengerPoints.perMovie[i] !== undefined ? `${challengerPoints.perMovie[i]} atk` : "—")}
+                        {visible ? (atk !== null ? `${atk} atk` : "—") : ""}
                       </div>
                     </div>
                   );
@@ -611,7 +616,7 @@ export default function DuelPlay(props) {
 
                 <div style={{ textAlign: "center" }}>
                   <div className="small" style={{ color: "#999" }}>Your Movie Points</div>
-                  <div style={{ fontWeight: 900, color: "var(--accent)" }}>{challengerPoints.total} pts</div>
+                  <div style={{ fontWeight: 900, color: "var(--accent)" }}>{Number.isFinite(challengerPoints.total) ? challengerPoints.total : 0} pts</div>
                 </div>
               </div>
 
@@ -654,10 +659,10 @@ export default function DuelPlay(props) {
         .duel-slot.hidden.from-bottom .slot-poster-wrap { transform: translateY(14px) scale(0.98); opacity: 0.0; }
         .duel-slot.visible.from-bottom .slot-poster-wrap { transform: translateY(0) scale(1); opacity: 1; }
 
-        .slot-poster-wrap img { transition: transform 220ms ease; display:block; }
+        .slot-poster-wrap img { transition: transform 220ms ease, opacity 260ms ease; display:block; }
         .slot-poster-wrap:hover img { transform: scale(1.02); }
 
-        /* Force horizontal slot layout and smooth scrolling look */
+        /* Force horizontal slot layout previously; now we allow wrap to avoid scrollbars */
         .slots-row { scrollbar-width: thin; -webkit-overflow-scrolling: touch; }
         .slots-row::-webkit-scrollbar { height: 8px; }
         .slots-row::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.06); border-radius: 6px; }
