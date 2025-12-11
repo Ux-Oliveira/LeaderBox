@@ -132,7 +132,7 @@ export default function DuelPlay() {
   const mountedRef = useRef(true);
   const bgStartedRef = useRef(false);
 
-  // BEGIN overlay state (mobile only) — kept but not used
+  // BEGIN overlay state (mobile only) — kept but not actively used here
   const [showBeginOverlay, setShowBeginOverlay] = useState(false);
   const scaledRef = useRef(false); // whether we've applied the auto-scale
   const rootRef = useRef(null); // root container to transform
@@ -204,8 +204,8 @@ export default function DuelPlay() {
         bg.preload = "auto";
         bgAudioRef.current = bg;
 
-        // show BEGIN overlay automatically on small screens only (rare)
-        const mobileBreakpoint = 920;
+        // show BEGIN overlay automatically on small screens only
+        const mobileBreakpoint = 920; // same threshold you've used
         if (typeof window !== "undefined" && window.innerWidth <= mobileBreakpoint) {
           setShowBeginOverlay(true);
         } else {
@@ -237,10 +237,9 @@ export default function DuelPlay() {
             const a = slotAudioRef.current.cloneNode(true);
             a.volume = 0.9;
             a.play().then(() => {
-              // Try to start background audio once on first user-allowed playback
               try {
                 if (bgAudioRef.current && !bgStartedRef.current) {
-                  bgAudioRef.current.play().catch(async () => {
+                  bgAudioRef.current.play().catch(async (err) => {
                     try {
                       bgAudioRef.current.muted = true;
                       await bgAudioRef.current.play();
@@ -252,7 +251,9 @@ export default function DuelPlay() {
                     bgStartedRef.current = true;
                   });
                 }
-              } catch (e) {}
+              } catch (e) {
+                // ignore bg play errors
+              }
             }).catch(() => {
               // slot play blocked — still try bg as best effort
               try {
@@ -644,27 +645,31 @@ export default function DuelPlay() {
 
         /* MOBILE: center the bar visually and constrain width so it never slides off-screen */
         @media (max-width: 920px) {
-          .duel-play-root { padding-left: 12px !important; padding-right: 12px !important; }
+          .duel-play-root { padding-left: 10px !important; padding-right: 10px !important; }
 
           /* Constrain center-stage to viewport width and remove large absolute bleed */
           .center-stage {
             width: 100% !important;
             max-width: 100% !important;
-            padding: 12px !important;
+            padding: 10px !important;
             box-sizing: border-box !important;
+
+            /* slight left shift + small scale to get more visible area */
+            transform: translateX(-4%) scale(0.98);
+            transform-origin: top center;
           }
 
           /* Put the bar-block into the flow visually centered */
           .bar-block {
-            position: relative !important;           /* becomes a normal block (not absolute) so it stays centered */
+            position: relative !important;
             left: auto !important;
             right: auto !important;
             top: auto !important;
             margin: 0 auto !important;
-            width: calc(100% - 24px) !important;     /* leave small horizontal padding */
+            width: calc(100% - 28px) !important;     /* leave small horizontal padding */
             max-width: 720px !important;
             height: auto !important;                 /* let content determine height on mobile */
-            padding: 18px !important;
+            padding: 14px !important;
             overflow: visible !important;
           }
 
@@ -673,7 +678,7 @@ export default function DuelPlay() {
             width: 100% !important;
             max-width: 100% !important;
             margin: 0 !important;
-            padding: 16px !important;
+            padding: 12px !important;
             box-sizing: border-box !important;
             overflow: visible !important;
           }
@@ -686,9 +691,9 @@ export default function DuelPlay() {
             margin: 0 auto;
           }
 
-          /* Reduce poster sizes slightly on small screens so everything fits */
-          .slot-poster-wrap { width: 84px !important; height: 124px !important; }
-          .duel-slot { width: 100px !important; }
+          /* Reduce poster sizes a bit more on small screens so everything fits */
+          .slot-poster-wrap { width: 78px !important; height: 116px !important; }
+          .duel-slot { width: 94px !important; }
         }
 
         /* Large tall screen (extra defensive) */
