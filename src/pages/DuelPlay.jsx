@@ -777,7 +777,7 @@ export default function DuelPlay() {
     padding: 18px !important;          /* ⬅ increased */
     overflow: visible !important;
     align-items: center !important;
-    transform: translateY(-550px) scale(0.98) !important;
+    transform: translateY(-600px) scale(0.98) !important;
   }
 
   .bar-overlay > div[style*="display: flex"] {
