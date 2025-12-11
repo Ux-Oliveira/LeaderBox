@@ -551,3 +551,43 @@ div[style*="#525DA9"], section[style*="#525DA9"] {
 @media (max-width: 800px) {
   .page-wrapper, .app-container { min-height: calc(100vh - 88px); }
 }
+
+/* Add these near the bottom of styles.css (or replace the previous .support fixed rules) */
+
+/* app root becomes a column so footer is pushed to bottom when app-container grows */
+.app-root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* make the main content fill available space so footer sits after it */
+.app-container {
+  flex: 1 1 auto; /* already has styles — ensure flex:1 so it expands */
+}
+
+/* Support footer (in-flow) — use normal flow instead of fixed positioning */
+.support {
+  position: static; /* not fixed anymore */
+  left: auto;
+  right: auto;
+  bottom: auto;
+  z-index: 50;
+  padding: 12px 20px;
+  display: flex;
+  justify-content: center;
+}
+
+/* spacing for the footer container element */
+.support-footer {
+  margin-top: 28px; /* small separation from page content */
+}
+
+/* keep card look for the inner wrapper (you already have .support .card rules) */
+.support .card {
+  width: calc(100% - 40px);
+  max-width: 1200px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
