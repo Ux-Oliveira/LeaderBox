@@ -235,7 +235,34 @@ export default function DuelPlay() {
           if (slotAudioRef.current) {
             const a = slotAudioRef.current.cloneNode(true);
             a.volume = 0.9;
-            a.play().catch(() => {});
+            // when slot sound starts (some browsers require user gesture), use that opportunity to start bg audio once
+            a.play().then(() => {
+              try {
+                if (bgAudioRef.current && !bgAudioRef.current._started) {
+                  bgAudioRef.current.play().catch(async (err) => {
+                    try {
+                      bgAudioRef.current.muted = true;
+                      await bgAudioRef.current.play();
+                      try { bgAudioRef.current.muted = false; } catch (e) {}
+                    } catch (e2) {
+                      // ignore
+                    }
+                  }).finally(() => {
+                    bgAudioRef.current._started = true;
+                  });
+                }
+              } catch (e) {
+                // ignore bg play errors
+              }
+            }).catch(() => {
+              // slot play blocked — still try bg as best effort
+              try {
+                if (bgAudioRef.current && !bgAudioRef.current._started) {
+                  bgAudioRef.current.play().catch(() => {});
+                  bgAudioRef.current._started = true;
+                }
+              } catch (e) {}
+            });
           }
         } catch (e) {}
         step++;
@@ -319,7 +346,6 @@ export default function DuelPlay() {
     const contentH = Math.max(1, bounding.height);
 
     // compute available viewport space (account for navbar + some safe margins + support footer)
-    // Try to reserve space for navbar (64px) and bottom UI (approx 92px), but compute actual support footer if possible
     const navbarHeight = 64;
     let supportHeight = 92;
     const supportEl = document.querySelector(".support");
@@ -337,9 +363,9 @@ export default function DuelPlay() {
     // compute scale that fits both axis
     const scaleW = availableW / contentW;
     const scaleH = availableH / contentH;
-    // use 0.95 multiplier so things don't touch edges
+    // use 0.98 multiplier so things don't touch edges
     let scale = Math.min(1, scaleW * 0.98, scaleH * 0.98);
-    // don't allow absurdly small scaling; clamp to 0.5 min
+    // clamp to 0.5 min
     scale = Math.max(0.5, scale);
 
     // apply transform
@@ -357,154 +383,98 @@ export default function DuelPlay() {
     }
   }
 
- if (loading) {
-  return (
-    <div style={{ padding: 24 }}>
-      <h2 className="h1-retro">Loading duel…</h2>
-    </div>
-  );
-}
-
-if (error) {
-  return (
-    <div style={{ padding: 24 }}>
-      <h2 className="h1-retro">Duel error</h2>
-      <div style={{ color: "#f66", marginTop: 8 }}>{String(error)}</div>
-      <div style={{ marginTop: 12 }}>
-        <button className="ms-btn" onClick={() => navigate(-1)}>Go back</button>
+  if (loading) {
+    return (
+      <div style={{ padding: 24 }}>
+        <h2 className="h1-retro">Loading duel…</h2>
       </div>
-    </div>
-  );
-}
+    );
+  }
+  if (error) {
+    return (
+      <div style={{ padding: 24 }}>
+        <h2 className="h1-retro">Duel error</h2>
+        <div style={{ color: "#f66", marginTop: 8 }}>{String(error)}</div>
+        <div style={{ marginTop: 12 }}>
+          <button className="ms-btn" onClick={() => navigate(-1)}>Go back</button>
+        </div>
+      </div>
+    );
+  }
+  if (!challenger || !opponent) {
+    return (
+      <div style={{ padding: 24 }}>
+        <h2 className="h1-retro">Missing duel participants</h2>
+      </div>
+    );
+  }
 
-if (!challenger || !opponent) {
+  // compute challenger points
+  const challengerPoints = computeMoviePointsFromDeck(challenger.deck || []);
+
+  const topCount = Math.max(4, (opponent.deck ? opponent.deck.length : 0));
+  const bottomCount = Math.max(4, (challenger.deck ? challenger.deck.length : 0));
+
   return (
-    <div style={{ padding: 24 }}>
-      <h2 className="h1-retro">Missing duel participants</h2>
-    </div>
-  );
-}
-
-// compute challenger points
-const challengerPoints = computeMoviePointsFromDeck(challenger.deck || []);
-
-const topCount = Math.max(4, (opponent.deck ? opponent.deck.length : 0));
-const bottomCount = Math.max(4, (challenger.deck ? challenger.deck.length : 0));
-
-return (
-  <div
-    ref={rootRef}
-    className="duel-play-root"
-    style={{ padding: 24, display: "flex", justifyContent: "center" }}
-  >
-    {/* CENTER STAGE */}
     <div
-      className="center-stage"
-      style={{
-        width: "100%",
-        maxWidth: "720px", // <-- constrain width like navbar
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        margin: "0 auto", // <-- center horizontally
-      }}
+      ref={rootRef}
+      className="duel-play-root"
+      style={{ padding: 24, display: "flex", justifyContent: "center" }}
     >
-      <div className="bar-block" aria-hidden />
-
-      {/* BAR OVERLAY */}
+      {/* CENTER STAGE */}
       <div
-        className="bar-overlay"
+        className="center-stage"
         style={{
+          width: "100%",
+          maxWidth: "720px", // <-- constrain width like navbar
           display: "flex",
           flexDirection: "column",
-          justifyContent: "center",
           alignItems: "center",
-          width: "100%",
+          margin: "0 auto", // <-- center horizontally
         }}
       >
-        {/* Top — Opponent header */}
-        <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "center", marginTop: 6 }}>
-          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-            <div style={{ width: 72, height: 72, overflow: "hidden", borderRadius: 10 }}>
-              {opponent.avatar ? (
-                <img src={opponent.avatar} alt={opponent.nickname} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-              ) : (
-                <div style={{ width: 72, height: 72, background: "#111", display: "flex", alignItems: "center", justifyContent: "center", color: "#ddd" }}>
-                  {(opponent.nickname || "U").slice(0, 1)}
-                </div>
-              )}
-            </div>
-            <div style={{ textAlign: "left" }}>
-              <div style={{ fontWeight: 900, color: "var(--accent)", fontSize: 18 }}>{opponent.nickname}</div>
-              <div className="small" style={{ color: "#ddd" }}>Level {opponent.level}</div>
+        <div className="bar-block" aria-hidden />
+
+        {/* BAR OVERLAY */}
+        <div
+          className="bar-overlay"
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            alignItems: "center",
+            width: "100%",
+          }}
+        >
+          {/* Top — Opponent header */}
+          <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "center", marginTop: 6 }}>
+            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+              <div style={{ width: 72, height: 72, overflow: "hidden", borderRadius: 10 }}>
+                {opponent.avatar ? (
+                  <img src={opponent.avatar} alt={opponent.nickname} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                ) : (
+                  <div style={{ width: 72, height: 72, background: "#111", display: "flex", alignItems: "center", justifyContent: "center", color: "#ddd" }}>
+                    {(opponent.nickname || "U").slice(0, 1)}
+                  </div>
+                )}
+              </div>
+              <div style={{ textAlign: "left" }}>
+                <div style={{ fontWeight: 900, color: "var(--accent)", fontSize: 18 }}>{opponent.nickname}</div>
+                <div className="small" style={{ color: "#ddd" }}>Level {opponent.level}</div>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Opponent slots (top row) */}
-        <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 8 }}>
-          {Array.from({ length: 4 }).map((_, i) => {
-            const m = (opponent.deck && opponent.deck[i]) ? opponent.deck[i] : null;
-            const poster = posterFor(m);
-            const visible = topVisible(i, topCount);
-            return (
-              <div
-                key={`opp-slot-${i}`}
-                className={`duel-slot ${visible ? "visible from-top" : "hidden from-top"}`}
-                style={{ width: 110, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}
-              >
-                <div
-                  className="slot-poster-wrap"
-                  style={{
-                    width: 92,
-                    height: 136,
-                    borderRadius: 8,
-                    overflow: "hidden",
-                    background: "#0d0d10",
-                    boxShadow: visible ? "0 8px 18px rgba(0,0,0,0.6)" : "none",
-                    transition: "transform 420ms cubic-bezier(.2,.9,.2,1), opacity 360ms"
-                  }}
-                >
-                  {poster && visible ? (
-                    <img src={poster} alt={m?.title || m?.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                  ) : (
-                    <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#666" }}>—</div>
-                  )}
-                </div>
-                <div style={{ width: 92, height: 36, textAlign: "center", fontSize: 12, fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", color: "#fff", opacity: visible ? 1 : 0.3, transition: "opacity 300ms" }}>
-                  {m ? (m.title || m.name) : ""}
-                </div>
-                <div style={{ fontSize: 12, fontWeight: 800, color: "var(--accent)", minHeight: 18 }} />
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Center area: message + challenger slots */}
-        <div style={{ marginTop: 18, display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
-          {/* Message area */}
-          <div style={{ minHeight: 42 }}>
-            {showGoMessage ? (
-              <div style={{ fontSize: 22, fontWeight: 900, color: "var(--accent)" }}>
-                1st Turn: Go!
-              </div>
-            ) : (
-              <div style={{ height: 0 }} />
-            )}
-          </div>
-
-          <div style={{ height: 6 }} />
-
-          {/* Challenger slots (bottom row) */}
+          {/* Opponent slots (top row) */}
           <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 8 }}>
             {Array.from({ length: 4 }).map((_, i) => {
-              const m = (challenger.deck && challenger.deck[i]) ? challenger.deck[i] : null;
+              const m = (opponent.deck && opponent.deck[i]) ? opponent.deck[i] : null;
               const poster = posterFor(m);
-              const visible = bottomVisible(i, bottomCount);
+              const visible = topVisible(i, topCount);
               return (
                 <div
-                  key={`you-slot-${i}`}
-                  className={`duel-slot ${visible ? "visible from-bottom" : "hidden from-bottom"}`}
+                  key={`opp-slot-${i}`}
+                  className={`duel-slot ${visible ? "visible from-top" : "hidden from-top"}`}
                   style={{ width: 110, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}
                 >
                   <div
@@ -528,115 +498,172 @@ return (
                   <div style={{ width: 92, height: 36, textAlign: "center", fontSize: 12, fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", color: "#fff", opacity: visible ? 1 : 0.3, transition: "opacity 300ms" }}>
                     {m ? (m.title || m.name) : ""}
                   </div>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: "var(--accent)", minHeight: 18 }}>
-                    {visible && (challengerPoints.perMovie[i] !== undefined ? `${challengerPoints.perMovie[i]} atk` : "—")}
-                  </div>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: "var(--accent)", minHeight: 18 }} />
                 </div>
               );
             })}
           </div>
 
-          {/* Movie Points totals */}
-          <div style={{ display: "flex", gap: 18, marginTop: 12, alignItems: "center", justifyContent: "center" }}>
-            <div style={{ textAlign: "center" }}>
-              <div className="small" style={{ color: "#999" }}>Opponent Movie Points</div>
-              <div style={{ fontWeight: 900, color: "var(--accent)" }}>— pts</div>
-            </div>
-            <div style={{ width: 1, height: 28, background: "rgba(255,255,255,0.03)" }} />
-            <div style={{ textAlign: "center" }}>
-              <div className="small" style={{ color: "#999" }}>Your Movie Points</div>
-              <div style={{ fontWeight: 900, color: "var(--accent)" }}>{challengerPoints.total} pts</div>
-            </div>
-          </div>
-
-          <div style={{ height: 8 }} />
-        </div>
-
-        {/* Bottom — Challenger header */}
-        <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "center", marginTop: 8 }}>
-          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-            <div style={{ width: 72, height: 72, overflow: "hidden", borderRadius: 10 }}>
-              {challenger.avatar ? (
-                <img src={challenger.avatar} alt={challenger.nickname} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-              ) : (
-                <div style={{ width: 72, height: 72, background: "#111", display: "flex", alignItems: "center", justifyContent: "center", color: "#ddd" }}>
-                  {(challenger.nickname || "U").slice(0, 1)}
+          {/* Center area: message + challenger slots */}
+          <div style={{ marginTop: 18, display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+            {/* Message area */}
+            <div style={{ minHeight: 42 }}>
+              {showGoMessage ? (
+                <div style={{ fontSize: 22, fontWeight: 900, color: "var(--accent)" }}>
+                  1st Turn: Go!
                 </div>
+              ) : (
+                <div style={{ height: 0 }} />
               )}
             </div>
-            <div style={{ textAlign: "left" }}>
-              <div style={{ fontWeight: 900, color: "var(--accent)", fontSize: 18 }}>{challenger.nickname}</div>
-              <div className="small" style={{ color: "#ddd" }}>Level {challenger.level}</div>
+
+            <div style={{ height: 6 }} />
+
+            {/* Challenger slots (bottom row) */}
+            <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 8 }}>
+              {Array.from({ length: 4 }).map((_, i) => {
+                const m = (challenger.deck && challenger.deck[i]) ? challenger.deck[i] : null;
+                const poster = posterFor(m);
+                const visible = bottomVisible(i, bottomCount);
+                return (
+                  <div
+                    key={`you-slot-${i}`}
+                    className={`duel-slot ${visible ? "visible from-bottom" : "hidden from-bottom"}`}
+                    style={{ width: 110, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}
+                  >
+                    <div
+                      className="slot-poster-wrap"
+                      style={{
+                        width: 92,
+                        height: 136,
+                        borderRadius: 8,
+                        overflow: "hidden",
+                        background: "#0d0d10",
+                        boxShadow: visible ? "0 8px 18px rgba(0,0,0,0.6)" : "none",
+                        transition: "transform 420ms cubic-bezier(.2,.9,.2,1), opacity 360ms"
+                      }}
+                    >
+                      {poster && visible ? (
+                        <img src={poster} alt={m?.title || m?.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                      ) : (
+                        <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#666" }}>—</div>
+                      )}
+                    </div>
+                    <div style={{ width: 92, height: 36, textAlign: "center", fontSize: 12, fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", color: "#fff", opacity: visible ? 1 : 0.3, transition: "opacity 300ms" }}>
+                      {m ? (m.title || m.name) : ""}
+                    </div>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: "var(--accent)", minHeight: 18 }}>
+                      {visible && (challengerPoints.perMovie[i] !== undefined ? `${challengerPoints.perMovie[i]} atk` : "—")}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Movie Points totals */}
+            <div style={{ display: "flex", gap: 18, marginTop: 12, alignItems: "center", justifyContent: "center" }}>
+              <div style={{ textAlign: "center" }}>
+                <div className="small" style={{ color: "#999" }}>Opponent Movie Points</div>
+                <div style={{ fontWeight: 900, color: "var(--accent)" }}>— pts</div>
+              </div>
+
+              <div style={{ width: 1, height: 28, background: "rgba(255,255,255,0.03)" }} />
+
+              <div style={{ textAlign: "center" }}>
+                <div className="small" style={{ color: "#999" }}>Your Movie Points</div>
+                <div style={{ fontWeight: 900, color: "var(--accent)" }}>{challengerPoints.total} pts</div>
+              </div>
+            </div>
+
+            <div style={{ height: 8 }} />
+          </div>
+
+          {/* Bottom — Challenger header */}
+          <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "center", marginTop: 8 }}>
+            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+              <div style={{ width: 72, height: 72, overflow: "hidden", borderRadius: 10 }}>
+                {challenger.avatar ? (
+                  <img src={challenger.avatar} alt={challenger.nickname} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                ) : (
+                  <div style={{ width: 72, height: 72, background: "#111", display: "flex", alignItems: "center", justifyContent: "center", color: "#ddd" }}>
+                    {(challenger.nickname || "U").slice(0, 1)}
+                  </div>
+                )}
+              </div>
+              <div style={{ textAlign: "left" }}>
+                <div style={{ fontWeight: 900, color: "var(--accent)", fontSize: 18 }}>{challenger.nickname}</div>
+                <div className="small" style={{ color: "#ddd" }}>Level {challenger.level}</div>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
 
-    {/* BEGIN overlay */}
-    {showBeginOverlay && (
-      <div className="begin-overlay" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
-        <div className="begin-modal" onClick={(e) => e.stopPropagation()}>
-          <div style={{ fontWeight: 900, fontSize: 22, marginBottom: 12 }}>BEGIN</div>
-          <div className="small" style={{ marginBottom: 18, color: "#ddd", maxWidth: 420 }}>
-            Tap BEGIN to automatically fit the Duel screen to your device — no pinch/zoom required.
-          </div>
-          <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
-            <button className="begin-btn" onClick={handleBeginClick}>BEGIN</button>
+      {/* BEGIN overlay */}
+      {showBeginOverlay && (
+        <div className="begin-overlay" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+          <div className="begin-modal" onClick={(e) => e.stopPropagation()}>
+            <div style={{ fontWeight: 900, fontSize: 22, marginBottom: 12 }}>BEGIN</div>
+            <div className="small" style={{ marginBottom: 18, color: "#ddd", maxWidth: 420 }}>
+              Tap BEGIN to automatically fit the Duel screen to your device — no pinch/zoom required.
+            </div>
+            <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+              <button className="begin-btn" onClick={handleBeginClick}>BEGIN</button>
+            </div>
           </div>
         </div>
-      </div>
-    )}
+      )}
 
-    <style>{`
-      .duel-slot.hidden { opacity: 0.0; transform: translateY(0); }
-      .duel-slot.visible { opacity: 1; }
-      .duel-slot.from-top { transform-origin: top center; }
-      .duel-slot.from-bottom { transform-origin: bottom center; }
+      <style>{`
+        .duel-slot.hidden { opacity: 0.0; transform: translateY(0); }
+        .duel-slot.visible { opacity: 1; }
+        .duel-slot.from-top { transform-origin: top center; }
+        .duel-slot.from-bottom { transform-origin: bottom center; }
 
-      .duel-slot.hidden.from-top .slot-poster-wrap { transform: translateY(-18px) scale(0.98); opacity: 0.0; }
-      .duel-slot.visible.from-top .slot-poster-wrap { transform: translateY(0) scale(1); opacity: 1; }
-      .duel-slot.hidden.from-bottom .slot-poster-wrap { transform: translateY(18px) scale(0.98); opacity: 0.0; }
-      .duel-slot.visible.from-bottom .slot-poster-wrap { transform: translateY(0) scale(1); opacity: 1; }
+        .duel-slot.hidden.from-top .slot-poster-wrap { transform: translateY(-18px) scale(0.98); opacity: 0.0; }
+        .duel-slot.visible.from-top .slot-poster-wrap { transform: translateY(0) scale(1); opacity: 1; }
+        .duel-slot.hidden.from-bottom .slot-poster-wrap { transform: translateY(18px) scale(0.98); opacity: 0.0; }
+        .duel-slot.visible.from-bottom .slot-poster-wrap { transform: translateY(0) scale(1); opacity: 1; }
 
-      .slot-poster-wrap img { transition: transform 240ms ease; display:block; }
-      .slot-poster-wrap:hover img { transform: scale(1.02); }
+        .slot-poster-wrap img { transition: transform 240ms ease; display:block; }
+        .slot-poster-wrap:hover img { transform: scale(1.02); }
 
-      .begin-overlay {
-        position: fixed;
-        inset: 0;
-        z-index: 11000;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: linear-gradient(180deg, rgba(0,0,0,0.6), rgba(0,0,0,0.65));
-        padding: 18px;
-      }
-      .begin-modal {
-        width: min(680px, 92%);
-        max-width: 720px;
-        background: linear-gradient(180deg, rgba(8,9,12,0.98), rgba(16,18,24,0.98));
-        border-radius: 14px;
-        padding: 22px;
-        color: var(--white);
-        text-align: center;
-        box-shadow: 0 30px 100px rgba(0,0,0,0.7);
-        border: 1px solid rgba(255,255,255,0.04);
-      }
-      .begin-btn {
-        background: linear-gradient(90deg, var(--accent), #ffd85a);
-        color: var(--black);
-        border: none;
-        font-weight: 900;
-        padding: 12px 20px;
-        border-radius: 10px;
-        font-size: 16px;
-        cursor: pointer;
-      }
+        .begin-overlay {
+          position: fixed;
+          inset: 0;
+          z-index: 11000;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: linear-gradient(180deg, rgba(0,0,0,0.6), rgba(0,0,0,0.65));
+          padding: 18px;
+        }
+        .begin-modal {
+          width: min(680px, 92%);
+          max-width: 720px;
+          background: linear-gradient(180deg, rgba(8,9,12,0.98), rgba(16,18,24,0.98));
+          border-radius: 14px;
+          padding: 22px;
+          color: var(--white);
+          text-align: center;
+          box-shadow: 0 30px 100px rgba(0,0,0,0.7);
+          border: 1px solid rgba(255,255,255,0.04);
+        }
+        .begin-btn {
+          background: linear-gradient(90deg, var(--accent), #ffd85a);
+          color: var(--black);
+          border: none;
+          font-weight: 900;
+          padding: 12px 20px;
+          border-radius: 10px;
+          font-size: 16px;
+          cursor: pointer;
+        }
 
-      @media (min-width: 921px) {
-        .begin-overlay { display: none !important; }
-      }
-    `}</style>
-  </div>
-);
+        @media (min-width: 921px) {
+          .begin-overlay { display: none !important; }
+        }
+      `}</style>
+    </div>
+  );
+}
