@@ -1,5 +1,5 @@
 // src/components/DuelPlay.jsx
-import React, { useEffect, useRef, useState, useMemo } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 /*
   DuelPlay component (modal-style)
@@ -148,7 +148,7 @@ export default function DuelPlay(props) {
     };
   }, [open]);
 
-  // prevent scrolling under modal
+  // make sure page can't scroll under the full-screen modal
   useEffect(() => {
     if (!open) return;
     const prevOverflow = document.body.style.overflow || "";
@@ -206,7 +206,7 @@ export default function DuelPlay(props) {
         setChallenger(c);
         setOpponent(o);
 
-        // Preload posters so posterLoaded gets seeded early
+        // Preload posters for both decks (seeds posterLoaded state)
         try {
           (c.deck || []).forEach((m, i) => {
             const src = posterFor(m);
@@ -216,9 +216,11 @@ export default function DuelPlay(props) {
             const src = posterFor(m);
             preloadPoster(src, `opp-${i}`);
           });
-        } catch (e) {}
+        } catch (e) {
+          // ignore preload failures
+        }
 
-        // optional silent audio unlock
+        // optional silent audio
         try {
           if (playOnMount && SILENT_AUDIO) {
             const s = new Audio(SILENT_AUDIO);
@@ -406,7 +408,8 @@ export default function DuelPlay(props) {
     );
   }
 
-  const challengerPoints = useMemo(() => computeMoviePointsFromDeck(challenger.deck || []), [challenger]);
+  // compute synchronously (no useMemo) — safe and cheap
+  const challengerPoints = computeMoviePointsFromDeck(challenger.deck || []);
   const topCount = Math.max(4, (opponent.deck ? opponent.deck.length : 0));
   const bottomCount = Math.max(4, (challenger.deck ? challenger.deck.length : 0));
 
@@ -420,7 +423,7 @@ export default function DuelPlay(props) {
       style={{
         position: "fixed",
         inset: 0,
-        zIndex: 74,
+        zIndex: 74, // above nav (60) but below profile modal (75)
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -428,6 +431,7 @@ export default function DuelPlay(props) {
         padding: 0,
       }}
     >
+      {/* center-stage fills the screen and is slightly shifted right compared to old -30px */}
       <div
         className="center-stage"
         style={{
@@ -441,7 +445,7 @@ export default function DuelPlay(props) {
           minHeight: "100vh",
           boxSizing: "border-box",
           padding: "12px 18px",
-          transform: "translateX(-10px)",
+          transform: "translateX(-10px)", // moved right vs previous -30px
         }}
       >
         <div
@@ -471,7 +475,7 @@ export default function DuelPlay(props) {
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
-              gap: 12,
+              gap: 12, // slightly compressed
               padding: "6px 6px 14px",
               textAlign: "center",
               boxSizing: "border-box",
