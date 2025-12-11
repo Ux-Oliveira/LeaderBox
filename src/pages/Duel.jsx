@@ -2,7 +2,6 @@
 import React, { useEffect, useState } from "react";
 import { fetchAllProfiles } from "../lib/api";
 import { useNavigate } from "react-router-dom";
-import DuelPlay from "../components/DuelPlay"; // modal component
 
 const SILENT_AUDIO = "/audios/silent.mp3";
 
@@ -68,9 +67,6 @@ export default function Duel() {
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [detail, setDetail] = useState(null);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [modalOpponent, setModalOpponent] = useState(null);
-  const [modalChallenger, setModalChallenger] = useState(null);
   const nav = useNavigate();
 
   useEffect(() => {
@@ -131,7 +127,7 @@ export default function Duel() {
     return null;
   }
 
-  // NEW: open modal rather than navigate
+  // NAVIGATE to page DuelPlay instead of opening modal
   async function handleChallenge(profile) {
     try {
       const challengerProfile = me;
@@ -141,10 +137,10 @@ export default function Duel() {
         return;
       }
 
-      // store for legacy
+      // store opponent for fallback/legacy
       localStorage.setItem("leaderbox_opponent", JSON.stringify(profile));
 
-      // attempt to play silent audio to unlock sound before modal opens
+      // attempt to play silent audio to unlock sound before navigation (best-effort)
       try {
         if (SILENT_AUDIO) {
           const s = new Audio(SILENT_AUDIO);
@@ -155,13 +151,19 @@ export default function Duel() {
         // ignore
       }
 
-      // show modal, pass full objects (if you want to ensure full deck, you could fetch full profile here)
-      setModalChallenger(challengerProfile);
-      setModalOpponent(profile);
-      setModalOpen(true);
+      // build slugs and navigate to the page route that renders src/pages/DuelPlay.jsx
+      const challengerSlug = slugFromProfile(challengerProfile);
+      const opponentSlug = slugFromProfile(profile);
+
+      if (challengerSlug && opponentSlug) {
+        // route: /duel/play/:challenger/:opponent
+        nav(`/duel/play/${encodeURIComponent(challengerSlug)}/${encodeURIComponent(opponentSlug)}`);
+      } else {
+        // fallback: go to generic duel/play page and rely on localStorage
+        window.location.href = "/duel/play";
+      }
     } catch (e) {
-      console.warn("handleChallenge failed", e);
-      // fallback to navigation to legacy route
+      console.warn("handleChallenge failed, falling back to navigation", e);
       const challengerSlug = slugFromProfile(me);
       const opponentSlug = slugFromProfile(profile);
       if (challengerSlug && opponentSlug) {
@@ -276,15 +278,6 @@ export default function Duel() {
           </div>
         </div>
       )}
-
-      {/* DuelPlay modal */}
-      <DuelPlay
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        challenger={modalChallenger}
-        opponent={modalOpponent}
-        playOnMount={true}
-      />
 
       <style>{`@keyframes subtlePulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }`}</style>
     </div>
