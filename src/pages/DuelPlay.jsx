@@ -1,3 +1,4 @@
+// src/pages/DuelPlay.jsx
 import React, { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 
@@ -44,11 +45,6 @@ function posterFor(movie) {
   return null;
 }
 
-function clampTitle(title) {
-  if (!title) return "";
-  return title;
-}
-
 /* small helper to fetch profile by slug or open_id */
 async function fetchProfileBySlug(slug) {
   if (!slug) return null;
@@ -89,7 +85,7 @@ export default function DuelPlay() {
   const [error, setError] = useState(null);
 
   // animation and audio state
-  const [revealIndex, setRevealIndex] = useState(-1); // -1 = not started, 0..3 reveal steps
+  const [revealIndex, setRevealIndex] = useState(-1); // -1 = not started, 0..n-1 reveals
   const [showGoMessage, setShowGoMessage] = useState(false);
   const slotAudioRef = useRef(null);
   const bgAudioRef = useRef(null);
@@ -134,10 +130,11 @@ export default function DuelPlay() {
           if (SILENT_AUDIO) {
             const s = new Audio(SILENT_AUDIO);
             s.volume = 0;
-            s.play().catch(() => { /* ignore autoplay block */ });
+            // don't await; best-effort
+            s.play().catch(() => {});
             silentAudioRef.current = s;
           }
-        } catch (e) { /* ignore */ }
+        } catch (e) {}
 
         // load slot audio
         slotAudioRef.current = new Audio(SLOT_AUDIO);
@@ -149,11 +146,13 @@ export default function DuelPlay() {
         try {
           const last = Number.isFinite(+lastIdxRaw) ? Number(lastIdxRaw) : -1;
           idx = (last + 1) % BACKGROUND_SONGS.length;
-        } catch (e) { idx = Math.floor(Math.random() * BACKGROUND_SONGS.length); }
+        } catch (e) {
+          idx = Math.floor(Math.random() * BACKGROUND_SONGS.length);
+        }
         localStorage.setItem("leaderbox_last_song_idx", String(idx));
         const bg = new Audio(BACKGROUND_SONGS[idx]);
         bg.loop = true;
-        bg.volume = 0.14; // low volume by default (you can adjust)
+        bg.volume = 0.14;
         bg.preload = "auto";
         bgAudioRef.current = bg;
         // try to play bg (may be blocked if silent unlock failed)
@@ -161,10 +160,7 @@ export default function DuelPlay() {
 
         // start reveal sequence after a short delay so user can see modal appear
         setTimeout(() => {
-          // reveals 4 top + 4 bottom total? your design: each side has 4 slots
-          // We will reveal slots in order 0..3 top, then 0..3 bottom (interleaved or sequential)
-          // Per request: "top movies slide from top to bottom and on the bottom from bottom to top" - we'll reveal top slots first then bottom.
-          startRevealSequence();
+          startRevealSequence(c, o);
         }, 400);
       } catch (err) {
         console.error("duel play init error", err);
@@ -174,19 +170,19 @@ export default function DuelPlay() {
       }
     }
 
-    function startRevealSequence() {
-      // We'll reveal across 4 steps per side => 4 reveals top and 4 reveals bottom (total 8).
-      // For simplicity of UI we keep revealIndex as number of revealed chunks (0..7)
+    function startRevealSequence(c, o) {
+      // We'll reveal across 8 steps (4 top then 4 bottom) or fewer if decks are smaller.
+      const topCount = Math.max(4, (o && o.deck ? o.deck.length : 0));
+      const bottomCount = Math.max(4, (c && c.deck ? c.deck.length : 0));
+      const total = topCount + bottomCount;
       let step = 0;
-      const total = Math.max(4, Math.max((opponent && opponent.deck?.length) || 0, (challenger && challenger.deck?.length) || 0)) * 2;
-      // reveal timing: 500ms per reveal
+
       const revealTick = () => {
         if (!mountedRef.current) return;
-        setRevealIndex(step); // this indicates how many reveals have run (0 means first)
+        setRevealIndex(step); // step = 0 -> first reveal (top index 0)
         // play slot audio
         try {
           if (slotAudioRef.current) {
-            // play clone to allow overlap
             const a = slotAudioRef.current.cloneNode(true);
             a.volume = 0.9;
             a.play().catch(() => {});
@@ -252,28 +248,16 @@ export default function DuelPlay() {
     return { total: totalPoints, perMovie: final };
   }
 
-  // render helpers for reveal logic:
-  // revealIndex 0..7 indicates how many reveals ran; we consider top reveals first: top[0..3] indices 0..3; bottom[0..3] indices 4..7
-  function isTopSlotVisible(i) {
-    if (revealIndex < 0) return false;
-    return revealIndex >= (i + 1) - 1; // i=0 -> revealIndex >=0
-  }
-  function isBottomSlotVisible(i) {
-    if (revealIndex < 0) return false;
-    // bottom slot i corresponds to revealIndex >= 4 + i
-    const base = 4;
-    return revealIndex >= base + i;
-  }
-
-  // but because revealIndex increments by 1 each tick, we need a mapping: revealIndex >= (i) etc.
-  // We'll compute a safer function using time-based approach: revealCount = revealIndex + 1
+  // mapping helpers:
+  // revealIndex indicates how many reveals have happened (0..total-1). Top reveals occupy indices [0..topCount-1], bottoms [topCount..topCount+bottomCount-1]
   function topVisible(i) {
-    const revealCount = revealIndex + 1;
-    return revealCount > i; // revealCount 1 shows i=0
+    if (revealIndex < 0) return false;
+    // visible when revealIndex >= i
+    return revealIndex >= i;
   }
-  function bottomVisible(i) {
-    const revealCount = revealIndex + 1;
-    return revealCount > (4 + i);
+  function bottomVisible(i, topCount = 4) {
+    if (revealIndex < 0) return false;
+    return revealIndex >= (topCount + i);
   }
 
   // small UI early returns
@@ -307,6 +291,11 @@ export default function DuelPlay() {
   const challengerPoints = computeMoviePoints(challenger.deck || []);
   const opponentPoints = computeMoviePoints(opponent.deck || []);
 
+  // counts for mapping reveal indices
+  const topCount = Math.max(4, (opponent && opponent.deck ? opponent.deck.length : 0));
+  const bottomCount = Math.max(4, (challenger && challenger.deck ? challenger.deck.length : 0));
+
+  // helper to render MovieThumb-like blocks inline (kept small)
   return (
     <div style={{ padding: 24, display: "flex", justifyContent: "center" }}>
       <div className="center-stage">
@@ -316,7 +305,7 @@ export default function DuelPlay() {
           <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "center", marginTop: 6 }}>
             <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
               <div style={{ width: 72, height: 72, overflow: "hidden", borderRadius: 10 }}>
-                {opponent.avatar ? <img src={opponent.avatar} alt={opponent.nickname} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "72px", height: "72px", background: "#111" }}>{(opponent.nickname||"U").slice(0,1)}</div>}
+                {opponent.avatar ? <img src={opponent.avatar} alt={opponent.nickname} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "72px", height: "72px", background: "#111", display:"flex", alignItems:"center", justifyContent:"center", color:"#ddd" }}>{(opponent.nickname||"U").slice(0,1)}</div>}
               </div>
               <div style={{ textAlign: "left" }}>
                 <div style={{ fontWeight: 900, color: "var(--accent)", fontSize: 18 }}>{opponent.nickname}</div>
@@ -332,8 +321,23 @@ export default function DuelPlay() {
               const poster = posterFor(m);
               const visible = topVisible(i);
               return (
-                <div key={`opp-slot-${i}`} className={`duel-slot ${visible ? "visible from-top" : "hidden from-top"}`} style={{ width: 110, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-                  <div className="slot-poster-wrap" style={{ width: 92, height: 136, borderRadius: 8, overflow: "hidden", background: "#0d0d10", boxShadow: visible ? "0 8px 18px rgba(0,0,0,0.6)" : "none", transition: "transform 420ms cubic-bezier(.2,.9,.2,1), opacity 360ms" }}>
+                <div
+                  key={`opp-slot-${i}`}
+                  className={`duel-slot ${visible ? "visible from-top" : "hidden from-top"}`}
+                  style={{ width: 110, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}
+                >
+                  <div
+                    className="slot-poster-wrap"
+                    style={{
+                      width: 92,
+                      height: 136,
+                      borderRadius: 8,
+                      overflow: "hidden",
+                      background: "#0d0d10",
+                      boxShadow: visible ? "0 8px 18px rgba(0,0,0,0.6)" : "none",
+                      transition: "transform 420ms cubic-bezier(.2,.9,.2,1), opacity 360ms"
+                    }}
+                  >
                     {poster && visible ? <img src={poster} alt={m.title || m.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /> : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#666" }}>—</div>}
                   </div>
                   <div style={{ width: 92, height: 36, textAlign: "center", fontSize: 12, fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", color: "#fff", opacity: visible ? 1 : 0.3, transition: "opacity 300ms" }}>
@@ -368,10 +372,25 @@ export default function DuelPlay() {
               {Array.from({ length: 4 }).map((_, i) => {
                 const m = (challenger.deck && challenger.deck[i]) ? challenger.deck[i] : null;
                 const poster = posterFor(m);
-                const visible = bottomVisible(i);
+                const visible = bottomVisible(i, topCount);
                 return (
-                  <div key={`you-slot-${i}`} className={`duel-slot ${visible ? "visible from-bottom" : "hidden from-bottom"}`} style={{ width: 110, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-                    <div className="slot-poster-wrap" style={{ width: 92, height: 136, borderRadius: 8, overflow: "hidden", background: "#0d0d10", boxShadow: visible ? "0 8px 18px rgba(0,0,0,0.6)" : "none", transition: "transform 420ms cubic-bezier(.2,.9,.2,1), opacity 360ms" }}>
+                  <div
+                    key={`you-slot-${i}`}
+                    className={`duel-slot ${visible ? "visible from-bottom" : "hidden from-bottom"}`}
+                    style={{ width: 110, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}
+                  >
+                    <div
+                      className="slot-poster-wrap"
+                      style={{
+                        width: 92,
+                        height: 136,
+                        borderRadius: 8,
+                        overflow: "hidden",
+                        background: "#0d0d10",
+                        boxShadow: visible ? "0 8px 18px rgba(0,0,0,0.6)" : "none",
+                        transition: "transform 420ms cubic-bezier(.2,.9,.2,1), opacity 360ms"
+                      }}
+                    >
                       {poster && visible ? <img src={poster} alt={m.title || m.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /> : <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#666" }}>—</div>}
                     </div>
                     <div style={{ width: 92, height: 36, textAlign: "center", fontSize: 12, fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", color: "#fff", opacity: visible ? 1 : 0.3, transition: "opacity 300ms" }}>
@@ -406,7 +425,7 @@ export default function DuelPlay() {
           <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "center", marginTop: 8 }}>
             <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
               <div style={{ width: 72, height: 72, overflow: "hidden", borderRadius: 10 }}>
-                {challenger.avatar ? <img src={challenger.avatar} alt={challenger.nickname} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "72px", height: "72px", background: "#111" }}>{(challenger.nickname||"U").slice(0,1)}</div>}
+                {challenger.avatar ? <img src={challenger.avatar} alt={challenger.nickname} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "72px", height: "72px", background: "#111", display:"flex", alignItems:"center", justifyContent:"center", color:"#ddd" }}>{(challenger.nickname||"U").slice(0,1)}</div>}
               </div>
               <div style={{ textAlign: "left" }}>
                 <div style={{ fontWeight: 900, color: "var(--accent)", fontSize: 18 }}>{challenger.nickname}</div>
@@ -417,6 +436,7 @@ export default function DuelPlay() {
 
         </div>
       </div>
+
       {/* small accessibility: if audio blocked, show a notice/button to enable */}
       <div style={{ position: "fixed", left: 18, bottom: 18 }}>
         <button className="ms-btn" onClick={() => {
