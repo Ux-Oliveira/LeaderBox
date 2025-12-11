@@ -10,7 +10,7 @@ const BACKGROUND_SONGS = [
 ];
 
 const SLOT_AUDIO = "/audios/slot.mp3";
-const SILENT_AUDIO = "/audios/silent.mp3"; // fake audio to iniitate audio playing
+const SILENT_AUDIO = "/audios/silent.mp3"; // fake audio to initiate audio playing
 
 function posterFor(movie) {
   if (!movie) return null;
@@ -131,8 +131,10 @@ export default function DuelPlay() {
   const silentAudioRef = useRef(null);
   const mountedRef = useRef(true);
 
-  // NEW: audio prompt modal visible until user accepts
-  const [audioPromptVisible, setAudioPromptVisible] = useState(true); // show by default
+  // BEGIN overlay state (mobile only)
+  const [showBeginOverlay, setShowBeginOverlay] = useState(false);
+  const scaledRef = useRef(false); // whether we've applied the auto-scale
+  const rootRef = useRef(null); // root container to transform
 
   useEffect(() => {
     mountedRef.current = true;
@@ -169,7 +171,7 @@ export default function DuelPlay() {
         setChallenger(c);
         setOpponent(o);
 
-        // silent unlock attempt (harmless)
+        // silent unlock attempt (harmless and intentionally kept)
         try {
           if (SILENT_AUDIO) {
             const s = new Audio(SILENT_AUDIO);
@@ -194,13 +196,20 @@ export default function DuelPlay() {
         }
         localStorage.setItem("leaderbox_last_song_idx", String(idx));
 
-        // prepare bg audio but do NOT force-play (we'll attempt play later from user gesture)
+        // prepare bg audio but DO NOT auto-play — we'll keep silent audio playing; bg will be played on user gesture if needed
         const bg = new Audio(BACKGROUND_SONGS[idx]);
         bg.loop = true;
         bg.volume = 0.14;
         bg.preload = "auto";
         bgAudioRef.current = bg;
-        // don't auto-play here (may be blocked) — wait for user gesture via modal
+
+        // show BEGIN overlay automatically on small screens only
+        const mobileBreakpoint = 920; // same threshold you've used
+        if (typeof window !== "undefined" && window.innerWidth <= mobileBreakpoint) {
+          setShowBeginOverlay(true);
+        } else {
+          setShowBeginOverlay(false);
+        }
 
         // start reveal sequence shortly after render
         setTimeout(() => startRevealSequence(c, o), 400);
@@ -245,39 +254,33 @@ export default function DuelPlay() {
 
     init();
 
+    // when resizing on mobile, if user hasn't tapped BEGIN, keep overlay visible
+    const onResize = () => {
+      if (!mountedRef.current) return;
+      const mobileBreakpoint = 920;
+      if (window.innerWidth <= mobileBreakpoint) {
+        if (!scaledRef.current) setShowBeginOverlay(true);
+      } else {
+        setShowBeginOverlay(false);
+        // clear transform when leaving mobile
+        if (rootRef.current) {
+          rootRef.current.style.transform = "";
+          rootRef.current.style.transformOrigin = "";
+        }
+        scaledRef.current = false;
+      }
+    };
+    window.addEventListener("resize", onResize);
+
     return () => {
       mountedRef.current = false;
+      window.removeEventListener("resize", onResize);
       try { if (bgAudioRef.current) { bgAudioRef.current.pause(); bgAudioRef.current.src = ""; } } catch (e) {}
       try { if (slotAudioRef.current) { slotAudioRef.current.pause(); slotAudioRef.current.src = ""; } } catch (e) {}
       try { if (silentAudioRef.current) { silentAudioRef.current.pause(); silentAudioRef.current.src = ""; } } catch (e) {}
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [challengerSlug, opponentSlug]);
-
-  // NEW: attempt to start background audio from a user gesture,
-  // hide the audio prompt if successful (or on any click).
-  async function handleEnableAudio() {
-    try {
-      // if we have an existing prepared bg audio, try to play it
-      if (bgAudioRef.current) {
-        await bgAudioRef.current.play();
-        setAudioPromptVisible(false);
-        return;
-      }
-      // else create one and play (fallback to first track)
-      const a = new Audio(BACKGROUND_SONGS[0]);
-      a.loop = true;
-      a.volume = 0.14;
-      a.preload = "auto";
-      bgAudioRef.current = a;
-      await a.play();
-      setAudioPromptVisible(false);
-    } catch (err) {
-      // If play fails, still hide prompt but keep bgAudioRef ready to attempt later
-      console.warn("Audio enable failed:", err);
-      setAudioPromptVisible(false);
-    }
-  }
 
   // compute accurate movie points using editstack formulas
   function computeMoviePointsFromDeck(deckArr) {
@@ -296,6 +299,62 @@ export default function DuelPlay() {
   function bottomVisible(i, topCount = 4) {
     if (revealIndex < 0) return false;
     return revealIndex >= (topCount + i);
+  }
+
+  // Called when mobile user taps BEGIN: compute a scale that fits both width and height
+  function handleBeginClick() {
+    // apply transform to the duel-play-root (rootRef)
+    const root = rootRef.current || document.querySelector(".duel-play-root");
+    if (!root) {
+      setShowBeginOverlay(false);
+      scaledRef.current = true;
+      return;
+    }
+
+    // measure natural sizes
+    // We need bounding box of the content we want to fit (center-stage)
+    const centerStage = root.querySelector(".center-stage") || root;
+    const bounding = centerStage.getBoundingClientRect();
+    const contentW = Math.max(1, bounding.width);
+    const contentH = Math.max(1, bounding.height);
+
+    // compute available viewport space (account for navbar + some safe margins + support footer)
+    // Try to reserve space for navbar (64px) and bottom UI (approx 92px), but compute actual support footer if possible
+    const navbarHeight = 64;
+    let supportHeight = 92;
+    const supportEl = document.querySelector(".support");
+    if (supportEl) {
+      try {
+        const sRect = supportEl.getBoundingClientRect();
+        supportHeight = Math.min(160, Math.max(56, Math.round(sRect.height)));
+      } catch (e) {}
+    }
+
+    const safeVPad = 24; // breathing room
+    const availableW = window.innerWidth - 16; // small horizontal margin
+    const availableH = Math.max(100, window.innerHeight - navbarHeight - supportHeight - safeVPad);
+
+    // compute scale that fits both axis
+    const scaleW = availableW / contentW;
+    const scaleH = availableH / contentH;
+    // use 0.95 multiplier so things don't touch edges
+    let scale = Math.min(1, scaleW * 0.98, scaleH * 0.98);
+    // don't allow absurdly small scaling; clamp to 0.5 min
+    scale = Math.max(0.5, scale);
+
+    // apply transform
+    root.style.transition = "transform 280ms cubic-bezier(.2,.9,.2,1)";
+    root.style.transformOrigin = "top center";
+    root.style.transform = `scale(${scale})`;
+
+    // hide overlay
+    setShowBeginOverlay(false);
+    scaledRef.current = true;
+
+    // attempt to play background audio (silent already played); optional
+    if (bgAudioRef.current) {
+      bgAudioRef.current.play().catch(() => { /* ignore blocked play */ });
+    }
   }
 
   if (loading) {
@@ -331,7 +390,11 @@ export default function DuelPlay() {
   const bottomCount = Math.max(4, (challenger && challenger.deck ? challenger.deck.length : 0));
 
   return (
-    <div className="duel-play-root" style={{ padding: 24, display: "flex", justifyContent: "center" }}>
+    <div
+      ref={rootRef}
+      className="duel-play-root"
+      style={{ padding: 24, display: "flex", justifyContent: "center" }}
+    >
       <div className="center-stage">
         <div className="bar-block" aria-hidden />
         <div className="bar-overlay" style={{ alignItems: "stretch" }}>
@@ -497,17 +560,16 @@ export default function DuelPlay() {
         </div>
       </div>
 
-      {/* NEW: centered audio prompt modal */}
-      {audioPromptVisible && (
-        <div className="audio-modal-overlay" role="dialog" aria-modal="true" onClick={() => setAudioPromptVisible(false)}>
-          <div className="audio-modal" onClick={e => e.stopPropagation()}>
-            <div style={{ fontWeight: 900, fontSize: 18, marginBottom: 8 }}>Enable audio</div>
-            <div className="small" style={{ marginBottom: 14, color: "#ddd", maxWidth: 420 }}>
-              To hear background music and slot sounds, please enable audio. This is required for the full Duel experience.
+      {/* BEGIN full-screen overlay (mobile-only). Not an audio button. */}
+      {showBeginOverlay && (
+        <div className="begin-overlay" role="dialog" aria-modal="true" onClick={(e) => { e.stopPropagation(); /* keep clicks inside */ }}>
+          <div className="begin-modal" onClick={(e) => e.stopPropagation()}>
+            <div style={{ fontWeight: 900, fontSize: 22, marginBottom: 12 }}>BEGIN</div>
+            <div className="small" style={{ marginBottom: 18, color: "#ddd", maxWidth: 420 }}>
+              Tap BEGIN to automatically fit the Duel screen to your device — no pinch/zoom required.
             </div>
-            <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
-              <button className="ms-btn" onClick={handleEnableAudio} style={{ padding: "10px 16px" }}>Enable audio</button>
-              <button className="modal-btn" onClick={() => setAudioPromptVisible(false)} style={{ padding: "10px 16px" }}>Maybe later</button>
+            <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+              <button className="begin-btn" onClick={handleBeginClick}>BEGIN</button>
             </div>
           </div>
         </div>
@@ -526,36 +588,45 @@ export default function DuelPlay() {
         .duel-slot.hidden.from-bottom .slot-poster-wrap { transform: translateY(18px) scale(0.98); opacity: 0.0; }
         .duel-slot.visible.from-bottom .slot-poster-wrap { transform: translateY(0) scale(1); opacity: 1; }
 
-        /* subtle focus + hover for poster */
         .slot-poster-wrap img { transition: transform 240ms ease; display:block; }
         .slot-poster-wrap:hover img { transform: scale(1.02); }
 
-        /* audio modal styles */
-        .audio-modal-overlay {
+        /* BEGIN overlay styles */
+        .begin-overlay {
           position: fixed;
           inset: 0;
-          background: rgba(0,0,0,0.55);
-          z-index: 10050;
-          display:flex;
-          align-items:center;
-          justify-content:center;
+          z-index: 11000;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: linear-gradient(180deg, rgba(0,0,0,0.6), rgba(0,0,0,0.65));
           padding: 18px;
         }
-        .audio-modal {
+        .begin-modal {
+          width: min(680px, 92%);
+          max-width: 720px;
           background: linear-gradient(180deg, rgba(8,9,12,0.98), rgba(16,18,24,0.98));
-          border-radius: 12px;
-          padding: 20px;
-          box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+          border-radius: 14px;
+          padding: 22px;
           color: var(--white);
-          text-align:center;
-          max-width: 520px;
-          width: 92%;
+          text-align: center;
+          box-shadow: 0 30px 100px rgba(0,0,0,0.7);
+          border: 1px solid rgba(255,255,255,0.04);
         }
-        .ms-btn { background: linear-gradient(90deg,var(--accent), #ffd85a); color: var(--black); border: none; font-weight:900; padding: 10px 14px; border-radius: 8px; cursor: pointer; }
-        .modal-btn { background: transparent; border: 1px solid rgba(255,255,255,0.06); color: var(--white); padding: 10px 14px; border-radius: 8px; cursor: pointer; }
+        .begin-btn {
+          background: linear-gradient(90deg, var(--accent), #ffd85a);
+          color: var(--black);
+          border: none;
+          font-weight: 900;
+          padding: 12px 20px;
+          border-radius: 10px;
+          font-size: 16px;
+          cursor: pointer;
+        }
 
-        @media (max-width: 480px) {
-          .audio-modal { padding: 14px; max-width: 420px; }
+        @media (min-width: 921px) {
+          /* hide the overlay on desktop, just in case */
+          .begin-overlay { display: none !important; }
         }
       `}</style>
     </div>
