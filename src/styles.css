@@ -669,3 +669,9 @@ div[style*="#525DA9"], section[style*="#525DA9"] {
   /* Small tweak to ensure BEGIN modal remains top and centered on huge screens */
   .begin-overlay { align-items: center !important; justify-content: center !important; }
 }
+
+/* HIDE NAVBAR when duel modal is active */
+body.duel-open .navbar {
+  display: none !important;
+}
+
