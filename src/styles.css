@@ -614,7 +614,7 @@ div[style*="#525DA9"], section[style*="#525DA9"] {
 
 /* 1) Shift the duel modal to the right when active */
 body.duel-open .center-stage {
-  transform: translateX(1px) !important; /* tweak px until it's perfect */
+  transform: translateX(6px) !important; /* tweak px until it's perfect */
 }
 
 /* 2) Prevent inner-centering from neutralizing the visual shift.
