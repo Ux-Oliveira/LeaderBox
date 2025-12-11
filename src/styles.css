@@ -601,7 +601,10 @@ div[style*="#525DA9"], section[style*="#525DA9"] {
   padding-top: 72px;
 }
 
-.center-stage { width: 100%; max-width: 1100px; position: relative; display:flex; align-items:center; justify-content:center; padding:24px; box-sizing: border-box; }
+/* center-stage (already defined in your CSS, included for safety) */
+.center-stage { width: 100%; max-width: 1100px; position: relative; display:flex; align-items:center; justify-content:center; padding:24px; }
+.bar-block { width: 100%; height: 690px; background: #101221; border-radius: 14px; box-shadow: 0 8px 40px rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.02); position: absolute; top: 24px; left: 0; right: 0; z-index: 10; }
+.bar-overlay { position: relative; width: calc(100% - 80px); margin: 0 40px; z-index: 40; color: var(--white); display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 18px 10px 20px; text-align: center; }
 
 @media (max-height:720px) {
   .bar-block { height: calc(100vh - 120px); }
