@@ -766,7 +766,7 @@ export default function DuelPlay() {
     max-width: 730px !important;
     height: auto !important;
     min-height: 600px !important;      /* ⬅ BIG FIX: more vertical space */
-    padding: 22px !important;          /* ⬅ more padding so card looks full */
+    padding: 36px !important;          /* ⬅ more padding so card looks full */
     overflow: visible !important;
   }
 
@@ -777,7 +777,7 @@ export default function DuelPlay() {
     padding: 18px !important;          /* ⬅ increased */
     overflow: visible !important;
     align-items: center !important;
-    transform: translateY(-299px) scale(0.98) !important;
+    transform: translateY(-499px) scale(0.98) !important;
   }
 
   .bar-overlay > div[style*="display: flex"] {
