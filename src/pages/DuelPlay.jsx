@@ -751,8 +751,8 @@ export default function DuelPlay() {
     transform-origin: top center;
   }
 
-  .duel-slot {
-  transform: translateY(-100px) scale(0.98) !important;;
+  .here {
+  
   }
 
   /* ❗ MOBILE FIX: Make it MUCH TALLER and lower from top */
@@ -777,6 +777,7 @@ export default function DuelPlay() {
     padding: 18px !important;          /* ⬅ increased */
     overflow: visible !important;
     align-items: center !important;
+    transform: translateY(-100px) scale(0.98) !important;
   }
 
   .bar-overlay > div[style*="display: flex"] {
