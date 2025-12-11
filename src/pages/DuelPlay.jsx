@@ -10,7 +10,7 @@ const BACKGROUND_SONGS = [
 ];
 
 const SLOT_AUDIO = "/audios/slot.mp3";
-const SILENT_AUDIO = "/audios/silent.mp3"; // fake audio to initiate audio playing
+const SILENT_AUDIO = "/audios/silent.mp3"; // fake audio to iniitate audio playing
 
 function posterFor(movie) {
   if (!movie) return null;
@@ -112,20 +112,6 @@ function distributeAttackPoints(totalPoints, moviesArr) {
     final[fractions[i].idx] = final[fractions[i].idx] + 1;
   }
   return final;
-}
-
-function MovieThumb({ movie }) {
-  const poster = posterFor(movie);
-  return (
-    <div style={{ width: 92, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-      <div style={{ width: 92, height: 136, borderRadius: 6, overflow: "hidden", background: "#111", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        {poster ? <img src={poster} alt={movie.title || movie.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /> : <div style={{ color: "#888" }}>—</div>}
-      </div>
-      <div style={{ width: 92, height: 36, textAlign: "center", fontSize: 12, fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
-        {movie?.title || movie?.name || ""}
-      </div>
-    </div>
-  );
 }
 
 export default function DuelPlay() {
@@ -317,8 +303,8 @@ export default function DuelPlay() {
   const bottomCount = Math.max(4, (challenger && challenger.deck ? challenger.deck.length : 0));
 
   return (
-    <div style={{ padding: 24, display: "flex", justifyContent: "center" }}>
-      <div className="center-stage" aria-live="polite">
+    <div className="duel-play-root" style={{ padding: 24, display: "flex", justifyContent: "center" }}>
+      <div className="center-stage">
         <div className="bar-block" aria-hidden />
         <div className="bar-overlay" style={{ alignItems: "stretch" }}>
           {/* Top — Opponent header */}
@@ -446,7 +432,6 @@ export default function DuelPlay() {
             <div style={{ display: "flex", gap: 18, marginTop: 12, alignItems: "center", justifyContent: "center" }}>
               <div style={{ textAlign: "center" }}>
                 <div className="small" style={{ color: "#999" }}>Opponent Movie Points</div>
-                {/* intentionally hidden value */}
                 <div style={{ fontWeight: 900, color: "var(--accent)" }}>— pts</div>
               </div>
 
@@ -492,53 +477,30 @@ export default function DuelPlay() {
         }}>Enable Audio</button>
       </div>
 
-      {/* Inline CSS overrides specifically tuned for DuelPlay layout */}
       <style>{`
-        /* Increase the dark card height so the top header fits INSIDE on desktop */
-        .bar-block {
-          height: 820px;        /* increased from 690 -> 820 so header (avatar/nickname/level) fits */
-          transition: height 240ms ease;
+        /* Duel Play specific slot animations */
+        .duel-slot.hidden { opacity: 0.0; transform: translateY(0); }
+        .duel-slot.visible { opacity: 1; }
+        .duel-slot.from-top { transform-origin: top center; }
+        .duel-slot.from-bottom { transform-origin: bottom center; }
+
+        /* Use CSS transitions for smooth sliding: when visible, we translate to 0, otherwise offset */
+        .duel-slot.hidden.from-top .slot-poster-wrap { transform: translateY(-18px) scale(0.98); opacity: 0.0; }
+        .duel-slot.visible.from-top .slot-poster-wrap { transform: translateY(0) scale(1); opacity: 1; }
+
+        .duel-slot.hidden.from-bottom .slot-poster-wrap { transform: translateY(18px) scale(0.98); opacity: 0.0; }
+        .duel-slot.visible.from-bottom .slot-poster-wrap { transform: translateY(0) scale(1); opacity: 1; }
+
+        /* subtle focus + hover for poster */
+        .slot-poster-wrap img { transition: transform 240ms ease; display:block; }
+        .slot-poster-wrap:hover img { transform: scale(1.02); }
+
+        /* message animation */
+        @keyframes pulseAccent {
+          0% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.04); opacity: 1; }
+          100% { transform: scale(1); opacity: 1; }
         }
-        .bar-overlay {
-          /* ensure overlay content has top space so things don't visually overflow */
-          padding-top: 72px;
-        }
-
-        /* Center stage sizing */
-        .center-stage { width: 100%; max-width: 1100px; position: relative; display:flex; align-items:center; justify-content:center; padding:24px; box-sizing: border-box; }
-
-        /* make sure the overlay scrolls internally if the viewport is short */
-        @media (max-height:720px) {
-          .bar-block { height: calc(100vh - 120px); } /* adapt to viewport height */
-          .bar-overlay { padding-top: 48px; padding-bottom: 36px; }
-        }
-
-        /* MOBILE: make the whole duel card scale down slightly to fit on tiny screens
-           This produces the 'zoomed out' effect you asked for so users do NOT have to pinch zoom */
-        @media (max-width:480px) {
-          .bar-block { height: auto; min-height: 720px; }
-          .bar-overlay { padding-top: 42px; padding-bottom: 24px; width: calc(100% - 28px); margin: 0 14px; }
-          .center-stage { padding: 12px; transform-origin: top center; transform: scale(0.95); }
-        }
-
-        /* Support footer: center and be in-flow (not covering the duel card) */
-        .support {
-          position: static !important;
-          left: auto;
-          right: auto;
-          bottom: auto;
-          z-index: 50;
-          display: flex;
-          justify-content: center;
-          margin-top: 28px;
-        }
-
-        /* small polish: make poster animations smoother */
-        .duel-slot.hidden.from-top .slot-poster-wrap { transform: translateY(-18px) scale(0.98); opacity: 0; }
-        .duel-slot.visible.from-top .slot-poster-wrap { transform: translateY(0) scale(1); opacity: 1; transition: transform 420ms cubic-bezier(.2,.9,.2,1), opacity 360ms; }
-
-        .duel-slot.hidden.from-bottom .slot-poster-wrap { transform: translateY(18px) scale(0.98); opacity: 0; }
-        .duel-slot.visible.from-bottom .slot-poster-wrap { transform: translateY(0) scale(1); opacity: 1; transition: transform 420ms cubic-bezier(.2,.9,.2,1), opacity 360ms; }
       `}</style>
     </div>
   );
