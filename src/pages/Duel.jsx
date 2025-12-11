@@ -2,7 +2,9 @@
 import React, { useEffect, useState } from "react";
 import { fetchAllProfiles } from "../lib/api";
 import { useNavigate } from "react-router-dom";
-import DuelPlay from "../components/DuelPlay";
+import DuelPlay from "../components/DuelPlay"; // modal component
+
+const SILENT_AUDIO = "/audios/silent.mp3";
 
 const LEVELS = [
   { level: 1, name: "Noob" },
@@ -47,7 +49,6 @@ function Avatar({ src, nickname, size = 72, onClick }) {
   );
 }
 
-/* Movie thumbnail used in detail modal — fixed sizes and title clamp */
 function MovieThumb({ movie }) {
   const poster = movie && (movie.poster_path ? `https://image.tmdb.org/t/p/w342${movie.poster_path}` : movie.poster || movie.image || movie.posterUrl || (movie.raw && (movie.raw.poster || movie.raw.poster_path) ? (movie.raw.poster_path ? `https://image.tmdb.org/t/p/w342${movie.raw.poster_path}` : movie.raw.poster) : null));
   return (
@@ -66,13 +67,11 @@ export default function Duel() {
   const [profiles, setProfiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
-  const [detail, setDetail] = useState(null); // currently focused profile (full)
+  const [detail, setDetail] = useState(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalOpponent, setModalOpponent] = useState(null);
+  const [modalChallenger, setModalChallenger] = useState(null);
   const nav = useNavigate();
-
-  // Duel modal state
-  const [duelOpen, setDuelOpen] = useState(false);
-  const [duelChallenger, setDuelChallenger] = useState(null);
-  const [duelOpponent, setDuelOpponent] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -120,63 +119,66 @@ export default function Duel() {
     }
   })();
 
-  // helper to build a safe slug from a profile (prefer nickname without @, else open_id)
   function slugFromProfile(p) {
     if (!p) return null;
     if (p.nickname) {
-      try {
-        return String(p.nickname).replace(/^@+/, "").trim();
-      } catch (e) {}
+      try { return String(p.nickname).replace(/^@+/, "").trim(); } catch (e) {}
     }
     if (p.handle) {
-      try {
-        return String(p.handle).replace(/^@+/, "").trim();
-      } catch (e) {}
+      try { return String(p.handle).replace(/^@+/, "").trim(); } catch (e) {}
     }
     if (p.open_id) return String(p.open_id);
     return null;
   }
 
-  // NEW: open DuelPlay modal with full profile objects
-  function openDuelModal(opponentProfile) {
+  // NEW: open modal rather than navigate
+  async function handleChallenge(profile) {
     try {
-      const challengerSlug = slugFromProfile(me);
-      const opponentSlug = slugFromProfile(opponentProfile);
-
-      if (!challengerSlug) {
+      const challengerProfile = me;
+      if (!challengerProfile) {
         alert("Please log in or set your profile before challenging another player.");
         nav("/profile");
         return;
       }
-      if (!opponentSlug) {
-        alert("Opponent missing identifier; cannot start duel.");
-        return;
+
+      // store for legacy
+      localStorage.setItem("leaderbox_opponent", JSON.stringify(profile));
+
+      // attempt to play silent audio to unlock sound before modal opens
+      try {
+        if (SILENT_AUDIO) {
+          const s = new Audio(SILENT_AUDIO);
+          s.volume = 0;
+          await s.play().catch(() => {});
+        }
+      } catch (e) {
+        // ignore
       }
 
-      // keep legacy local storage for opponent (optional)
-      localStorage.setItem("leaderbox_opponent", JSON.stringify(opponentProfile));
-
-      // set modal data and open
-      setDuelChallenger(me);
-      setDuelOpponent(opponentProfile);
-      setDuelOpen(true);
-      // DuelPlay will attempt silent audio and start reveal when it mounts.
+      // show modal, pass full objects (if you want to ensure full deck, you could fetch full profile here)
+      setModalChallenger(challengerProfile);
+      setModalOpponent(profile);
+      setModalOpen(true);
     } catch (e) {
-      console.warn("openDuelModal failed, falling back to navigation", e);
-      localStorage.setItem("leaderbox_opponent", JSON.stringify(opponentProfile));
-      window.location.href = "/duel/play";
+      console.warn("handleChallenge failed", e);
+      // fallback to navigation to legacy route
+      const challengerSlug = slugFromProfile(me);
+      const opponentSlug = slugFromProfile(profile);
+      if (challengerSlug && opponentSlug) {
+        nav(`/duel/play/${encodeURIComponent(challengerSlug)}/${encodeURIComponent(opponentSlug)}`);
+      } else {
+        localStorage.setItem("leaderbox_opponent", JSON.stringify(profile));
+        window.location.href = "/duel/play";
+      }
     }
   }
 
   async function openDetail(profile) {
-    // If profile has deck already and draws, show immediately
     if (profile.deck && Array.isArray(profile.deck)) {
-      // Ensure draws present
       profile.draws = Number.isFinite(profile.draws) ? profile.draws : 0;
       setDetail(profile);
       return;
     }
-    // else fetch full profile by open_id
     try {
       const res = await fetch(`/api/profile?open_id=${encodeURIComponent(profile.open_id)}`, { credentials: "same-origin" });
       if (!res.ok) {
@@ -186,7 +188,7 @@ export default function Duel() {
       }
       const txt = await res.text();
       let json = null;
-      try { json = JSON.parse(txt); } catch (e) { /* ignore */ }
+      try { json = JSON.parse(txt); } catch (e) {}
       const full = json && (json.profile || json) ? (json.profile || json) : profile;
       full.draws = Number.isFinite(full.draws) ? full.draws : 0;
       full.deck = Array.isArray(full.deck) ? full.deck : [];
@@ -203,16 +205,6 @@ export default function Duel() {
     if (!query) return true;
     return String(p.nickname || "").toLowerCase().includes(query.toLowerCase());
   }).sort((a, b) => (a.nickname || "").localeCompare(b.nickname || ""));
-
-  // lock body scroll when duel modal open
-  useEffect(() => {
-    if (duelOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
-    return () => { document.body.style.overflow = ""; };
-  }, [duelOpen]);
 
   return (
     <div style={{ width: "100%" }}>
@@ -251,8 +243,7 @@ export default function Duel() {
                   <LevelPill level={p.level || 1} />
                 </div>
                 <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                  {/* Play now opens DuelPlay modal. DuelPlay will attempt the silent audio/reveal on mount. */}
-                  <img src="/play.png" alt="play" style={{ width: 36, height: 36, cursor: "pointer", animation: "subtlePulse 2.5s infinite" }} onClick={() => openDuelModal(p)} />
+                  <img src="/play.png" alt="play" style={{ width: 36, height: 36, cursor: "pointer", animation: "subtlePulse 2.5s infinite" }} onClick={() => handleChallenge(p)} />
                 </div>
               </div>
             ))}
@@ -260,7 +251,6 @@ export default function Duel() {
         </div>
       )}
 
-      {/* DETAIL MODAL — wider on desktop, stacked on mobile */}
       {detail && (
         <div onClick={() => setDetail(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
           <div onClick={e => e.stopPropagation()} style={{ width: "min(1100px, 96vw)", maxHeight: "90vh", overflow: "auto", borderRadius: 12, background: "linear-gradient(180deg, rgba(8,9,12,0.98), rgba(16,18,24,0.98))", padding: 18, boxShadow: "0 20px 80px rgba(0,0,0,0.8)", display: "flex", flexDirection: "column", gap: 14 }}>
@@ -274,31 +264,25 @@ export default function Duel() {
               <button onClick={() => setDetail(null)} style={{ background: "transparent", border: "none", color: "var(--white)", fontSize: 18, cursor: "pointer" }}>✕</button>
             </div>
 
-            {/* Deck strip */}
             <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", justifyContent: "center" }}>
               {(detail.deck && Array.isArray(detail.deck) && detail.deck.length > 0) ? detail.deck.map((m, idx) => (<MovieThumb key={idx} movie={m} />)) : (
                 <div className="small" style={{ color: "#999" }}>No public stack available.</div>
               )}
             </div>
 
-            {/* Play area */}
             <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "center", marginTop: 6 }}>
-              <img src="/play.png" alt="challenge" style={{ width: 56, height: 56, cursor: "pointer", animation: "subtlePulse 2.5s infinite" }} onClick={() => openDuelModal(detail)} />
+              <img src="/play.png" alt="challenge" style={{ width: 56, height: 56, cursor: "pointer", animation: "subtlePulse 2.5s infinite" }} onClick={() => handleChallenge(detail)} />
             </div>
           </div>
         </div>
       )}
 
-      {/* DuelPlay modal (component) */}
+      {/* DuelPlay modal */}
       <DuelPlay
-        open={duelOpen}
-        onClose={() => {
-          setDuelOpen(false);
-          setDuelOpponent(null);
-          setDuelChallenger(null);
-        }}
-        challenger={duelChallenger}
-        opponent={duelOpponent}
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        challenger={modalChallenger}
+        opponent={modalOpponent}
         playOnMount={true}
       />
 
