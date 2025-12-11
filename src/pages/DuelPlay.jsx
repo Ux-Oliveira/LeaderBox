@@ -676,99 +676,133 @@ export default function DuelPlay() {
         </div>
       </div>
 
-      <style>{`
-        /* Duel Play specific slot animations */
-        .duel-slot.hidden { opacity: 0.0; transform: translateY(0); }
-        .duel-slot.visible { opacity: 1; }
-        .duel-slot.from-top { transform-origin: top center; }
-        .duel-slot.from-bottom { transform-origin: bottom center; }
+     <style>{`
+     
+.duel-slot.hidden { opacity: 0.0; transform: translateY(0); }
+.duel-slot.visible { opacity: 1; }
+.duel-slot.from-top { transform-origin: top center; }
+.duel-slot.from-bottom { transform-origin: bottom center; }
 
-        .duel-slot.hidden.from-top .slot-poster-wrap { transform: translateY(-18px) scale(0.98); opacity: 0.0; }
-        .duel-slot.visible.from-top .slot-poster-wrap { transform: translateY(0) scale(1); opacity: 1; }
-        .duel-slot.hidden.from-bottom .slot-poster-wrap { transform: translateY(18px) scale(0.98); opacity: 0.0; }
-        .duel-slot.visible.from-bottom .slot-poster-wrap { transform: translateY(0) scale(1); opacity: 1; }
+.duel-slot.hidden.from-top .slot-poster-wrap { transform: translateY(-18px) scale(0.98); opacity: 0.0; }
+.duel-slot.visible.from-top .slot-poster-wrap { transform: translateY(0) scale(1); opacity: 1; }
+.duel-slot.hidden.from-bottom .slot-poster-wrap { transform: translateY(18px) scale(0.98); opacity: 0.0; }
+.duel-slot.visible.from-bottom .slot-poster-wrap { transform: translateY(0) scale(1); opacity: 1; }
 
-        .slot-poster-wrap img { transition: transform 240ms ease; display:block; }
-        .slot-poster-wrap:hover img { transform: scale(1.02); }
+.slot-poster-wrap img { transition: transform 240ms ease; display:block; }
+.slot-poster-wrap:hover img { transform: scale(1.02); }
 
-        /* Desktop / default styles: keep the bar absolute to create the floating card look */
-        .center-stage { width: 100%; max-width: 1100px; position: relative; display:flex; align-items:center; justify-content:center; padding:24px; }
-        .bar-block { width: 100%; height: 690px; background: #101221; border-radius: 14px; box-shadow: 0 8px 40px rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.02); position: absolute; top: 24px; left: 0; right: 0; z-index: 10; }
-        .bar-overlay { position: relative; width: calc(100% - 80px); margin: 0 40px; z-index: 40; color: var(--white); display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 18px 10px 20px; text-align: center; }
-
-        /* Mobile: apply the mobile rules from your components DuelPlay */
-        @media (max-width: 920px) {
-          .duel-play-root { padding-left: 10px !important; padding-right: 10px !important; }
-
-          /* Constrain center-stage to viewport width and remove large absolute bleed */
-          .center-stage {
-            width: 100% !important;
-            max-width: 100% !important;
-            padding: 10px !important;
-            box-sizing: border-box !important;
-            /* slight left shift + small scale to get more visible area by default */
-            transform: translateX(-4%) scale(0.98);
-            transform-origin: top center;
-          }
-
-          /* Put the bar-block into the flow visually centered */
-          .bar-block {
-            position: relative !important;
-            left: auto !important;
-            right: auto !important;
-            top: auto !important;
-            margin: 0 auto !important;
-            width: calc(100% - 28px) !important;     /* leave small horizontal padding */
-            max-width: 720px !important;
-            height: auto !important;                 /* let content determine height on mobile */
-            padding: 14px !important;
-            overflow: visible !important;
-          }
-
-          /* Ensure overlay fits inside the bar and can scroll if tall */
-          .bar-overlay {
-            width: 100% !important;
-            max-width: 100% !important;
-            margin: 0 !important;
-            padding: 12px !important;
-            box-sizing: border-box !important;
-            overflow: visible !important;
-            align-items: center !important;
-          }
-
-          /* Make slot rows center and not push width */
-          .bar-overlay > div[style*="display: flex"] {
-            justify-content: center !important;
-            width: 100% !important;
-            max-width: 640px;
-            margin: 0 auto;
-          }
-
-          /* Reduce poster sizes a bit more on small screens so everything fits */
-          .slot-poster-wrap { width: 78px !important; height: 116px !important; }
-          .duel-slot { width: 94px !important; }
-        }
-
-        /* Large tall screen (extra defensive) */
-        @media (min-width: 1080px) and (min-height: 2340px) {
-          .center-stage { max-width: 820px !important; padding: 32px !important; }
-          .bar-block { max-height: calc(100vh - 260px) !important; overflow: hidden !important; }
-          .bar-overlay { max-height: calc(100vh - 320px) !important; overflow: auto !important; }
-        }
-
-        /* small body tweak so if you toggle the duel-open class elsewhere you keep a slight shift */
-        body.duel-open .center-stage {
-          transform: translateX(1px) !important;
-        }
-
-        /* Protect against inner-centering neutralizing pre-shift on duel-open (conservative rule) */
-        body.duel-open .bar-overlay > div,
-        body.duel-open .bar-overlay .duel-slot,
-        body.duel-open .bar-overlay .slot-poster-wrap {
-          margin-left: 0 !important;
-          margin-right: 0 !important;
-        }
-      `}</style>
-    </div>
-  );
+/* ========================= */
+/*   DESKTOP DEFAULT         */
+/* ========================= */
+.center-stage {
+  width: 100%;
+  max-width: 1100px;
+  position: relative;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:24px;
 }
+
+/* ❗ Desktop: Make block MUCH taller so pfp + level stay inside */
+.bar-block {
+  width: 100%;
+  height: 780px;                     /* ⬅ increased from 690px */
+  background: #101221;
+  border-radius: 14px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+  border: 1px solid rgba(255,255,255,0.02);
+  position: absolute;
+  top: 0;                             /* ⬅ raise upward so more room below */
+  left: 0;
+  right: 0;
+  z-index: 10;
+}
+
+/* Protect overlay */
+.bar-overlay {
+  position: relative;
+  width: calc(100% - 80px);
+  margin: 0 40px;
+  z-index: 40;
+  color: var(--white);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 22px 10px 28px;           /* ⬅ a bit more breathing */
+  text-align: center;
+}
+
+/* ========================= */
+/*   MOBILE FIXES            */
+/* ========================= */
+@media (max-width: 920px) {
+  .duel-play-root { padding-left: 10px !important; padding-right: 10px !important; }
+
+  .center-stage {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 10px !important;
+    box-sizing: border-box !important;
+    transform: translateX(-4%) scale(0.98);
+    transform-origin: top center;
+  }
+
+  /* ❗ MOBILE FIX: Make it MUCH TALLER and lower from top */
+  .bar-block {
+    position: relative !important;
+    left: auto !important;
+    right: auto !important;
+    top: auto !important;
+    margin: 10px auto 0 !important;    /* ⬅ adds top space */
+    width: calc(100% - 28px) !important;
+    max-width: 720px !important;
+    height: auto !important;
+    min-height: 600px !important;      /* ⬅ BIG FIX: more vertical space */
+    padding: 22px !important;          /* ⬅ more padding so card looks full */
+    overflow: visible !important;
+  }
+
+  .bar-overlay {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 18px !important;          /* ⬅ increased */
+    overflow: visible !important;
+    align-items: center !important;
+  }
+
+  .bar-overlay > div[style*="display: flex"] {
+    justify-content: center !important;
+    width: 100% !important;
+    max-width: 640px;
+    margin: 0 auto;
+  }
+
+  /* Posters */
+  .slot-poster-wrap { width: 78px !important; height: 116px !important; }
+  .duel-slot { width: 94px !important; }
+}
+
+/* ========================= */
+/*   LARGE-TALL SCREENS      */
+/* ========================= */
+@media (min-width: 1080px) && (min-height: 2340px) {
+  .center-stage { max-width: 820px !important; padding: 32px !important; }
+  .bar-block { max-height: calc(100vh - 160px) !important; }    /* ⬅ deeper */
+  .bar-overlay { max-height: calc(100vh - 200px) !important; overflow: auto !important; }
+}
+
+/* ========================= */
+/*   DUEL-OPEN TWEAKS        */
+/* ========================= */
+body.duel-open .center-stage { transform: translateX(1px) !important; }
+
+body.duel-open .bar-overlay > div,
+body.duel-open .bar-overlay .duel-slot,
+body.duel-open .bar-overlay .slot-poster-wrap {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+`}</style>
