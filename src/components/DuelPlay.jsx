@@ -126,12 +126,12 @@ export default function DuelPlay(props) {
   const bgStartedRef = useRef(false);
   const rootRef = useRef(null);
 
-  // prevent scrolling under modal
+  // make sure page can't scroll under the full-screen modal
   useEffect(() => {
     if (!open) return;
-    const prev = { overflow: document.body.style.overflow || "" };
+    const prevOverflow = document.body.style.overflow || "";
     document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = prev.overflow || ""; };
+    return () => { document.body.style.overflow = prevOverflow; };
   }, [open]);
 
   useEffect(() => {
@@ -199,7 +199,7 @@ export default function DuelPlay(props) {
         bg.preload = "auto";
         bgAudioRef.current = bg;
 
-        setTimeout(() => startRevealSequence(c, o), 300);
+        setTimeout(() => startRevealSequence(c, o), 250);
       } catch (err) {
         console.error("DuelPlay init error", err);
         setError(String(err));
@@ -294,14 +294,15 @@ export default function DuelPlay(props) {
         style={{
           position: "fixed",
           inset: 0,
-          zIndex: 70,                // keep below profile modal (75) so profile modal remains visible
+          zIndex: 74,                // above navbar (60) but below profile modal (75)
           display: "flex",
-          alignItems: "stretch",
+          alignItems: "center",
           justifyContent: "center",
           background: "rgba(0,0,0,0.98)",
+          padding: 0,
         }}
       >
-        <div style={{ margin: "auto", padding: 28, background: "#070708", borderRadius: 12 }}>
+        <div style={{ margin: "auto", padding: 22, background: "#070708", borderRadius: 10 }}>
           <h2 className="h1-retro">Loading duel…</h2>
         </div>
       </div>
@@ -317,14 +318,15 @@ export default function DuelPlay(props) {
         style={{
           position: "fixed",
           inset: 0,
-          zIndex: 70,
+          zIndex: 74,
           display: "flex",
-          alignItems: "stretch",
+          alignItems: "center",
           justifyContent: "center",
           background: "rgba(0,0,0,0.98)",
+          padding: 0,
         }}
       >
-        <div style={{ margin: "auto", padding: 28, background: "#070708", borderRadius: 12 }}>
+        <div style={{ margin: "auto", padding: 22, background: "#070708", borderRadius: 10 }}>
           <h2 className="h1-retro">Duel error</h2>
           <div style={{ color: "#f66", marginTop: 8 }}>{String(error)}</div>
         </div>
@@ -341,14 +343,15 @@ export default function DuelPlay(props) {
         style={{
           position: "fixed",
           inset: 0,
-          zIndex: 70,
+          zIndex: 74,
           display: "flex",
-          alignItems: "stretch",
+          alignItems: "center",
           justifyContent: "center",
           background: "rgba(0,0,0,0.98)",
+          padding: 0,
         }}
       >
-        <div style={{ margin: "auto", padding: 28, background: "#070708", borderRadius: 12 }}>
+        <div style={{ margin: "auto", padding: 22, background: "#070708", borderRadius: 10 }}>
           <h2 className="h1-retro">Missing duel participants</h2>
         </div>
       </div>
@@ -359,6 +362,8 @@ export default function DuelPlay(props) {
   const topCount = Math.max(4, (opponent.deck ? opponent.deck.length : 0));
   const bottomCount = Math.max(4, (challenger.deck ? challenger.deck.length : 0));
 
+  // Move left by ~1cm (approx 36px), compress spacing, smaller posters so rows fit horizontally.
+  // We keep z-index 74 so profile modal (75) will still appear above this modal.
   return (
     <div
       ref={rootRef}
@@ -368,15 +373,15 @@ export default function DuelPlay(props) {
       style={{
         position: "fixed",
         inset: 0,
-        zIndex: 70,
+        zIndex: 74, // above nav (60) but below profile modal (75)
         display: "flex",
-        alignItems: "stretch",
+        alignItems: "center",
         justifyContent: "center",
         background: "rgba(0,0,0,0.98)",
         padding: 0,
       }}
     >
-      {/* Entire screen covered; center-stage vertically/horizontally */}
+      {/* center-stage fills the screen and is slightly shifted left (≈1cm) */}
       <div
         className="center-stage"
         style={{
@@ -387,12 +392,12 @@ export default function DuelPlay(props) {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          minHeight: "100vh",           // fill whole viewport — no top gap
+          minHeight: "100vh",
           boxSizing: "border-box",
-          padding: 18,
+          padding: "12px 18px",
+          transform: "translateX(-36px)", // shift ~1cm left
         }}
       >
-        {/* Black bar block sits centered — uses almost full height but scrolls if needed */}
         <div
           className="bar-block"
           aria-hidden
@@ -403,7 +408,7 @@ export default function DuelPlay(props) {
             borderRadius: 12,
             boxShadow: "0 40px 120px rgba(0,0,0,0.6)",
             border: "1px solid rgba(255,255,255,0.02)",
-            padding: 24,
+            padding: 18,
             boxSizing: "border-box",
             maxHeight: "calc(100vh - 28px)",
             overflow: "hidden",
@@ -420,27 +425,27 @@ export default function DuelPlay(props) {
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
-              gap: 18,
-              padding: "8px 6px 18px",
+              gap: 12, // slightly compressed
+              padding: "6px 6px 14px",
               textAlign: "center",
               boxSizing: "border-box",
               overflow: "hidden",
             }}
           >
             {/* Top header */}
-            <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "center", marginTop: 6 }}>
-              <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                <div style={{ width: 72, height: 72, overflow: "hidden", borderRadius: 10 }}>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "center", marginTop: 6 }}>
+              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                <div style={{ width: 64, height: 64, overflow: "hidden", borderRadius: 10 }}>
                   {opponent.avatar ? (
                     <img src={opponent.avatar} alt={opponent.nickname} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                   ) : (
-                    <div style={{ width: 72, height: 72, background: "#111", display: "flex", alignItems: "center", justifyContent: "center", color: "#ddd" }}>
+                    <div style={{ width: 64, height: 64, background: "#111", display: "flex", alignItems: "center", justifyContent: "center", color: "#ddd" }}>
                       {(opponent.nickname || "U").slice(0, 1)}
                     </div>
                   )}
                 </div>
                 <div style={{ textAlign: "left" }}>
-                  <div style={{ fontWeight: 900, color: "var(--accent)", fontSize: 18 }}>{opponent.nickname}</div>
+                  <div style={{ fontWeight: 900, color: "var(--accent)", fontSize: 16 }}>{opponent.nickname}</div>
                   <div className="small" style={{ color: "#ddd" }}>Level {opponent.level}</div>
                 </div>
               </div>
@@ -451,15 +456,15 @@ export default function DuelPlay(props) {
               className="slots-row opponent-row"
               style={{
                 display: "flex",
-                gap: 12,
+                gap: 10,
                 justifyContent: "center",
                 alignItems: "flex-start",
                 marginTop: 8,
                 overflowX: "auto",
-                padding: "6px 8px",
+                padding: "6px 6px",
                 WebkitOverflowScrolling: "touch",
-                // keep in single row
                 flexWrap: "nowrap",
+                width: "100%",
               }}
             >
               {Array.from({ length: 4 }).map((_, i) => {
@@ -467,23 +472,23 @@ export default function DuelPlay(props) {
                 const poster = posterFor(m);
                 const visible = topVisible(i);
                 return (
-                  <div key={`opp-slot-${i}`} className={`duel-slot ${visible ? "visible from-top" : "hidden from-top"}`} style={{ flex: "0 0 auto", width: 110, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-                    <div className="slot-poster-wrap" style={{ width: 92, height: 136, borderRadius: 8, overflow: "hidden", background: "#0d0d10", boxShadow: visible ? "0 8px 18px rgba(0,0,0,0.6)" : "none", transition: "transform 420ms cubic-bezier(.2,.9,.2,1), opacity 360ms" }}>
+                  <div key={`opp-slot-${i}`} className={`duel-slot ${visible ? "visible from-top" : "hidden from-top"}`} style={{ flex: "0 0 auto", width: 100, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+                    <div className="slot-poster-wrap" style={{ width: 82, height: 122, borderRadius: 8, overflow: "hidden", background: "#0d0d10", boxShadow: visible ? "0 8px 18px rgba(0,0,0,0.6)" : "none", transition: "transform 360ms cubic-bezier(.2,.9,.2,1), opacity 300ms" }}>
                       {poster && visible ? (<img src={poster} alt={m?.title || m?.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />) : (<div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#666" }}>—</div>)}
                     </div>
-                    <div style={{ width: 92, height: 36, textAlign: "center", fontSize: 12, fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", color: "#fff", opacity: visible ? 1 : 0.3, transition: "opacity 300ms" }}>
+                    <div style={{ width: 82, height: 36, textAlign: "center", fontSize: 11, fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", color: "#fff", opacity: visible ? 1 : 0.3, transition: "opacity 240ms" }}>
                       {m ? (m.title || m.name) : ""}
                     </div>
-                    <div style={{ fontSize: 12, fontWeight: 800, color: "var(--accent)", minHeight: 18 }} />
+                    <div style={{ fontSize: 11, fontWeight: 800, color: "var(--accent)", minHeight: 16 }} />
                   </div>
                 );
               })}
             </div>
 
             {/* Message + challenger slots */}
-            <div style={{ marginTop: 6, display: "flex", flexDirection: "column", alignItems: "center", gap: 10, width: "100%" }}>
-              <div style={{ minHeight: 42 }}>
-                {showGoMessage ? (<div style={{ fontSize: 22, fontWeight: 900, color: "var(--accent)" }}>1st Turn: Go!</div>) : (<div style={{ height: 0 }} />)}
+            <div style={{ marginTop: 6, display: "flex", flexDirection: "column", alignItems: "center", gap: 8, width: "100%" }}>
+              <div style={{ minHeight: 36 }}>
+                {showGoMessage ? (<div style={{ fontSize: 20, fontWeight: 900, color: "var(--accent)" }}>1st Turn: Go!</div>) : (<div style={{ height: 0 }} />)}
               </div>
 
               <div style={{ height: 6 }} />
@@ -492,14 +497,15 @@ export default function DuelPlay(props) {
                 className="slots-row challenger-row"
                 style={{
                   display: "flex",
-                  gap: 12,
+                  gap: 10,
                   justifyContent: "center",
                   alignItems: "flex-start",
                   marginTop: 8,
                   overflowX: "auto",
-                  padding: "6px 8px",
+                  padding: "6px 6px",
                   WebkitOverflowScrolling: "touch",
-                  flexWrap: "nowrap", // force horizontal
+                  flexWrap: "nowrap",
+                  width: "100%",
                 }}
               >
                 {Array.from({ length: 4 }).map((_, i) => {
@@ -507,16 +513,16 @@ export default function DuelPlay(props) {
                   const poster = posterFor(m);
                   const visible = bottomVisible(i, topCount);
                   return (
-                    <div key={`you-slot-${i}`} className={`duel-slot ${visible ? "visible from-bottom" : "hidden from-bottom"}`} style={{ flex: "0 0 auto", width: 110, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-                      <div className="slot-poster-wrap" style={{ width: 92, height: 136, borderRadius: 8, overflow: "hidden", background: "#0d0d10", boxShadow: visible ? "0 8px 18px rgba(0,0,0,0.6)" : "none", transition: "transform 420ms cubic-bezier(.2,.9,.2,1), opacity 360ms" }}>
+                    <div key={`you-slot-${i}`} className={`duel-slot ${visible ? "visible from-bottom" : "hidden from-bottom"}`} style={{ flex: "0 0 auto", width: 100, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+                      <div className="slot-poster-wrap" style={{ width: 82, height: 122, borderRadius: 8, overflow: "hidden", background: "#0d0d10", boxShadow: visible ? "0 8px 18px rgba(0,0,0,0.6)" : "none", transition: "transform 360ms cubic-bezier(.2,.9,.2,1), opacity 300ms" }}>
                         {poster && visible ? (<img src={poster} alt={m?.title || m?.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />) : (<div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#666" }}>—</div>)}
                       </div>
 
-                      <div style={{ width: 92, height: 36, textAlign: "center", fontSize: 12, fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", color: "#fff", opacity: visible ? 1 : 0.3, transition: "opacity 300ms" }}>
+                      <div style={{ width: 82, height: 36, textAlign: "center", fontSize: 11, fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", color: "#fff", opacity: visible ? 1 : 0.3, transition: "opacity 240ms" }}>
                         {m ? (m.title || m.name) : ""}
                       </div>
 
-                      <div style={{ fontSize: 12, fontWeight: 800, color: "var(--accent)", minHeight: 18 }}>
+                      <div style={{ fontSize: 11, fontWeight: 800, color: "var(--accent)", minHeight: 16 }}>
                         {visible && (challengerPoints.perMovie[i] !== undefined ? `${challengerPoints.perMovie[i]} atk` : "—")}
                       </div>
                     </div>
@@ -524,13 +530,13 @@ export default function DuelPlay(props) {
                 })}
               </div>
 
-              <div style={{ display: "flex", gap: 18, marginTop: 12, alignItems: "center", justifyContent: "center", flexWrap: "wrap" }}>
+              <div style={{ display: "flex", gap: 12, marginTop: 10, alignItems: "center", justifyContent: "center", flexWrap: "wrap" }}>
                 <div style={{ textAlign: "center" }}>
                   <div className="small" style={{ color: "#999" }}>Opponent Movie Points</div>
                   <div style={{ fontWeight: 900, color: "var(--accent)" }}>— pts</div>
                 </div>
 
-                <div style={{ width: 1, height: 28, background: "rgba(255,255,255,0.03)" }} />
+                <div style={{ width: 1, height: 24, background: "rgba(255,255,255,0.03)" }} />
 
                 <div style={{ textAlign: "center" }}>
                   <div className="small" style={{ color: "#999" }}>Your Movie Points</div>
@@ -541,19 +547,19 @@ export default function DuelPlay(props) {
             </div>
 
             {/* Challenger header bottom */}
-            <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "center", marginTop: 8, width: "100%" }}>
-              <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                <div style={{ width: 72, height: 72, overflow: "hidden", borderRadius: 10 }}>
+            <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "center", marginTop: 6, width: "100%" }}>
+              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                <div style={{ width: 64, height: 64, overflow: "hidden", borderRadius: 10 }}>
                   {challenger.avatar ? (
                     <img src={challenger.avatar} alt={challenger.nickname} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                   ) : (
-                    <div style={{ width: 72, height: 72, background: "#111", display: "flex", alignItems: "center", justifyContent: "center", color: "#ddd" }}>
+                    <div style={{ width: 64, height: 64, background: "#111", display: "flex", alignItems: "center", justifyContent: "center", color: "#ddd" }}>
                       {(challenger.nickname || "U").slice(0, 1)}
                     </div>
                   )}
                 </div>
                 <div style={{ textAlign: "left" }}>
-                  <div style={{ fontWeight: 900, color: "var(--accent)", fontSize: 18 }}>{challenger.nickname}</div>
+                  <div style={{ fontWeight: 900, color: "var(--accent)", fontSize: 16 }}>{challenger.nickname}</div>
                   <div className="small" style={{ color: "#ddd" }}>Level {challenger.level}</div>
                 </div>
               </div>
@@ -569,12 +575,12 @@ export default function DuelPlay(props) {
         .duel-slot.from-top { transform-origin: top center; }
         .duel-slot.from-bottom { transform-origin: bottom center; }
 
-        .duel-slot.hidden.from-top .slot-poster-wrap { transform: translateY(-18px) scale(0.98); opacity: 0.0; }
+        .duel-slot.hidden.from-top .slot-poster-wrap { transform: translateY(-14px) scale(0.98); opacity: 0.0; }
         .duel-slot.visible.from-top .slot-poster-wrap { transform: translateY(0) scale(1); opacity: 1; }
-        .duel-slot.hidden.from-bottom .slot-poster-wrap { transform: translateY(18px) scale(0.98); opacity: 0.0; }
+        .duel-slot.hidden.from-bottom .slot-poster-wrap { transform: translateY(14px) scale(0.98); opacity: 0.0; }
         .duel-slot.visible.from-bottom .slot-poster-wrap { transform: translateY(0) scale(1); opacity: 1; }
 
-        .slot-poster-wrap img { transition: transform 240ms ease; display:block; }
+        .slot-poster-wrap img { transition: transform 220ms ease; display:block; }
         .slot-poster-wrap:hover img { transform: scale(1.02); }
 
         /* Force horizontal slot layout and smooth scrolling look */
@@ -583,20 +589,15 @@ export default function DuelPlay(props) {
         .slots-row::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.06); border-radius: 6px; }
 
         @media (max-width: 920px) {
-          .center-stage { padding: 8px !important; }
-          .bar-block { padding: 12px !important; }
-          .slot-poster-wrap { width: 78px !important; height: 116px !important; }
-          .duel-slot { width: 94px !important; }
-        }
-
-        @media (max-width: 420px) {
-          /* make posters slightly smaller on very small devices so row feels better */
+          .center-stage { padding: 6px !important; transform: translateX(-24px) !important; }
+          .bar-block { padding: 10px !important; }
           .slot-poster-wrap { width: 70px !important; height: 104px !important; }
           .duel-slot { width: 86px !important; }
         }
 
-        @media (min-width: 1080px) and (min-height: 2340px) {
-          .center-stage { max-width: 820px !important; padding: 32px !important; }
+        @media (max-width: 420px) {
+          .slot-poster-wrap { width: 64px !important; height: 96px !important; }
+          .duel-slot { width: 80px !important; }
         }
       `}</style>
     </div>
