@@ -747,7 +747,7 @@ export default function DuelPlay() {
     max-width: 100% !important;
     padding: 10px !important;
     box-sizing: border-box !important;
-    transform: translateX(-12px) scale(0.98) !important;;
+    transform: translateX(-45px) scale(0.98) !important;;
     transform-origin: top center;
   }
 
