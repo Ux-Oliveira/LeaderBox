@@ -1,292 +1,492 @@
-// src/pages/Duel.jsx
-import React, { useEffect, useState } from "react";
-import { fetchAllProfiles } from "../lib/api";
-import { useNavigate } from "react-router-dom";
-import DuelPlay from "../components/DuelPlay"; // modal component
+// src/components/DuelPlay.jsx
+import React, { useEffect, useRef, useState } from "react";
 
-const SILENT_AUDIO = "/audios/silent.mp3";
+/*
+  DuelPlay component (modal-style)
 
-const LEVELS = [
-  { level: 1, name: "Noob" },
-  { level: 2, name: "Casual Viewer" },
-  { level: 3, name: "Youtuber Movie Critic" },
-  { level: 4, name: "Movie Festival Goer" },
-  { level: 5, name: "Indie Afficionado" },
-  { level: 6, name: "Cult Classics Schoolar" },
-  { level: 7, name: "Film Buff" },
-  { level: 8, name: "Film Curator" },
-  { level: 9, name: "Cinephile" }
+  Props:
+    - open: boolean (show/hide)
+    - onClose: function called when modal requests close (overlay click or Esc)
+    - challenger: full profile object OR null
+    - opponent: full profile object OR null
+    - challengerSlug: string (optional) — used to fetch if challenger object not provided
+    - opponentSlug: string (optional) — used to fetch if opponent object not provided
+    - playOnMount: boolean (if true will attempt to play SILENT_AUDIO on mount — useful when Play button triggers the modal)
+*/
+
+const BACKGROUND_SONGS = [
+  "/audios/city_battle_stars.mp3",
+  "/audios/cinematic_battle.mp3",
+  "/audios/fun_battle.mp3",
+  "/audios/retro_battle.mp3",
 ];
 
-function getLevelName(level) {
-  const found = LEVELS.find(l => Number(l.level) === Number(level));
-  return found ? found.name : "Unknown";
+const SLOT_AUDIO = "/audios/slot.mp3";
+const SILENT_AUDIO = "/audios/silent.mp3";
+
+function posterFor(movie) {
+  if (!movie) return null;
+  if (movie.poster_path) return `https://image.tmdb.org/t/p/w342${movie.poster_path}`;
+  if (movie.poster) return movie.poster;
+  if (movie.image) return movie.image;
+  if (movie.posterUrl) return movie.posterUrl;
+  if (movie.raw && movie.raw.poster_path) return `https://image.tmdb.org/t/p/w342${movie.raw.poster_path}`;
+  if (movie.raw && movie.raw.poster) return movie.raw.poster;
+  return null;
 }
 
-function LevelPill({ level }) {
-  return (
-    <div style={{ padding: "6px 8px", borderRadius: 6, background: "rgba(0,0,0,0.25)", border: "1px solid rgba(255,255,255,0.03)", fontSize: 13 }}>
-      L{level}
-    </div>
-  );
+async function fetchProfileBySlug(slug) {
+  if (!slug) return null;
+  try {
+    const byNick = await fetch(`/api/profile?nickname=${encodeURIComponent(slug)}`, { credentials: "same-origin" });
+    if (byNick.ok) {
+      const txt = await byNick.text();
+      try { const json = JSON.parse(txt); return json.profile || json; } catch (e) {}
+    }
+  } catch (e) {}
+  try {
+    const byId = await fetch(`/api/profile?open_id=${encodeURIComponent(slug)}`, { credentials: "same-origin" });
+    if (byId.ok) {
+      const txt = await byId.text();
+      try { const json = JSON.parse(txt); return json.profile || json; } catch (e) {}
+    }
+  } catch (e) {}
+  return null;
 }
 
-function Avatar({ src, nickname, size = 72, onClick }) {
-  if (!src) {
-    return (
-      <div onClick={onClick} style={{ width: size, height: size, display: "flex", alignItems: "center", justifyContent: "center", background: "#111", color: "#ddd", fontSize: Math.max(18, size / 3), cursor: onClick ? "pointer" : "default", borderRadius: 6 }}>
-        {(nickname || "U").slice(0, 1).toUpperCase()}
-      </div>
-    );
+/* computeStats / distributeAttackPoints - same logic as before */
+function computeStats(deckArr) {
+  const movies = (deckArr || []).filter(Boolean);
+  if (movies.length === 0) return { pretentious: 0, rewatch: 0, quality: 0, popularity: 0 };
+
+  const scores = movies.map(m => (m.vote_average || 0));
+  const pops = movies.map(m => (m.popularity || 0));
+
+  const minPop = Math.min(...pops);
+  const maxPop = Math.max(...pops);
+  const normPops = pops.map(p => (maxPop === minPop ? 0.5 : (p - minPop) / (maxPop - minPop)));
+
+  const normScores = scores.map(s => Math.min(1, Math.max(0, s / 10)));
+
+  const quality = scores.reduce((a, b) => a + b, 0) / scores.length;
+  const popularity = pops.reduce((a, b) => a + b, 0) / pops.length;
+
+  const pretArr = normScores.map((ns, idx) => ns * (1 - normPops[idx]));
+  const pretentious = (pretArr.reduce((a, b) => a + b, 0) / pretArr.length) * 100;
+
+  const rewatchArr = normScores.map((ns, idx) => ns * normPops[idx]);
+  const rewatch = (rewatchArr.reduce((a, b) => a + b, 0) / rewatchArr.length) * 100;
+
+  return {
+    pretentious: Math.round(pretentious),
+    rewatch: Math.round(rewatch),
+    quality: +(quality.toFixed(2)),
+    popularity: +(popularity.toFixed(2)),
+  };
+}
+
+function distributeAttackPoints(totalPoints, moviesArr) {
+  const movies = (moviesArr || []).filter(Boolean);
+  if (movies.length === 0) return [];
+  const scores = movies.map(m => (m.vote_average || 0));
+  const sumScores = scores.reduce((a, b) => a + b, 0);
+  if (sumScores === 0) {
+    const base = Math.floor(totalPoints / movies.length);
+    const remainder = totalPoints - base * movies.length;
+    return movies.map((m, idx) => base + (idx < remainder ? 1 : 0));
   }
-  return (
-    <img
-      src={src}
-      alt={nickname || "avatar"}
-      onClick={onClick}
-      style={{ width: size, height: size, objectFit: "cover", display: "block", cursor: onClick ? "pointer" : "default", borderRadius: 6 }}
-    />
-  );
+  const rawAlloc = scores.map(s => (s / sumScores) * totalPoints);
+  const floored = rawAlloc.map(v => Math.floor(v));
+  let remainder = totalPoints - floored.reduce((a, b) => a + b, 0);
+  const fractions = rawAlloc.map((v, idx) => ({ idx, frac: v - Math.floor(v) }));
+  fractions.sort((a, b) => b.frac - a.frac);
+  const final = [...floored];
+  for (let i = 0; i < remainder; i++) {
+    final[fractions[i].idx] = final[fractions[i].idx] + 1;
+  }
+  return final;
 }
 
-function MovieThumb({ movie }) {
-  const poster = movie && (movie.poster_path ? `https://image.tmdb.org/t/p/w342${movie.poster_path}` : movie.poster || movie.image || movie.posterUrl || (movie.raw && (movie.raw.poster || movie.raw.poster_path) ? (movie.raw.poster_path ? `https://image.tmdb.org/t/p/w342${movie.raw.poster_path}` : movie.raw.poster) : null));
-  return (
-    <div style={{ width: 92, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-      <div style={{ width: 92, height: 136, borderRadius: 6, overflow: "hidden", background: "#111", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        {poster ? <img src={poster} alt={movie.title || movie.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /> : <div style={{ color: "#888" }}>—</div>}
-      </div>
-      <div style={{ width: 92, height: 36, textAlign: "center", fontSize: 12, fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
-        {movie?.title || movie?.name || ""}
-      </div>
-    </div>
-  );
-}
+export default function DuelPlay(props) {
+  const {
+    open,
+    onClose,
+    challenger: challengerProp,
+    opponent: opponentProp,
+    challengerSlug,
+    opponentSlug,
+    playOnMount = false,
+  } = props || {};
 
-export default function Duel() {
-  const [profiles, setProfiles] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [query, setQuery] = useState("");
-  const [detail, setDetail] = useState(null);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [modalOpponent, setModalOpponent] = useState(null);
-  const [modalChallenger, setModalChallenger] = useState(null);
-  const nav = useNavigate();
+  const [challenger, setChallenger] = useState(challengerProp || null);
+  const [opponent, setOpponent] = useState(opponentProp || null);
+  const [error, setError] = useState(null);
+
+  const [revealIndex, setRevealIndex] = useState(-1);
+  const [showGoMessage, setShowGoMessage] = useState(false);
+
+  const slotAudioRef = useRef(null);
+  const bgAudioRef = useRef(null);
+  const silentAudioRef = useRef(null);
+  const mountedRef = useRef(false);
+  const bgStartedRef = useRef(false);
+  const rootRef = useRef(null);
 
   useEffect(() => {
-    (async () => {
-      setLoading(true);
+    if (!open) return;
+    mountedRef.current = true;
+    setLoading(true);
+    setError(null);
+    let cancelled = false;
+
+    async function init() {
       try {
-        const r = await fetchAllProfiles();
-        if (!r.ok) {
-          setProfiles([]);
+        const [c, o] = await Promise.all([
+          challengerProp ? Promise.resolve(challengerProp) : (challengerSlug ? fetchProfileBySlug(challengerSlug) : null),
+          opponentProp ? Promise.resolve(opponentProp) : (opponentSlug ? fetchProfileBySlug(opponentSlug) : null),
+        ]);
+
+        if (cancelled) return;
+        if (!c || !o) {
+          setError("Could not load one or both profiles.");
           setLoading(false);
           return;
         }
-        const payload = r.data;
-        let list = [];
-        if (payload && Array.isArray(payload.profiles)) list = payload.profiles;
-        else if (payload && payload.profiles === undefined && payload.ok && Array.isArray(payload)) list = payload;
-        else if (payload && payload.profile && Array.isArray(payload.profile)) list = payload.profile;
 
-        list = list.map(u => ({
-          open_id: u.open_id,
-          nickname: u.nickname || (u.handle ? u.handle.replace(/^@/, "") : `@${u.open_id}`),
-          avatar: u.avatar || u.pfp || null,
-          wins: Number.isFinite(u.wins) ? u.wins : 0,
-          losses: Number.isFinite(u.losses) ? u.losses : 0,
-          draws: Number.isFinite(u.draws) ? u.draws : 0,
-          level: Number.isFinite(u.level) ? u.level : 1,
-          deck: Array.isArray(u.deck) ? u.deck : []
-        }));
+        c.wins = Number.isFinite(c.wins) ? c.wins : 0;
+        c.losses = Number.isFinite(c.losses) ? c.losses : 0;
+        c.draws = Number.isFinite(c.draws) ? c.draws : 0;
+        c.level = Number.isFinite(c.level) ? c.level : 1;
+        c.deck = Array.isArray(c.deck) ? c.deck : [];
 
-        setProfiles(list);
-      } catch (err) {
-        console.error("fetchAllProfiles exception:", err);
-        setProfiles([]);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
+        o.wins = Number.isFinite(o.wins) ? o.wins : 0;
+        o.losses = Number.isFinite(o.losses) ? o.losses : 0;
+        o.draws = Number.isFinite(o.draws) ? o.draws : 0;
+        o.level = Number.isFinite(o.level) ? o.level : 1;
+        o.deck = Array.isArray(o.deck) ? o.deck : [];
 
-  const me = (() => {
-    try {
-      const p = localStorage.getItem("stored_profile") || localStorage.getItem("tiktok_profile");
-      return p ? JSON.parse(p) : null;
-    } catch (e) {
-      return null;
-    }
-  })();
+        setChallenger(c);
+        setOpponent(o);
 
-  function slugFromProfile(p) {
-    if (!p) return null;
-    if (p.nickname) {
-      try { return String(p.nickname).replace(/^@+/, "").trim(); } catch (e) {}
-    }
-    if (p.handle) {
-      try { return String(p.handle).replace(/^@+/, "").trim(); } catch (e) {}
-    }
-    if (p.open_id) return String(p.open_id);
-    return null;
-  }
+        // optionally try a silent audio play to unlock audio (parent may already have done it)
+        try {
+          if (playOnMount && SILENT_AUDIO) {
+            const s = new Audio(SILENT_AUDIO);
+            s.volume = 0;
+            s.play().catch(() => {});
+            silentAudioRef.current = s;
+          }
+        } catch (e) {}
 
-  // NEW: open modal rather than navigate
-  async function handleChallenge(profile) {
-    try {
-      const challengerProfile = me;
-      if (!challengerProfile) {
-        alert("Please log in or set your profile before challenging another player.");
-        nav("/profile");
-        return;
-      }
+        slotAudioRef.current = new Audio(SLOT_AUDIO);
+        slotAudioRef.current.preload = "auto";
 
-      // store for legacy
-      localStorage.setItem("leaderbox_opponent", JSON.stringify(profile));
-
-      // attempt to play silent audio to unlock sound before modal opens
-      try {
-        if (SILENT_AUDIO) {
-          const s = new Audio(SILENT_AUDIO);
-          s.volume = 0;
-          await s.play().catch(() => {});
+        const lastIdxRaw = localStorage.getItem("leaderbox_last_song_idx");
+        let idx = 0;
+        try {
+          const last = Number.isFinite(+lastIdxRaw) ? Number(lastIdxRaw) : -1;
+          idx = (last + 1) % BACKGROUND_SONGS.length;
+        } catch (e) {
+          idx = Math.floor(Math.random() * BACKGROUND_SONGS.length);
         }
-      } catch (e) {
-        // ignore
-      }
+        localStorage.setItem("leaderbox_last_song_idx", String(idx));
 
-      // show modal, pass full objects (if you want to ensure full deck, you could fetch full profile here)
-      setModalChallenger(challengerProfile);
-      setModalOpponent(profile);
-      setModalOpen(true);
-    } catch (e) {
-      console.warn("handleChallenge failed", e);
-      // fallback to navigation to legacy route
-      const challengerSlug = slugFromProfile(me);
-      const opponentSlug = slugFromProfile(profile);
-      if (challengerSlug && opponentSlug) {
-        nav(`/duel/play/${encodeURIComponent(challengerSlug)}/${encodeURIComponent(opponentSlug)}`);
+        const bg = new Audio(BACKGROUND_SONGS[idx]);
+        bg.loop = true;
+        bg.volume = 0.14;
+        bg.preload = "auto";
+        bgAudioRef.current = bg;
+
+        setTimeout(() => startRevealSequence(c, o), 300);
+      } catch (err) {
+        console.error("DuelPlay init error", err);
+        setError(String(err));
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    init();
+
+    const onKey = (e) => {
+      if (e.key === "Escape" && typeof onClose === "function") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+
+    return () => {
+      cancelled = true;
+      mountedRef.current = false;
+      window.removeEventListener("keydown", onKey);
+      try { if (bgAudioRef.current) { bgAudioRef.current.pause(); bgAudioRef.current.src = ""; } } catch (e) {}
+      try { if (slotAudioRef.current) { slotAudioRef.current.pause(); slotAudioRef.current.src = ""; } } catch (e) {}
+      try { if (silentAudioRef.current) { silentAudioRef.current.pause(); silentAudioRef.current.src = ""; } } catch (e) {}
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  function startRevealSequence(c, o) {
+    const topCount = Math.max(4, (o && o.deck ? o.deck.length : 0));
+    const bottomCount = Math.max(4, (c && c.deck ? c.deck.length : 0));
+    const total = topCount + bottomCount;
+    let step = 0;
+
+    const revealTick = () => {
+      if (!mountedRef.current) return;
+      setRevealIndex(step);
+      try {
+        if (slotAudioRef.current) {
+          const a = slotAudioRef.current.cloneNode(true);
+          a.volume = 0.9;
+          a.play().then(() => {
+            try {
+              if (bgAudioRef.current && !bgStartedRef.current) {
+                bgAudioRef.current.play().catch(async (err) => {
+                  try {
+                    bgAudioRef.current.muted = true;
+                    await bgAudioRef.current.play();
+                    try { bgAudioRef.current.muted = false; } catch (e) {}
+                  } catch (e2) {}
+                }).finally(() => { bgStartedRef.current = true; });
+              }
+            } catch (e) {}
+          }).catch(() => {
+            try {
+              if (bgAudioRef.current && !bgStartedRef.current) {
+                bgAudioRef.current.play().catch(() => {});
+                bgStartedRef.current = true;
+              }
+            } catch (e) {}
+          });
+        }
+      } catch (e) {}
+      step++;
+      if (step < total) {
+        setTimeout(revealTick, 500);
       } else {
-        localStorage.setItem("leaderbox_opponent", JSON.stringify(profile));
-        window.location.href = "/duel/play";
+        setTimeout(() => { setShowGoMessage(true); setTimeout(() => setShowGoMessage(false), 1000); }, 250);
       }
-    }
+    };
+
+    revealTick();
   }
 
-  async function openDetail(profile) {
-    if (profile.deck && Array.isArray(profile.deck)) {
-      profile.draws = Number.isFinite(profile.draws) ? profile.draws : 0;
-      setDetail(profile);
-      return;
-    }
-    try {
-      const res = await fetch(`/api/profile?open_id=${encodeURIComponent(profile.open_id)}`, { credentials: "same-origin" });
-      if (!res.ok) {
-        profile.draws = Number.isFinite(profile.draws) ? profile.draws : 0;
-        setDetail(profile);
-        return;
-      }
-      const txt = await res.text();
-      let json = null;
-      try { json = JSON.parse(txt); } catch (e) {}
-      const full = json && (json.profile || json) ? (json.profile || json) : profile;
-      full.draws = Number.isFinite(full.draws) ? full.draws : 0;
-      full.deck = Array.isArray(full.deck) ? full.deck : [];
-      setDetail(full);
-    } catch (e) {
-      console.warn("failed to fetch full profile:", e);
-      profile.draws = Number.isFinite(profile.draws) ? profile.draws : 0;
-      setDetail(profile);
-    }
+  function computeMoviePointsFromDeck(deckArr) {
+    const stats = computeStats(deckArr);
+    const moviePointsRaw = stats.pretentious + stats.rewatch + stats.quality + stats.popularity;
+    const moviePoints = Math.round(moviePointsRaw);
+    const perMovie = distributeAttackPoints(moviePoints, deckArr);
+    return { total: moviePoints, perMovie, stats };
   }
 
-  const filtered = (profiles || []).filter(p => {
-    if (me && String(me.open_id) === String(p.open_id)) return false;
-    if (!query) return true;
-    return String(p.nickname || "").toLowerCase().includes(query.toLowerCase());
-  }).sort((a, b) => (a.nickname || "").localeCompare(b.nickname || ""));
+  function topVisible(i) {
+    if (revealIndex < 0) return false;
+    return revealIndex >= i;
+  }
+  function bottomVisible(i, topCount = 4) {
+    if (revealIndex < 0) return false;
+    return revealIndex >= (topCount + i);
+  }
+
+  function handleOverlayClick(e) {
+    if (e.target === e.currentTarget && typeof onClose === "function") onClose();
+  }
+
+  if (!open) return null;
+
+  if (loading) {
+    return (
+      <div role="dialog" aria-modal="true" className="duel-modal-root" style={{ position: "fixed", inset: 0, zIndex: 12000, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ padding: 24, background: "rgba(0,0,0,0.85)", borderRadius: 12 }}>
+          <h2 className="h1-retro">Loading duel…</h2>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div role="dialog" aria-modal="true" className="duel-modal-root" style={{ position: "fixed", inset: 0, zIndex: 12000, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ padding: 24, background: "rgba(0,0,0,0.85)", borderRadius: 12 }}>
+          <h2 className="h1-retro">Duel error</h2>
+          <div style={{ color: "#f66", marginTop: 8 }}>{String(error)}</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!challenger || !opponent) {
+    return (
+      <div role="dialog" aria-modal="true" className="duel-modal-root" style={{ position: "fixed", inset: 0, zIndex: 12000, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ padding: 24, background: "rgba(0,0,0,0.85)", borderRadius: 12 }}>
+          <h2 className="h1-retro">Missing duel participants</h2>
+        </div>
+      </div>
+    );
+  }
+
+  const challengerPoints = computeMoviePointsFromDeck(challenger.deck || []);
+  const topCount = Math.max(4, (opponent.deck ? opponent.deck.length : 0));
+  const bottomCount = Math.max(4, (challenger.deck ? challenger.deck.length : 0));
 
   return (
-    <div style={{ width: "100%" }}>
-      <h2 className="h1-retro">Duel Arena</h2>
-      <div className="small">Challenge other players — select an opponent to start.</div>
+    <div
+      ref={rootRef}
+      role="dialog"
+      aria-modal="true"
+      className="duel-modal-root"
+      onClick={handleOverlayClick}
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 12000,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "linear-gradient(180deg, rgba(0,0,0,0.45), rgba(0,0,0,0.6))",
+        padding: 18,
+      }}
+    >
+      {/* bar-block becomes an actual centered block container with the overlay placed inside */}
+      <div className="center-stage" style={{ width: "100%", maxWidth: 920, display: "flex", flexDirection: "column", alignItems: "center", margin: "0 auto", position: "relative" }}>
+        <div className="bar-block" aria-hidden style={{ width: "100%", background: "#101221", borderRadius: 14, boxShadow: "0 30px 90px rgba(0,0,0,0.6)", border: "1px solid rgba(255,255,255,0.02)", padding: 28, boxSizing: "border-box" }}>
+          <div className="bar-overlay" style={{ width: "100%", color: "var(--white)", display: "flex", flexDirection: "column", alignItems: "center", gap: 18, padding: "8px 10px 20px", textAlign: "center", boxSizing: "border-box" }}>
+            {/* Top header */}
+            <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "center", marginTop: 6 }}>
+              <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                <div style={{ width: 72, height: 72, overflow: "hidden", borderRadius: 10 }}>
+                  {opponent.avatar ? (
+                    <img src={opponent.avatar} alt={opponent.nickname} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  ) : (
+                    <div style={{ width: 72, height: 72, background: "#111", display: "flex", alignItems: "center", justifyContent: "center", color: "#ddd" }}>
+                      {(opponent.nickname || "U").slice(0, 1)}
+                    </div>
+                  )}
+                </div>
+                <div style={{ textAlign: "left" }}>
+                  <div style={{ fontWeight: 900, color: "var(--accent)", fontSize: 18 }}>{opponent.nickname}</div>
+                  <div className="small" style={{ color: "#ddd" }}>Level {opponent.level}</div>
+                </div>
+              </div>
+            </div>
 
-      <div style={{ width: "100%", maxWidth: 920, marginTop: 12 }}>
-        <input
-          placeholder="Search players by nickname..."
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.06)", background: "rgba(0,0,0,0.2)", color: "var(--white)", fontSize: 14, outline: "none" }}
-        />
+            {/* Opponent slots */}
+            <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 8, flexWrap: "wrap" }}>
+              {Array.from({ length: 4 }).map((_, i) => {
+                const m = (opponent.deck && opponent.deck[i]) ? opponent.deck[i] : null;
+                const poster = posterFor(m);
+                const visible = topVisible(i);
+                return (
+                  <div key={`opp-slot-${i}`} className={`duel-slot ${visible ? "visible from-top" : "hidden from-top"}`} style={{ width: 110, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+                    <div className="slot-poster-wrap" style={{ width: 92, height: 136, borderRadius: 8, overflow: "hidden", background: "#0d0d10", boxShadow: visible ? "0 8px 18px rgba(0,0,0,0.6)" : "none", transition: "transform 420ms cubic-bezier(.2,.9,.2,1), opacity 360ms" }}>
+                      {poster && visible ? (<img src={poster} alt={m?.title || m?.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />) : (<div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#666" }}>—</div>)}
+                    </div>
+                    <div style={{ width: 92, height: 36, textAlign: "center", fontSize: 12, fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", color: "#fff", opacity: visible ? 1 : 0.3, transition: "opacity 300ms" }}>
+                      {m ? (m.title || m.name) : ""}
+                    </div>
+                    <div style={{ fontSize: 12, fontWeight: 800, color: "var(--accent)", minHeight: 18 }} />
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Message + challenger slots */}
+            <div style={{ marginTop: 18, display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+              <div style={{ minHeight: 42 }}>
+                {showGoMessage ? (<div style={{ fontSize: 22, fontWeight: 900, color: "var(--accent)" }}>1st Turn: Go!</div>) : (<div style={{ height: 0 }} />)}
+              </div>
+
+              <div style={{ height: 6 }} />
+
+              <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 8, flexWrap: "wrap" }}>
+                {Array.from({ length: 4 }).map((_, i) => {
+                  const m = (challenger.deck && challenger.deck[i]) ? challenger.deck[i] : null;
+                  const poster = posterFor(m);
+                  const visible = bottomVisible(i, topCount);
+                  return (
+                    <div key={`you-slot-${i}`} className={`duel-slot ${visible ? "visible from-bottom" : "hidden from-bottom"}`} style={{ width: 110, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+                      <div className="slot-poster-wrap" style={{ width: 92, height: 136, borderRadius: 8, overflow: "hidden", background: "#0d0d10", boxShadow: visible ? "0 8px 18px rgba(0,0,0,0.6)" : "none", transition: "transform 420ms cubic-bezier(.2,.9,.2,1), opacity 360ms" }}>
+                        {poster && visible ? (<img src={poster} alt={m?.title || m?.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />) : (<div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "#666" }}>—</div>)}
+                      </div>
+
+                      <div style={{ width: 92, height: 36, textAlign: "center", fontSize: 12, fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", color: "#fff", opacity: visible ? 1 : 0.3, transition: "opacity 300ms" }}>
+                        {m ? (m.title || m.name) : ""}
+                      </div>
+
+                      <div style={{ fontSize: 12, fontWeight: 800, color: "var(--accent)", minHeight: 18 }}>
+                        {visible && (challengerPoints.perMovie[i] !== undefined ? `${challengerPoints.perMovie[i]} atk` : "—")}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div style={{ display: "flex", gap: 18, marginTop: 12, alignItems: "center", justifyContent: "center", flexWrap: "wrap" }}>
+                <div style={{ textAlign: "center" }}>
+                  <div className="small" style={{ color: "#999" }}>Opponent Movie Points</div>
+                  <div style={{ fontWeight: 900, color: "var(--accent)" }}>— pts</div>
+                </div>
+
+                <div style={{ width: 1, height: 28, background: "rgba(255,255,255,0.03)" }} />
+
+                <div style={{ textAlign: "center" }}>
+                  <div className="small" style={{ color: "#999" }}>Your Movie Points</div>
+                  <div style={{ fontWeight: 900, color: "var(--accent)" }}>{challengerPoints.total} pts</div>
+                </div>
+              </div>
+
+              <div style={{ height: 8 }} />
+            </div>
+
+            {/* Challenger header bottom */}
+            <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "center", marginTop: 8 }}>
+              <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                <div style={{ width: 72, height: 72, overflow: "hidden", borderRadius: 10 }}>
+                  {challenger.avatar ? (
+                    <img src={challenger.avatar} alt={challenger.nickname} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                  ) : (
+                    <div style={{ width: 72, height: 72, background: "#111", display: "flex", alignItems: "center", justifyContent: "center", color: "#ddd" }}>
+                      {(challenger.nickname || "U").slice(0, 1)}
+                    </div>
+                  )}
+                </div>
+                <div style={{ textAlign: "left" }}>
+                  <div style={{ fontWeight: 900, color: "var(--accent)", fontSize: 18 }}>{challenger.nickname}</div>
+                  <div className="small" style={{ color: "#ddd" }}>Level {challenger.level}</div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
       </div>
 
-      {loading && <div style={{ marginTop: 20 }}>Loading players…</div>}
+      <style>{`
+        .duel-slot.hidden { opacity: 0.0; transform: translateY(0); }
+        .duel-slot.visible { opacity: 1; }
+        .duel-slot.from-top { transform-origin: top center; }
+        .duel-slot.from-bottom { transform-origin: bottom center; }
 
-      {!loading && filtered.length === 0 && <div style={{ marginTop: 20 }}>No players found.</div>}
+        .duel-slot.hidden.from-top .slot-poster-wrap { transform: translateY(-18px) scale(0.98); opacity: 0.0; }
+        .duel-slot.visible.from-top .slot-poster-wrap { transform: translateY(0) scale(1); opacity: 1; }
+        .duel-slot.hidden.from-bottom .slot-poster-wrap { transform: translateY(18px) scale(0.98); opacity: 0.0; }
+        .duel-slot.visible.from-bottom .slot-poster-wrap { transform: translateY(0) scale(1); opacity: 1; }
 
-      {!loading && filtered.length > 0 && (
-        <div style={{ width: "100%", maxWidth: 1100, marginTop: 12 }}>
-          <div className="profiles-scroll" style={{ maxHeight: "72vh", overflowY: "auto", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 12, padding: 6 }}>
-            {filtered.map(p => (
-              <div key={p.open_id} style={{ padding: 12, borderRadius: 12, background: "linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.02))", display: "flex", flexDirection: "column", gap: 10 }}>
-                <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                  <div onClick={() => openDetail(p)} style={{ cursor: "pointer" }}>
-                    <Avatar src={p.avatar} nickname={p.nickname} size={72} />
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 800 }}>{p.nickname}</div>
-                    <div className="small" style={{ color: "#999", marginTop: 6 }}>
-                      Wins: {p.wins} • Losses: {p.losses} • Draws: {p.draws}
-                    </div>
-                    <div style={{ marginTop: 6 }}>Level {p.level} — {getLevelName(p.level)}</div>
-                  </div>
-                  <LevelPill level={p.level || 1} />
-                </div>
-                <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                  <img src="/play.png" alt="play" style={{ width: 36, height: 36, cursor: "pointer", animation: "subtlePulse 2.5s infinite" }} onClick={() => handleChallenge(p)} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+        .slot-poster-wrap img { transition: transform 240ms ease; display:block; }
+        .slot-poster-wrap:hover img { transform: scale(1.02); }
 
-      {detail && (
-        <div onClick={() => setDetail(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-          <div onClick={e => e.stopPropagation()} style={{ width: "min(1100px, 96vw)", maxHeight: "90vh", overflow: "auto", borderRadius: 12, background: "linear-gradient(180deg, rgba(8,9,12,0.98), rgba(16,18,24,0.98))", padding: 18, boxShadow: "0 20px 80px rgba(0,0,0,0.8)", display: "flex", flexDirection: "column", gap: 14 }}>
-            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-              <img src={detail.avatar} alt={detail.nickname} style={{ width: 96, height: 96, objectFit: "cover", borderRadius: 8 }} />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 900, color: "var(--accent)", fontSize: 18 }}>{detail.nickname}</div>
-                <div className="small" style={{ color: "#999", marginTop: 6 }}>Wins: {detail.wins} • Losses: {detail.losses} • Draws: {detail.draws}</div>
-                <div style={{ marginTop: 6 }}>Level {detail.level} — {getLevelName(detail.level)}</div>
-              </div>
-              <button onClick={() => setDetail(null)} style={{ background: "transparent", border: "none", color: "var(--white)", fontSize: 18, cursor: "pointer" }}>✕</button>
-            </div>
-
-            <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", justifyContent: "center" }}>
-              {(detail.deck && Array.isArray(detail.deck) && detail.deck.length > 0) ? detail.deck.map((m, idx) => (<MovieThumb key={idx} movie={m} />)) : (
-                <div className="small" style={{ color: "#999" }}>No public stack available.</div>
-              )}
-            </div>
-
-            <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "center", marginTop: 6 }}>
-              <img src="/play.png" alt="challenge" style={{ width: 56, height: 56, cursor: "pointer", animation: "subtlePulse 2.5s infinite" }} onClick={() => handleChallenge(detail)} />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* DuelPlay modal */}
-      <DuelPlay
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        challenger={modalChallenger}
-        opponent={modalOpponent}
-        playOnMount={true}
-      />
-
-      <style>{`@keyframes subtlePulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }`}</style>
+        /* responsive tweaks for modal */
+        @media (max-width: 920px) {
+          .center-stage { max-width: 92vw !important; padding: 12px !important; }
+          .bar-block { padding: 16px !important; }
+          .bar-overlay { width: calc(100% - 32px) !important; margin: 0 !important; }
+          .slot-poster-wrap { width: 78px !important; height: 116px !important; }
+          .duel-slot { width: 94px !important; }
+        }
+        @media (min-width: 1080px) and (min-height: 2340px) {
+          .center-stage { max-width: 820px !important; padding: 32px !important; }
+        }
+      `}</style>
     </div>
   );
 }
