@@ -183,10 +183,10 @@
   cursor: pointer;
 }
 
-/* center GO message */
+/* center GO message — nudged slightly upward for better visual weight */
 .go-message {
   position: absolute;
-  top: 50%;
+  top: 48%; /* slightly above exact center for better balance */
   left: 50%;
   transform: translate(-50%, -50%);
   font-size: 28px;
@@ -196,6 +196,16 @@
   text-shadow: 0 6px 20px rgba(0,0,0,0.6);
 }
 
+/* Desktop tweaks: bring GO message further up and pull bottom content up */
+@media (min-width: 921px) {
+  .go-message {
+    top: 44%; /* further up on desktop */
+  }
+  .spacer {
+    height: 120px; /* reduce spacing so bottom block sits higher on desktop */
+  }
+}
+
 /* responsive */
 @media (max-width: 920px) {
   .movie-slots { gap: 8px; overflow-x: auto; padding: 8px; }
@@ -203,6 +213,6 @@
   .slot-wrap { width: 78px; }
   .pfp { width: 60px; height: 60px; border-radius: 999px; }
   .username { font-size: 16px; }
-  .go-message { font-size: 22px; }
+  .go-message { font-size: 22px; top: 50%; } /* keep mobile centered as before */
   .spacer { height: 120px; }
 }
