@@ -23,45 +23,63 @@ function posterFor(movie) {
   return null;
 }
 
+/* small helper to fetch profile by slug or open_id */
 async function fetchProfileBySlug(slug) {
   if (!slug) return null;
+  // try nickname first
   try {
     const byNick = await fetch(`/api/profile?nickname=${encodeURIComponent(slug)}`, { credentials: "same-origin" });
     if (byNick.ok) {
       const txt = await byNick.text();
-      try { const json = JSON.parse(txt); return json.profile || json; } catch (e) {}
+      try {
+        const json = JSON.parse(txt);
+        const profile = json.profile || json;
+        return profile;
+      } catch (e) {}
     }
   } catch (e) {}
+  // fallback by open_id
   try {
     const byId = await fetch(`/api/profile?open_id=${encodeURIComponent(slug)}`, { credentials: "same-origin" });
     if (byId.ok) {
       const txt = await byId.text();
-      try { const json = JSON.parse(txt); return json.profile || json; } catch (e) {}
+      try {
+        const json = JSON.parse(txt);
+        const profile = json.profile || json;
+        return profile;
+      } catch (e) {}
     }
   } catch (e) {}
   return null;
 }
 
-/* compute stats */
+/* compute stats using same algorithm as EditStack */
 function computeStats(deckArr) {
   const movies = (deckArr || []).filter(Boolean);
   if (movies.length === 0) return { pretentious: 0, rewatch: 0, quality: 0, popularity: 0 };
 
-  const scores = movies.map(m => (m.vote_average || 0));
-  const pops = movies.map(m => (m.popularity || 0));
+  const scores = movies.map(m => (m.vote_average || 0)); // 0..10
+  const pops = movies.map(m => (m.popularity || 0)); // unbounded
 
+  // Normalize popularity within this deck to 0..1
   const minPop = Math.min(...pops);
   const maxPop = Math.max(...pops);
   const normPops = pops.map(p => (maxPop === minPop ? 0.5 : (p - minPop) / (maxPop - minPop)));
 
+  // Normalize scores 0..1 (TMDB vote_average ~0..10)
   const normScores = scores.map(s => Math.min(1, Math.max(0, s / 10)));
 
+  // Quality = average score (0..10)
   const quality = scores.reduce((a, b) => a + b, 0) / scores.length;
+
+  // Popularity average (raw)
   const popularity = pops.reduce((a, b) => a + b, 0) / pops.length;
 
+  // Pretentiousness: high score AND low popularity -> pretentious
   const pretArr = normScores.map((ns, idx) => ns * (1 - normPops[idx]));
-  const pretentious = (pretArr.reduce((a, b) => a + b, 0) / pretArr.length) * 100;
+  const pretentious = (pretArr.reduce((a, b) => a + b, 0) / pretArr.length) * 100; // 0..100
 
+  // Rewatchability: high score * high popularity
   const rewatchArr = normScores.map((ns, idx) => ns * normPops[idx]);
   const rewatch = (rewatchArr.reduce((a, b) => a + b, 0) / rewatchArr.length) * 100;
 
@@ -73,6 +91,7 @@ function computeStats(deckArr) {
   };
 }
 
+/* distribute attack points like EditStack */
 function distributeAttackPoints(totalPoints, moviesArr) {
   const movies = (moviesArr || []).filter(Boolean);
   if (movies.length === 0) return [];
@@ -104,17 +123,19 @@ export default function DuelPlay() {
   const [opponent, setOpponent] = useState(null);
   const [error, setError] = useState(null);
 
-  const [revealIndex, setRevealIndex] = useState(-1);
+  // animation and audio state
+  const [revealIndex, setRevealIndex] = useState(-1); // -1 = not started, 0..n-1 reveals
   const [showGoMessage, setShowGoMessage] = useState(false);
-
   const slotAudioRef = useRef(null);
   const bgAudioRef = useRef(null);
   const silentAudioRef = useRef(null);
   const mountedRef = useRef(true);
   const bgStartedRef = useRef(false);
 
-  const scaledRef = useRef(false);
-  const rootRef = useRef(null);
+  // BEGIN overlay state (mobile only)
+  const [showBeginOverlay, setShowBeginOverlay] = useState(false);
+  const scaledRef = useRef(false); // whether we've applied the auto-scale
+  const rootRef = useRef(null); // root container to transform
 
   useEffect(() => {
     mountedRef.current = true;
@@ -122,17 +143,6 @@ export default function DuelPlay() {
     async function init() {
       setLoading(true);
       setError(null);
-
-      // immediate silent unlock attempt on mount (best effort)
-      try {
-        if (SILENT_AUDIO) {
-          const s = new Audio(SILENT_AUDIO);
-          s.volume = 0;
-          s.play().catch(() => {});
-          silentAudioRef.current = s;
-        }
-      } catch (e) {}
-
       try {
         const [c, o] = await Promise.all([
           fetchProfileBySlug(challengerSlug),
@@ -146,6 +156,7 @@ export default function DuelPlay() {
           return;
         }
 
+        // normalize
         c.wins = Number.isFinite(c.wins) ? c.wins : 0;
         c.losses = Number.isFinite(c.losses) ? c.losses : 0;
         c.draws = Number.isFinite(c.draws) ? c.draws : 0;
@@ -161,11 +172,21 @@ export default function DuelPlay() {
         setChallenger(c);
         setOpponent(o);
 
-        // preload slot audio
+        // silent unlock attempt (harmless and intentionally kept)
+        try {
+          if (SILENT_AUDIO) {
+            const s = new Audio(SILENT_AUDIO);
+            s.volume = 0;
+            s.play().catch(() => {});
+            silentAudioRef.current = s;
+          }
+        } catch (e) {}
+
+        // slot audio preload
         slotAudioRef.current = new Audio(SLOT_AUDIO);
         slotAudioRef.current.preload = "auto";
 
-        // background audio prepared
+        // choose background song index (rotate using localStorage)
         const lastIdxRaw = localStorage.getItem("leaderbox_last_song_idx");
         let idx = 0;
         try {
@@ -176,24 +197,22 @@ export default function DuelPlay() {
         }
         localStorage.setItem("leaderbox_last_song_idx", String(idx));
 
+        // prepare bg audio but DO NOT auto-play — we'll keep silent audio playing; bg will be played on user gesture if needed
         const bg = new Audio(BACKGROUND_SONGS[idx]);
         bg.loop = true;
         bg.volume = 0.14;
         bg.preload = "auto";
         bgAudioRef.current = bg;
 
-        // If on small screens, auto-apply the BEGIN fit (was the BEGIN behavior)
-        const mobileBreakpoint = 920;
+        // show BEGIN overlay automatically on small screens only
+        const mobileBreakpoint = 920; // same threshold you've used
         if (typeof window !== "undefined" && window.innerWidth <= mobileBreakpoint) {
-          // small delay so DOM measured nodes exist
-          setTimeout(() => {
-            try {
-              if (!scaledRef.current) handleBeginClick();
-            } catch (e) { /* ignore */ }
-          }, 120);
+          setShowBeginOverlay(true);
+        } else {
+          setShowBeginOverlay(false);
         }
 
-        // start reveal sequence after a short delay
+        // start reveal sequence shortly after render
         setTimeout(() => startRevealSequence(c, o), 400);
       } catch (err) {
         console.error("duel play init error", err);
@@ -212,6 +231,7 @@ export default function DuelPlay() {
       const revealTick = () => {
         if (!mountedRef.current) return;
         setRevealIndex(step);
+        // play slot audio clone for each reveal
         try {
           if (slotAudioRef.current) {
             const a = slotAudioRef.current.cloneNode(true);
@@ -224,11 +244,18 @@ export default function DuelPlay() {
                       bgAudioRef.current.muted = true;
                       await bgAudioRef.current.play();
                       try { bgAudioRef.current.muted = false; } catch (e) {}
-                    } catch (e2) {}
-                  }).finally(() => { bgStartedRef.current = true; });
+                    } catch (e2) {
+                      // ignore
+                    }
+                  }).finally(() => {
+                    bgStartedRef.current = true;
+                  });
                 }
-              } catch (e) {}
+              } catch (e) {
+                // ignore bg play errors
+              }
             }).catch(() => {
+              // slot play blocked — still try bg as best effort
               try {
                 if (bgAudioRef.current && !bgStartedRef.current) {
                   bgAudioRef.current.play().catch(() => {});
@@ -242,7 +269,10 @@ export default function DuelPlay() {
         if (step < total) {
           setTimeout(revealTick, 500);
         } else {
-          setTimeout(() => { setShowGoMessage(true); setTimeout(() => setShowGoMessage(false), 1000); }, 250);
+          setTimeout(() => {
+            setShowGoMessage(true);
+            setTimeout(() => setShowGoMessage(false), 1000);
+          }, 250);
         }
       };
 
@@ -251,16 +281,18 @@ export default function DuelPlay() {
 
     init();
 
-    // responsive resize handler
+    // when resizing on mobile, if user hasn't tapped BEGIN, keep overlay visible
     const onResize = () => {
       if (!mountedRef.current) return;
       const mobileBreakpoint = 920;
-      if (window.innerWidth > mobileBreakpoint && scaledRef.current) {
-        // clear scaling when leaving mobile landscape if you want
-        const root = rootRef.current || document.querySelector(".duel-play-root");
-        if (root) {
-          root.style.transform = "";
-          root.style.transformOrigin = "";
+      if (window.innerWidth <= mobileBreakpoint) {
+        if (!scaledRef.current) setShowBeginOverlay(true);
+      } else {
+        setShowBeginOverlay(false);
+        // clear transform when leaving mobile
+        if (rootRef.current) {
+          rootRef.current.style.transform = "";
+          rootRef.current.style.transformOrigin = "";
         }
         scaledRef.current = false;
       }
@@ -277,6 +309,7 @@ export default function DuelPlay() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [challengerSlug, opponentSlug]);
 
+  // compute accurate movie points using editstack formulas
   function computeMoviePointsFromDeck(deckArr) {
     const stats = computeStats(deckArr);
     const moviePointsRaw = stats.pretentious + stats.rewatch + stats.quality + stats.popularity;
@@ -285,6 +318,7 @@ export default function DuelPlay() {
     return { total: moviePoints, perMovie, stats };
   }
 
+  // helper mapping for reveal
   function topVisible(i, topCount = 4) {
     if (revealIndex < 0) return false;
     return revealIndex >= i;
@@ -294,14 +328,17 @@ export default function DuelPlay() {
     return revealIndex >= (topCount + i);
   }
 
-  // This is the BEGIN logic: compute scale to fit viewport and apply transform to root.
+  // Called when mobile user taps BEGIN: compute a scale that fits both width and height
   function handleBeginClick() {
+    // apply transform to the duel-play-root (rootRef)
     const root = rootRef.current || document.querySelector(".duel-play-root");
     if (!root) {
+      setShowBeginOverlay(false);
       scaledRef.current = true;
       return;
     }
 
+    // ensure center-stage and bar-block are positioned so measurements are consistent
     const centerStage = root.querySelector(".center-stage") || root;
     if (centerStage) centerStage.style.position = "relative";
     const barBlock = root.querySelector(".bar-block");
@@ -313,10 +350,12 @@ export default function DuelPlay() {
       barBlock.style.margin = "24px auto 0 auto";
     }
 
+    // measure natural sizes
     const bounding = centerStage.getBoundingClientRect();
     const contentW = Math.max(1, bounding.width);
     const contentH = Math.max(1, bounding.height);
 
+    // compute available viewport space (account for navbar + some safe margins + support footer)
     const navbarHeight = 64;
     let supportHeight = 92;
     const supportEl = document.querySelector(".support");
@@ -327,33 +366,44 @@ export default function DuelPlay() {
       } catch (e) {}
     }
 
-    const safeVPad = 24;
-    const availableW = window.innerWidth - 16;
+    const safeVPad = 24; // breathing room
+    const availableW = window.innerWidth - 16; // small horizontal margin
     const availableH = Math.max(100, window.innerHeight - navbarHeight - supportHeight - safeVPad);
 
+    // compute scale that fits both axis
     const scaleW = availableW / contentW;
     const scaleH = availableH / contentH;
+    // use 0.98 multiplier so things don't touch edges
     let scale = Math.min(1, scaleW * 0.98, scaleH * 0.98);
+    // clamp to 0.5 min
     scale = Math.max(0.5, scale);
 
+    // Centering: after scaling, the element may need a translateX to truly sit centered.
+    // We'll compute the pixel offset and convert to a pre-scale translate so scale keeps the translation correct.
     const scaledContentWidth = contentW * scale;
     const extraSpace = Math.max(0, window.innerWidth - scaledContentWidth);
+    // translateX in **pre-scale** units = (extraSpace / 2) / scale
     const translateXPreScale = (extraSpace / 2) / (scale || 1);
 
+    // apply transform with translateX pre-scale so after scale it is centered properly
     root.style.transition = "transform 280ms cubic-bezier(.2,.9,.2,1)";
     root.style.transformOrigin = "top center";
     root.style.transform = `translateX(${translateXPreScale}px) scale(${scale})`;
 
+    // hide overlay
+    setShowBeginOverlay(false);
     scaledRef.current = true;
 
-    // attempt to play bg audio (best effort)
+    // attempt to play background audio (silent already played); optional
     if (bgAudioRef.current && !bgStartedRef.current) {
       bgAudioRef.current.play().catch(async (err) => {
         try {
           bgAudioRef.current.muted = true;
           await bgAudioRef.current.play();
           try { bgAudioRef.current.muted = false; } catch (e) {}
-        } catch (e2) {}
+        } catch (e2) {
+          // unable to start bg audio
+        }
       }).finally(() => {
         bgStartedRef.current = true;
       });
@@ -386,8 +436,11 @@ export default function DuelPlay() {
     );
   }
 
+  // compute challenger points (accurate)
   const challengerPoints = computeMoviePointsFromDeck(challenger.deck || []);
+
   const topCount = Math.max(4, (opponent && opponent.deck ? opponent.deck.length : 0));
+  const bottomCount = Math.max(4, (challenger && challenger.deck ? challenger.deck.length : 0));
 
   return (
     <div
@@ -395,6 +448,59 @@ export default function DuelPlay() {
       className="duel-play-root"
       style={{ padding: 24, display: "flex", justifyContent: "center", position: "relative" }}
     >
+      {/* BEGIN overlay for mobile */}
+      {showBeginOverlay && (
+        <div
+          className="duel-begin-overlay"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 9999,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "linear-gradient(180deg, rgba(2,2,6,0.85), rgba(2,2,6,0.9))",
+            padding: 24,
+          }}
+        >
+          <div style={{ width: "100%", maxWidth: 520, textAlign: "center", color: "#fff" }}>
+            <h2 className="h1-retro" style={{ marginBottom: 8 }}>Prepare for battle</h2>
+            <p style={{ color: "rgba(255,255,255,0.85)", marginBottom: 18 }}>Tap BEGIN to fit this duel nicely on your device.</p>
+            <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
+              <button
+                onClick={handleBeginClick}
+                style={{
+                  padding: "12px 18px",
+                  borderRadius: 10,
+                  background: "linear-gradient(90deg,#FDEE69,#ffd85a)",
+                  color: "#111",
+                  fontWeight: 900,
+                  border: 0,
+                  cursor: "pointer",
+                  fontSize: 16,
+                }}
+              >
+                BEGIN
+              </button>
+              <button
+                onClick={() => { setShowBeginOverlay(false); scaledRef.current = true; }}
+                style={{
+                  padding: "12px 16px",
+                  borderRadius: 10,
+                  background: "transparent",
+                  color: "#fff",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  cursor: "pointer"
+                }}
+              >
+                Skip
+              </button>
+            </div>
+            <div style={{ marginTop: 12, color: "rgba(255,255,255,0.6)", fontSize: 13 }}>You can always use pinch-to-zoom in your browser if needed.</div>
+          </div>
+        </div>
+      )}
+
       <div
         className="center-stage"
         style={{
@@ -409,7 +515,7 @@ export default function DuelPlay() {
         <div className="bar-block" aria-hidden />
 
         <div className="bar-overlay" style={{ alignItems: "stretch", width: "100%" }}>
-          {/* Opponent header */}
+          {/* Top — Opponent header */}
           <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "center", marginTop: 6 }}>
             <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
               <div style={{ width: 72, height: 72, overflow: "hidden", borderRadius: 10 }}>
@@ -428,7 +534,7 @@ export default function DuelPlay() {
             </div>
           </div>
 
-          {/* Opponent slots */}
+          {/* Opponent slots (top row) */}
           <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 8, overflowX: "auto" }}>
             {Array.from({ length: 4 }).map((_, i) => {
               const m = (opponent.deck && opponent.deck[i]) ? opponent.deck[i] : null;
@@ -471,8 +577,9 @@ export default function DuelPlay() {
             })}
           </div>
 
-          {/* Center: message + challenger slots */}
+          {/* Center area: message + challenger slots */}
           <div style={{ marginTop: 18, display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+            {/* Message area (appears after reveal) */}
             <div style={{ minHeight: 42 }}>
               {showGoMessage ? (
                 <div style={{ fontSize: 22, fontWeight: 900, color: "var(--accent)" }}>
@@ -485,6 +592,7 @@ export default function DuelPlay() {
 
             <div style={{ height: 6 }} />
 
+            {/* Challenger slots (bottom row) */}
             <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 8, overflowX: "auto" }}>
               {Array.from({ length: 4 }).map((_, i) => {
                 const m = (challenger.deck && challenger.deck[i]) ? challenger.deck[i] : null;
@@ -527,9 +635,11 @@ export default function DuelPlay() {
               })}
             </div>
 
+            {/* Movie Points totals (only show challenger's points) */}
             <div style={{ display: "flex", gap: 18, marginTop: 12, alignItems: "center", justifyContent: "center" }}>
               <div style={{ textAlign: "center" }}>
                 <div className="small" style={{ color: "#999" }}>Opponent Movie Points</div>
+                {/* intentionally hidden value */}
                 <div style={{ fontWeight: 900, color: "var(--accent)" }}>— pts</div>
               </div>
 
@@ -544,7 +654,7 @@ export default function DuelPlay() {
             <div style={{ height: 8 }} />
           </div>
 
-          {/* Challenger header bottom */}
+          {/* Bottom: Challenger header (mirrors top) */}
           <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "center", marginTop: 8 }}>
             <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
               <div style={{ width: 72, height: 72, overflow: "hidden", borderRadius: 10 }}>
@@ -566,8 +676,10 @@ export default function DuelPlay() {
         </div>
       </div>
 
-      <style>{`
-/* Duel Play animations */
+    <style>{`
+/* ========================= */
+/*   Duel Play animations    */
+/* ========================= */
 .duel-slot.hidden { opacity: 0.0; transform: translateY(0); }
 .duel-slot.visible { opacity: 1; }
 .duel-slot.from-top { transform-origin: top center; }
@@ -581,7 +693,9 @@ export default function DuelPlay() {
 .slot-poster-wrap img { transition: transform 240ms ease; display:block; }
 .slot-poster-wrap:hover img { transform: scale(1.02); }
 
-/* Desktop default */
+/* ========================= */
+/*   DESKTOP DEFAULT         */
+/* ========================= */
 .center-stage {
   width: 100%;
   max-width: 1100px;
@@ -592,21 +706,22 @@ export default function DuelPlay() {
   padding:24px;
 }
 
-/* Desktop: taller bar so pfp + level are inside */
+/* ❗ Desktop: Make block MUCH taller so pfp + level stay inside */
 .bar-block {
   width: 100%;
-  height: 780px;
+  height: 780px;                     /* ⬅ increased from 690px */
   background: #101221;
   border-radius: 14px;
   box-shadow: 0 8px 40px rgba(0,0,0,0.6);
   border: 1px solid rgba(255,255,255,0.02);
   position: absolute;
-  top: 0;
+  top: 0;                             /* ⬅ raise upward so more room below */
   left: 0;
   right: 0;
   z-index: 10;
 }
 
+/* Protect overlay */
 .bar-overlay {
   position: relative;
   width: calc(100% - 80px);
@@ -617,11 +732,13 @@ export default function DuelPlay() {
   flex-direction: column;
   align-items: center;
   gap: 16px;
-  padding: 22px 10px 28px;
+  padding: 22px 10px 28px;           /* ⬅ a bit more breathing */
   text-align: center;
 }
 
-/* Mobile fixes */
+/* ========================= */
+/*   MOBILE FIXES            */
+/* ========================= */
 @media (max-width: 920px) {
   .duel-play-root { padding-left: 10px !important; padding-right: 10px !important; }
 
@@ -630,27 +747,51 @@ export default function DuelPlay() {
     max-width: 100% !important;
     padding: 10px !important;
     box-sizing: border-box !important;
+    transform: translateX(-650px) scale(0.98) !important;
+    transform-origin: top center;
   }
 
-  .bar-block {
+  .here {
+  
+  }
+
+  /* ❗ MOBILE FIX: Make it MUCH TALLER and lower from top */
+  /* NEW */
+.bar-block {
+    transform-origin: center;
+    transform: scaleX(2.0) scaleY(10); /* 8% wider */
+    min-height: 780px;
     position: relative !important;
-    margin: 10px auto 0 !important;
-    width: calc(100% + 40px);
-    margin-left: -20px;
-    margin-right: -20px;
-    max-width: none !important;
-    min-height: 700px;
-    padding: 28px !important;
+    left: auto !important;
+    right: auto !important;
+    top: auto !important;
+    margin: 10px auto 0 !important;    /* ⬅ adds top space */
+    width: 38px) !important;
+    max-width: 730px !important;
+    height: auto !important;
+    min-height: 700px !important;      /* ⬅ BIG FIX: more vertical space */
+    padding: 36px !important;          /* ⬅ more padding so card looks full */
     overflow: visible !important;
   }
+
+/* mobile variant: still bigger but won't overflow viewport */
+@media (max-width: 920px) {
+  .bar-block {
+    width: calc(100% + 40px); /* slightly wider than container on mobile */
+    margin: 0 -20px;          /* center the wider bar */
+    min-height: 600px;        /* mobile needs more vertical space (your previous value) */
+    padding: 22px;            /* keep interior padding */
+  }
+}
 
   .bar-overlay {
     width: 100% !important;
     max-width: 100% !important;
     margin: 0 !important;
-    padding: 18px !important;
+    padding: 18px !important;          /* ⬅ increased */
     overflow: visible !important;
     align-items: center !important;
+    transform: translateY(-718px) scale(0.98) !important;
   }
 
   .bar-overlay > div[style*="display: flex"] {
@@ -660,26 +801,33 @@ export default function DuelPlay() {
     margin: 0 auto;
   }
 
+  /* Posters */
   .slot-poster-wrap { width: 78px !important; height: 116px !important; }
   .duel-slot { width: 94px !important; }
 }
 
-/* Large-tall */
-@media (min-width: 1080px) and (min-height: 2340px) {
+/* ========================= */
+/*   LARGE-TALL SCREENS      */
+/* ========================= */
+@media (min-width: 1080px) && (min-height: 2340px) {
   .center-stage { max-width: 820px !important; padding: 32px !important; }
-  .bar-block { max-height: calc(100vh - 160px) !important; }
+  .bar-block { max-height: calc(100vh - 160px) !important; }    /* ⬅ deeper */
   .bar-overlay { max-height: calc(100vh - 200px) !important; overflow: auto !important; }
 }
 
-/* duel-open tweaks */
+/* ========================= */
+/*   DUEL-OPEN TWEAKS        */
+/* ========================= */
 body.duel-open .center-stage { transform: translateX(1px) !important; }
+
 body.duel-open .bar-overlay > div,
 body.duel-open .bar-overlay .duel-slot,
 body.duel-open .bar-overlay .slot-poster-wrap {
   margin-left: 0 !important;
   margin-right: 0 !important;
 }
-      `}</style>
+`}</style>
+
     </div>
   );
 }
