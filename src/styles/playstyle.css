@@ -27,6 +27,7 @@
   box-sizing: border-box;
   position: relative;
   color: white;
+  font-family: "ArcadeClassic";
 }
 
 /* Top and bottom are column-oriented stacks; slots live inside movie-slots row */
