@@ -747,7 +747,7 @@ export default function DuelPlay() {
     max-width: 100% !important;
     padding: 10px !important;
     box-sizing: border-box !important;
-    transform: translateX(-650px) scale(0.98) !important;
+    transform: translateX(-650px) scale(0.98) !important; /*DO NOT CHANGE! I NEED THIS TO FIT THE BLACK BAR AND ITS CONTENTS IN THE MIDDLE OF THE SCREEN ON MOBILE*/
     transform-origin: top center;
   }
 
@@ -759,17 +759,17 @@ export default function DuelPlay() {
   /* NEW */
 .bar-block {
     transform-origin: center;
-    transform: scaleX(2.0) scaleY(10); /* 8% wider */
-    min-height: 780px;
+    transform: scaleX(2.0) scaleY(10); /* 8% wider */  /*DO NOT CHANGE! I NEED THIS TO FIT THE BLACK BAR AND ITS CONTENTS IN THE MIDDLE OF THE SCREEN ON MOBILE*/
+    min-height: 780px;  /*DO NOT CHANGE! I NEED THIS TO FIT THE BLACK BAR AND ITS CONTENTS IN THE MIDDLE OF THE SCREEN ON MOBILE*/
     position: relative !important;
     left: auto !important;
     right: auto !important;
     top: auto !important;
     margin: 10px auto 0 !important;    /* ⬅ adds top space */
     width: 38px) !important;
-    max-width: 730px !important;
+    max-width: 730px !important;  /*DO NOT CHANGE! I NEED THIS TO FIT THE BLACK BAR AND ITS CONTENTS IN THE MIDDLE OF THE SCREEN ON MOBILE*/
     height: auto !important;
-    min-height: 700px !important;      /* ⬅ BIG FIX: more vertical space */
+    min-height: 700px !important;       /*DO NOT CHANGE! I NEED THIS TO FIT THE BLACK BAR AND ITS CONTENTS IN THE MIDDLE OF THE SCREEN ON MOBILE*/
     padding: 36px !important;          /* ⬅ more padding so card looks full */
     overflow: visible !important;
   }
@@ -785,13 +785,13 @@ export default function DuelPlay() {
 }
 
   .bar-overlay {
-    width: 100% !important;
-    max-width: 100% !important;
+    width: 100% !important;  /*DO NOT CHANGE! I NEED THIS TO FIT THE BLACK BAR AND ITS CONTENTS IN THE MIDDLE OF THE SCREEN ON MOBILE*/
+    max-width: 100% !important;  /*DO NOT CHANGE! I NEED THIS TO FIT THE BLACK BAR AND ITS CONTENTS IN THE MIDDLE OF THE SCREEN ON MOBILE*/
     margin: 0 !important;
     padding: 18px !important;          /* ⬅ increased */
     overflow: visible !important;
     align-items: center !important;
-    transform: translateY(-718px) scale(0.98) !important;
+    transform: translateY(-718px) scale(0.98) !important;  /*DO NOT CHANGE! I NEED THIS TO FIT THE BLACK BAR AND ITS CONTENTS IN THE MIDDLE OF THE SCREEN ON MOBILE*/
   }
 
   .bar-overlay > div[style*="display: flex"] {
@@ -826,6 +826,91 @@ body.duel-open .bar-overlay .slot-poster-wrap {
   margin-left: 0 !important;
   margin-right: 0 !important;
 }
+
+/* !!!!!! NAVBAR */
+
+/* ====== NAVBAR MOBILE CENTERING + DUEL SAFEGUARDS ======
+   Place this after your duel mobile CSS (near end of styles.css).
+   DOES NOT TOUCH your .center-stage/.bar-block transforms. ====== */
+
+/* Ensure navbar always sits above duel transforms */
+.navbar {
+  z-index: 9999 !important; /* higher than duel elements so transforms don't visually overlap it */
+  position: fixed;          /* keep the standard fixed navbar behavior */
+  top: 0;
+  left: 0;
+  right: 0;
+}
+
+/* If some rule hides the navbar when duel opens, force it visible */
+body.duel-open .navbar {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* MOBILE: center the nav contents while keeping any right-side controls usable */
+@media (max-width: 920px) {
+  /* keep the transform rules for center-stage untouched (you said those are required) */
+  /* Center the navbar content column-wise */
+  .navbar {
+    justify-content: center !important;  /* place the nav content in the middle */
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  /* Hide brand if it collides — your existing rules already hide brand on small screens,
+     but we preserve that intent while forcing no reflow to the left. */
+  .brand { display: none !important; }
+
+  /* Keep the navRight group visually centered. If you want the small icon-group
+     to stay exactly centered, make it a normal inline-flex here. */
+  .navRight {
+    position: relative !important;
+    display: inline-flex !important;
+    gap: 12px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin: 0 auto !important; /* center inside navbar */
+  }
+
+  /* Ensure the nav-link group centers and doesn't stretch to the sides */
+  .navLinks {
+    display: inline-flex !important;
+    gap: 12px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    margin: 0 !important;
+  }
+
+  /* Slight spacing tweak for individual icons so they don't hug edges when centered */
+  .nav-icon { margin: 0 6px !important; }
+
+  /* If you still want a small persistent control pinned to the right (e.g. dropdown),
+     give it absolute positioning so it doesn't push the centered group. */
+  .dropdown-panel--pin-right {
+    position: absolute;
+    right: 12px;
+    top: 64px;
+    z-index: 10010;
+  }
+}
+
+/* Keep profile modal rules untouched: ensure they still operate as before */
+.profile-modal {
+  /* do not change left/top/transition here — this block intentionally minimal */
+  z-index: 10020 !important; /* above navbar dropdowns if needed */
+}
+
+/* A defensive rule to prevent duel transforms from changing navbar stacking */
+.duel-play-root,
+.center-stage,
+.bar-block {
+  will-change: transform;
+  /* do NOT set z-index higher than .navbar here */
+}
+
+
 `}</style>
 
     </div>
