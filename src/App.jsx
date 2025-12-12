@@ -84,12 +84,11 @@ export default function App() {
       {/* main flexible container — this will expand and push the footer to the bottom */}
       <div className="app-container">
         <Routes>
-          {/* NOTE: Landing and Rules now route to Playing as you requested */}
-          <Route path="/" element={<Playing />} />
+          <Route path="/" element={<Landing />} />
           <Route path="/signup" element={<Signup onSigned={(u, t) => handleLogin(u, t)} />} />
           <Route path="/login" element={<Login onLogin={(u, t) => handleLogin(u, t)} />} />
           <Route path="/duel" element={<Duel />} />
-          <Route path="/rules" element={<Playing />} />
+          <Route path="/rules" element={<Rules />} />
           <Route path="/profile" element={<ProfilePage user={user} />} />
           <Route path="/profile/:id" element={<ProfilePage />} />
           <Route path="/pages/EditStack" element={<EditStack user={user} />} />
