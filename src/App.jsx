@@ -1,6 +1,6 @@
 // src/App.jsx
 import React, { useState, useEffect } from "react";
-import { Routes, Route, useNavigate } from "react-router-dom";
+import { Routes, Route, useLocation, useNavigate } from "react-router-dom";
 
 // Pages
 import Landing from "./components/Landing";
@@ -17,24 +17,23 @@ import ComingSoon from "./pages/ComingSoon";
 import Attribution from "./pages/Attribution";
 import TikTokCallback from "./pages/TikTokCallback";
 import LetterboxdCallback from "./pages/LetterboxdCallback";
+import Playing from "./pages/Playing";
 
 // Components
 import NavBar from "./components/NavBar";
 import ProfileModal from "./components/ProfileModal";
 import Support from "./components/Support";
 
-import Playing from "./pages/Playing";
-
-import { loadProfileFromLocal, saveProfileToLocal } from "./lib/profileLocal";
-import { fetchProfileByOpenId } from "./lib/api";
-
 export default function App() {
   const [user, setUser] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const nav = useNavigate();
+  const location = useLocation();
+
+  // Check if we are on Playing page
+  const isPlaying = location.pathname.startsWith("/duel/play");
 
   useEffect(() => {
-    // Simplified user load logic
     try {
       const raw = localStorage.getItem("stored_profile") || localStorage.getItem("tiktok_profile");
       if (raw) {
@@ -57,6 +56,12 @@ export default function App() {
     nav("/");
   }
 
+  // If we're on Playing page, render only the page itself
+  if (isPlaying) {
+    return <Playing />;
+  }
+
+  // Otherwise render full app layout
   return (
     <div className="app-root">
       <NavBar user={user} onOpenProfile={() => setModalOpen(true)} />
@@ -80,9 +85,6 @@ export default function App() {
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/coming-soon" element={<ComingSoon />} />
           <Route path="/attribution" element={<Attribution />} />
-
-          {/* NEW: Playing page */}
-          <Route path="/duel/play/:challenger/:opponent" element={<Playing />} />
         </Routes>
       </div>
 
