@@ -1,4 +1,3 @@
-
 // src/App.jsx
 import React, { useState, useEffect } from "react";
 import { Routes, Route, useNavigate } from "react-router-dom";
@@ -30,6 +29,10 @@ import { fetchProfileByOpenId } from "./lib/api";
 export default function App() {
   const [user, setUser] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
+
+  // --- NEW: Track first turn globally ---
+  const [firstTurnActive, setFirstTurnActive] = useState(true);
+
   const nav = useNavigate();
 
   useEffect(() => {
@@ -165,11 +168,18 @@ export default function App() {
 
           <Route path="/coming-soon" element={<ComingSoon />} />
 
-          
           <Route path="/attribution" element={<Attribution />} />
-          
-          <Route path="/duel/play/:challenger/:opponent" element={<DuelPlay />} />
 
+          {/* DuelPlay — now receives firstTurnActive and setter */}
+          <Route
+            path="/duel/play/:challenger/:opponent"
+            element={
+              <DuelPlay
+                firstTurnActive={firstTurnActive}
+                setFirstTurnActive={setFirstTurnActive}
+              />
+            }
+          />
         </Routes>
       </div>
 
