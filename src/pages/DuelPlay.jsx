@@ -759,7 +759,7 @@ export default function DuelPlay() {
   /* NEW */
 .bar-block {
     transform-origin: center;
-    transform: scaleX(2.0) scaleY(5.5); /* 8% wider */
+    transform: scaleX(10.0) scaleY(10); /* 8% wider */
     min-height: 780px;
     position: relative !important;
     left: auto !important;
@@ -791,7 +791,7 @@ export default function DuelPlay() {
     padding: 18px !important;          /* ⬅ increased */
     overflow: visible !important;
     align-items: center !important;
-    transform: translateY(-720px) scale(0.98) !important;
+    transform: translateY(-718px) scale(0.98) !important;
   }
 
   .bar-overlay > div[style*="display: flex"] {
