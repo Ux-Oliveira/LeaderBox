@@ -48,25 +48,10 @@ function Avatar({ src, nickname, size = 72, onClick }) {
   );
 }
 
-function MovieThumb({ movie }) {
-  const poster = movie && (movie.poster_path ? `https://image.tmdb.org/t/p/w342${movie.poster_path}` : movie.poster || movie.image || movie.posterUrl || (movie.raw && (movie.raw.poster || movie.raw.poster_path) ? (movie.raw.poster_path ? `https://image.tmdb.org/t/p/w342${movie.raw.poster_path}` : movie.raw.poster) : null));
-  return (
-    <div style={{ width: 92, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-      <div style={{ width: 92, height: 136, borderRadius: 6, overflow: "hidden", background: "#111", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        {poster ? <img src={poster} alt={movie.title || movie.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} /> : <div style={{ color: "#888" }}>—</div>}
-      </div>
-      <div style={{ width: 92, height: 36, textAlign: "center", fontSize: 12, fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>
-        {movie?.title || movie?.name || ""}
-      </div>
-    </div>
-  );
-}
-
 export default function Duel() {
   const [profiles, setProfiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
-  const [detail, setDetail] = useState(null);
   const nav = useNavigate();
 
   useEffect(() => {
@@ -93,7 +78,6 @@ export default function Duel() {
           losses: Number.isFinite(u.losses) ? u.losses : 0,
           draws: Number.isFinite(u.draws) ? u.draws : 0,
           level: Number.isFinite(u.level) ? u.level : 1,
-          deck: Array.isArray(u.deck) ? u.deck : []
         }));
 
         setProfiles(list);
@@ -117,85 +101,34 @@ export default function Duel() {
 
   function slugFromProfile(p) {
     if (!p) return null;
-    if (p.nickname) {
-      try { return String(p.nickname).replace(/^@+/, "").trim(); } catch (e) {}
-    }
-    if (p.handle) {
-      try { return String(p.handle).replace(/^@+/, "").trim(); } catch (e) {}
-    }
+    if (p.nickname) return String(p.nickname).replace(/^@+/, "").trim();
+    if (p.handle) return String(p.handle).replace(/^@+/, "").trim();
     if (p.open_id) return String(p.open_id);
     return null;
   }
 
-  // NAVIGATE to page DuelPlay instead of opening modal
   async function handleChallenge(profile) {
-    try {
-      const challengerProfile = me;
-      if (!challengerProfile) {
-        alert("Please log in or set your profile before challenging another player.");
-        nav("/profile");
-        return;
-      }
-
-      localStorage.setItem("leaderbox_opponent", JSON.stringify(profile));
-
-      // attempt to play silent audio to unlock sound before navigation (best-effort)
-      try {
-        if (SILENT_AUDIO) {
-          const s = new Audio(SILENT_AUDIO);
-          s.volume = 0;
-          await s.play().catch(() => {});
-        }
-      } catch (e) {
-        // ignore
-      }
-
-      const challengerSlug = slugFromProfile(challengerProfile);
-      const opponentSlug = slugFromProfile(profile);
-
-      if (challengerSlug && opponentSlug) {
-        nav(`/duel/play/${encodeURIComponent(challengerSlug)}/${encodeURIComponent(opponentSlug)}`);
-      } else {
-        window.location.href = "/duel/play";
-      }
-    } catch (e) {
-      console.warn("handleChallenge failed, falling back to navigation", e);
-      const challengerSlug = slugFromProfile(me);
-      const opponentSlug = slugFromProfile(profile);
-      if (challengerSlug && opponentSlug) {
-        nav(`/duel/play/${encodeURIComponent(challengerSlug)}/${encodeURIComponent(opponentSlug)}`);
-      } else {
-        localStorage.setItem("leaderbox_opponent", JSON.stringify(profile));
-        window.location.href = "/duel/play";
-      }
-    }
-  }
-
-  async function openDetail(profile) {
-    if (profile.deck && Array.isArray(profile.deck)) {
-      profile.draws = Number.isFinite(profile.draws) ? profile.draws : 0;
-      setDetail(profile);
+    const challengerProfile = me;
+    if (!challengerProfile) {
+      alert("Please log in or set your profile before challenging another player.");
+      nav("/profile");
       return;
     }
+
+    localStorage.setItem("leaderbox_opponent", JSON.stringify(profile));
+
     try {
-      const res = await fetch(`/api/profile?open_id=${encodeURIComponent(profile.open_id)}`, { credentials: "same-origin" });
-      if (!res.ok) {
-        profile.draws = Number.isFinite(profile.draws) ? profile.draws : 0;
-        setDetail(profile);
-        return;
+      if (SILENT_AUDIO) {
+        const s = new Audio(SILENT_AUDIO);
+        s.volume = 0;
+        await s.play().catch(() => {});
       }
-      const txt = await res.text();
-      let json = null;
-      try { json = JSON.parse(txt); } catch (e) {}
-      const full = json && (json.profile || json) ? (json.profile || json) : profile;
-      full.draws = Number.isFinite(full.draws) ? full.draws : 0;
-      full.deck = Array.isArray(full.deck) ? full.deck : [];
-      setDetail(full);
-    } catch (e) {
-      console.warn("failed to fetch full profile:", e);
-      profile.draws = Number.isFinite(profile.draws) ? profile.draws : 0;
-      setDetail(profile);
-    }
+    } catch {}
+
+    const challengerSlug = slugFromProfile(challengerProfile);
+    const opponentSlug = slugFromProfile(profile);
+
+    nav(`/duel/play/${encodeURIComponent(challengerSlug)}/${encodeURIComponent(opponentSlug)}`);
   }
 
   const filtered = (profiles || []).filter(p => {
@@ -219,7 +152,6 @@ export default function Duel() {
       </div>
 
       {loading && <div style={{ marginTop: 20 }}>Loading players…</div>}
-
       {!loading && filtered.length === 0 && <div style={{ marginTop: 20 }}>No players found.</div>}
 
       {!loading && filtered.length > 0 && (
@@ -228,9 +160,7 @@ export default function Duel() {
             {filtered.map(p => (
               <div key={p.open_id} style={{ padding: 12, borderRadius: 12, background: "linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.02))", display: "flex", flexDirection: "column", gap: 10 }}>
                 <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                  <div onClick={() => openDetail(p)} style={{ cursor: "pointer" }}>
-                    <Avatar src={p.avatar} nickname={p.nickname} size={72} />
-                  </div>
+                  <Avatar src={p.avatar} nickname={p.nickname} size={72} />
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 800 }}>{p.nickname}</div>
                     <div className="small" style={{ color: "#999", marginTop: 6 }}>
@@ -245,32 +175,6 @@ export default function Duel() {
                 </div>
               </div>
             ))}
-          </div>
-        </div>
-      )}
-
-      {detail && (
-        <div onClick={() => setDetail(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-          <div onClick={e => e.stopPropagation()} style={{ width: "min(1100px, 96vw)", maxHeight: "90vh", overflow: "auto", borderRadius: 12, background: "linear-gradient(180deg, rgba(8,9,12,0.98), rgba(16,18,24,0.98))", padding: 18, boxShadow: "0 20px 80px rgba(0,0,0,0.8)", display: "flex", flexDirection: "column", gap: 14 }}>
-            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-              <img src={detail.avatar} alt={detail.nickname} style={{ width: 96, height: 96, objectFit: "cover", borderRadius: 8 }} />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 900, color: "var(--accent)", fontSize: 18 }}>{detail.nickname}</div>
-                <div className="small" style={{ color: "#999", marginTop: 6 }}>Wins: {detail.wins} • Losses: {detail.losses} • Draws: {detail.draws}</div>
-                <div style={{ marginTop: 6 }}>Level {detail.level} — {getLevelName(detail.level)}</div>
-              </div>
-              <button onClick={() => setDetail(null)} style={{ background: "transparent", border: "none", color: "var(--white)", fontSize: 18, cursor: "pointer" }}>✕</button>
-            </div>
-
-            <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", justifyContent: "center" }}>
-              {(detail.deck && Array.isArray(detail.deck) && detail.deck.length > 0) ? detail.deck.map((m, idx) => (<MovieThumb key={idx} movie={m} />)) : (
-                <div className="small" style={{ color: "#999" }}>No public stack available.</div>
-              )}
-            </div>
-
-            <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "center", marginTop: 6 }}>
-              <img src="/play.png" alt="challenge" style={{ width: 56, height: 56, cursor: "pointer", animation: "subtlePulse 2.5s infinite" }} onClick={() => handleChallenge(detail)} />
-            </div>
           </div>
         </div>
       )}
