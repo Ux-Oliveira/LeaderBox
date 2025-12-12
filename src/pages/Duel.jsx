@@ -137,7 +137,6 @@ export default function Duel() {
         return;
       }
 
-      // store opponent for fallback/legacy
       localStorage.setItem("leaderbox_opponent", JSON.stringify(profile));
 
       // attempt to play silent audio to unlock sound before navigation (best-effort)
@@ -151,15 +150,12 @@ export default function Duel() {
         // ignore
       }
 
-      // build slugs and navigate to the page route that renders src/pages/DuelPlay.jsx
       const challengerSlug = slugFromProfile(challengerProfile);
       const opponentSlug = slugFromProfile(profile);
 
       if (challengerSlug && opponentSlug) {
-        // route: /duel/play/:challenger/:opponent
         nav(`/duel/play/${encodeURIComponent(challengerSlug)}/${encodeURIComponent(opponentSlug)}`);
       } else {
-        // fallback: go to generic duel/play page and rely on localStorage
         window.location.href = "/duel/play";
       }
     } catch (e) {
