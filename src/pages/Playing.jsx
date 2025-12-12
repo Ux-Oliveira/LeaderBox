@@ -14,6 +14,46 @@ const SLOT_AUDIO = "/audios/slot.mp3";
 const SILENT_AUDIO = "/audios/silent.mp3";
 const READYGO_AUDIO = "/audios/readygo.mp3";
 
+// normalize profile (from old App.jsx)
+function normalizeProfile(raw) {
+  if (!raw) return null;
+  const nickname = raw.nickname || (raw.handle ? raw.handle.replace(/^@/, "") : null);
+  const avatar = raw.avatar || raw.pfp || (raw.raw?.data?.user?.avatar) || null;
+  return {
+    open_id: raw.open_id || raw.openId || null,
+    nickname,
+    avatar,
+    wins: Number.isFinite(raw.wins) ? raw.wins : 0,
+    losses: Number.isFinite(raw.losses) ? raw.losses : 0,
+    draws: Number.isFinite(raw.draws) ? raw.draws : 0,
+    level: Number.isFinite(raw.level) ? raw.level : 1,
+    deck: Array.isArray(raw.deck) ? raw.deck : [],
+    raw,
+  };
+}
+
+async function fetchProfileBySlug(slug) {
+  if (!slug) return null;
+  try {
+    // fetch by nickname first
+    const byNick = await fetch(`/api/profile?nickname=${encodeURIComponent(slug)}`, { credentials: "same-origin" });
+    if (byNick.ok) {
+      const json = await byNick.json();
+      return normalizeProfile(json.profile || json);
+    }
+  } catch (e) {}
+  try {
+    // fallback to open_id
+    const byId = await fetch(`/api/profile?open_id=${encodeURIComponent(slug)}`, { credentials: "same-origin" });
+    if (byId.ok) {
+      const json = await byId.json();
+      return normalizeProfile(json.profile || json);
+    }
+  } catch (e) {}
+  return null;
+}
+
+// poster helper
 function posterFor(movie) {
   if (!movie) return null;
   if (movie.poster_path) return `https://image.tmdb.org/t/p/w342${movie.poster_path}`;
@@ -25,39 +65,22 @@ function posterFor(movie) {
   return null;
 }
 
-async function fetchProfileBySlug(slug) {
-  if (!slug) return null;
-  try {
-    const res = await fetch(`/api/profile?nickname=${encodeURIComponent(slug)}`, { credentials: "same-origin" });
-    if (!res.ok) return null;
-    const json = await res.json();
-    return json.profile || json;
-  } catch (e) {
-    return null;
-  }
-}
-
+// compute stats
 function computeStats(deckArr) {
   const movies = (deckArr || []).filter(Boolean);
   if (!movies.length) return { pretentious: 0, rewatch: 0, quality: 0, popularity: 0 };
-
   const scores = movies.map(m => m.vote_average || 0);
   const pops = movies.map(m => m.popularity || 0);
-
   const minPop = Math.min(...pops);
   const maxPop = Math.max(...pops);
   const normPops = pops.map(p => (maxPop === minPop ? 0.5 : (p - minPop) / (maxPop - minPop)));
   const normScores = scores.map(s => Math.min(1, Math.max(0, s / 10)));
-
   const quality = scores.reduce((a, b) => a + b, 0) / scores.length;
   const popularity = pops.reduce((a, b) => a + b, 0) / pops.length;
-
   const pretArr = normScores.map((ns, idx) => ns * (1 - normPops[idx]));
   const pretentious = (pretArr.reduce((a, b) => a + b, 0) / pretArr.length) * 100;
-
   const rewatchArr = normScores.map((ns, idx) => ns * normPops[idx]);
   const rewatch = (rewatchArr.reduce((a, b) => a + b, 0) / rewatchArr.length) * 100;
-
   return {
     pretentious: Math.round(pretentious),
     rewatch: Math.round(rewatch),
@@ -66,6 +89,7 @@ function computeStats(deckArr) {
   };
 }
 
+// distribute attack points
 function distributeAttackPoints(totalPoints, moviesArr) {
   const movies = (moviesArr || []).filter(Boolean);
   if (!movies.length) return [];
