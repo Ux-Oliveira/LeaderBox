@@ -315,7 +315,35 @@ export default function Playing() {
         </div>
       </div>
 
-      <button className="yellow-btn">Brush up on the rules</button>
+      {/* controls: Home (left) and Rules (right) */}
+      <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 18 }}>
+        <button
+          className="home"
+          title="Home"
+          onClick={() => navigate("/")}
+          aria-label="Home"
+          style={{
+            background: "transparent",
+            border: "1px solid rgba(255,255,255,0.06)",
+            padding: "10px 12px",
+            borderRadius: 8,
+            cursor: "pointer",
+            color: "var(--white)",
+            fontWeight: 800,
+          }}
+        >
+          <i className="fa-regular fa-house" aria-hidden="true" /> Home
+        </button>
+
+        <button
+          className="yellow-btn"
+          onClick={() => navigate("/rules")}
+          aria-label="Brush up on the rules"
+          style={{ marginLeft: 6 }}
+        >
+          Brush up on the rules
+        </button>
+      </div>
 
       {showGoMessage && <div className="go-message">1st Turn: GO!</div>}
     </div>
