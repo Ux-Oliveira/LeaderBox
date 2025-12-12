@@ -33,7 +33,21 @@ function LevelPill({ level }) {
 function Avatar({ src, nickname, size = 72, onClick }) {
   if (!src) {
     return (
-      <div onClick={onClick} style={{ width: size, height: size, display: "flex", alignItems: "center", justifyContent: "center", background: "#111", color: "#ddd", fontSize: Math.max(18, size / 3), cursor: onClick ? "pointer" : "default", borderRadius: 6 }}>
+      <div
+        onClick={onClick}
+        style={{
+          width: size,
+          height: size,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "#111",
+          color: "#ddd",
+          fontSize: Math.max(18, size / 3),
+          cursor: onClick ? "pointer" : "default",
+          borderRadius: 6
+        }}
+      >
         {(nickname || "U").slice(0, 1).toUpperCase()}
       </div>
     );
@@ -54,6 +68,17 @@ export default function Duel() {
   const [query, setQuery] = useState("");
   const nav = useNavigate();
 
+  // safe localStorage profile parsing
+  const me = (() => {
+    try {
+      const p = localStorage.getItem("stored_profile") || localStorage.getItem("tiktok_profile");
+      return p ? JSON.parse(p) : null;
+    } catch (e) {
+      console.warn("Failed parsing localStorage profile:", e);
+      return null;
+    }
+  })();
+
   useEffect(() => {
     (async () => {
       setLoading(true);
@@ -64,11 +89,12 @@ export default function Duel() {
           setLoading(false);
           return;
         }
-        const payload = r.data;
+
+        const payload = r.data || {};
         let list = [];
         if (payload && Array.isArray(payload.profiles)) list = payload.profiles;
-        else if (payload && payload.profiles === undefined && payload.ok && Array.isArray(payload)) list = payload;
-        else if (payload && payload.profile && Array.isArray(payload.profile)) list = payload.profile;
+        else if (Array.isArray(payload)) list = payload;
+        else if (payload.profile && Array.isArray(payload.profile)) list = payload.profile;
 
         list = list.map(u => ({
           open_id: u.open_id,
@@ -78,6 +104,7 @@ export default function Duel() {
           losses: Number.isFinite(u.losses) ? u.losses : 0,
           draws: Number.isFinite(u.draws) ? u.draws : 0,
           level: Number.isFinite(u.level) ? u.level : 1,
+          deck: Array.isArray(u.deck) ? u.deck : [],
         }));
 
         setProfiles(list);
@@ -89,15 +116,6 @@ export default function Duel() {
       }
     })();
   }, []);
-
-  const me = (() => {
-    try {
-      const p = localStorage.getItem("stored_profile") || localStorage.getItem("tiktok_profile");
-      return p ? JSON.parse(p) : null;
-    } catch (e) {
-      return null;
-    }
-  })();
 
   function slugFromProfile(p) {
     if (!p) return null;
@@ -171,7 +189,12 @@ export default function Duel() {
                   <LevelPill level={p.level || 1} />
                 </div>
                 <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                  <img src="/play.png" alt="play" style={{ width: 36, height: 36, cursor: "pointer", animation: "subtlePulse 2.5s infinite" }} onClick={() => handleChallenge(p)} />
+                  <img
+                    src="/play.png"
+                    alt="play"
+                    style={{ width: 36, height: 36, cursor: "pointer", animation: "subtlePulse 2.5s infinite" }}
+                    onClick={() => handleChallenge(p)}
+                  />
                 </div>
               </div>
             ))}
