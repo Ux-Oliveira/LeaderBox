@@ -126,6 +126,7 @@ export default function DuelPlay() {
   // animation and audio state
   const [revealIndex, setRevealIndex] = useState(-1); // -1 = not started, 0..n-1 reveals
   const [showGoMessage, setShowGoMessage] = useState(false);
+  const [firstTurnActive, setFirstTurnActive] = useState(false); // ← NEW STATE
   const slotAudioRef = useRef(null);
   const bgAudioRef = useRef(null);
   const silentAudioRef = useRef(null);
@@ -275,6 +276,7 @@ export default function DuelPlay() {
         } else {
           setTimeout(() => {
             setShowGoMessage(true);
+            setFirstTurnActive(true); // ← FIRST TURN ACTIVATION
             setTimeout(() => setShowGoMessage(false), 1000);
           }, 250);
         }
@@ -546,8 +548,10 @@ export default function DuelPlay() {
               )}
             </div>
 
+
             <div style={{ height: 6 }} />
 
+            {/* IF U NEED TO BREAK IT IN HALF DO IT HERE*/}
             {/* Challenger slots (bottom row) */}
             <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 8, overflowX: "auto" }}>
               {Array.from({ length: 4 }).map((_, i) => {
