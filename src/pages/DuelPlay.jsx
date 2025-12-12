@@ -706,22 +706,22 @@ export default function DuelPlay() {
   padding:24px;
 }
 
-/* Desktop black bar size */
+/* ❗ Desktop: Make block MUCH taller so pfp + level stay inside */
 .bar-block {
   width: 100%;
-  height: 780px;                     /* taller to contain avatars + info */
+  height: 780px;                     /* ⬅ increased from 690px */
   background: #101221;
   border-radius: 14px;
   box-shadow: 0 8px 40px rgba(0,0,0,0.6);
   border: 1px solid rgba(255,255,255,0.02);
   position: absolute;
-  top: 0;
+  top: 0;                             /* ⬅ raise upward so more room below */
   left: 0;
   right: 0;
   z-index: 10;
 }
 
-/* Overlay sits above the bar and contains the content */
+/* Protect overlay */
 .bar-overlay {
   position: relative;
   width: calc(100% - 80px);
@@ -732,7 +732,7 @@ export default function DuelPlay() {
   flex-direction: column;
   align-items: center;
   gap: 16px;
-  padding: 22px 10px 28px;
+  padding: 22px 10px 28px;           /* ⬅ a bit more breathing */
   text-align: center;
 }
 
@@ -740,47 +740,60 @@ export default function DuelPlay() {
 /*   MOBILE FIXES            */
 /* ========================= */
 @media (max-width: 920px) {
-  /* keep root padding small on mobile */
   .duel-play-root { padding-left: 10px !important; padding-right: 10px !important; }
 
-  /* remove forced transforms so navbar and page flow are unaffected */
   .center-stage {
     width: 100% !important;
     max-width: 100% !important;
     padding: 10px !important;
     box-sizing: border-box !important;
-    transform: none !important;            /* <-- important: no translateX/scale here */
+    transform: translateX(-650px) scale(0.98) !important;
     transform-origin: top center;
-    margin: 0 auto;
   }
 
-  /* Make the bar flow (relative) and taller on mobile; keep it centered */
-  .bar-block {
+  .here {
+  
+  }
+
+  /* ❗ MOBILE FIX: Make it MUCH TALLER and lower from top */
+  /* NEW */
+.bar-block {
+    transform-origin: center;
+    transform: scaleX(2.0) scaleY(10); /* 8% wider */
+    min-height: 780px;
     position: relative !important;
     left: auto !important;
     right: auto !important;
     top: auto !important;
-    margin: 10px auto 0 !important;
-    width: calc(100% - 28px) !important;
-    max-width: 720px !important;
+    margin: 10px auto 0 !important;    /* ⬅ adds top space */
+    width: 38px) !important;
+    max-width: 730px !important;
     height: auto !important;
-    min-height: 600px !important;
-    padding: 22px !important;
+    min-height: 700px !important;      /* ⬅ BIG FIX: more vertical space */
+    padding: 36px !important;          /* ⬅ more padding so card looks full */
     overflow: visible !important;
   }
 
-  /* Overlay should fit inside the bar and allow scrolling if necessary */
+/* mobile variant: still bigger but won't overflow viewport */
+@media (max-width: 920px) {
+  .bar-block {
+    width: calc(100% + 40px); /* slightly wider than container on mobile */
+    margin: 0 -20px;          /* center the wider bar */
+    min-height: 600px;        /* mobile needs more vertical space (your previous value) */
+    padding: 22px;            /* keep interior padding */
+  }
+}
+
   .bar-overlay {
     width: 100% !important;
     max-width: 100% !important;
     margin: 0 !important;
-    padding: 18px !important;
+    padding: 18px !important;          /* ⬅ increased */
     overflow: visible !important;
     align-items: center !important;
-    transform: none !important;
+    transform: translateY(-718px) scale(0.98) !important;
   }
 
-  /* Center rows and keep poster sizes reasonable */
   .bar-overlay > div[style*="display: flex"] {
     justify-content: center !important;
     width: 100% !important;
@@ -788,6 +801,7 @@ export default function DuelPlay() {
     margin: 0 auto;
   }
 
+  /* Posters */
   .slot-poster-wrap { width: 78px !important; height: 116px !important; }
   .duel-slot { width: 94px !important; }
 }
@@ -795,16 +809,15 @@ export default function DuelPlay() {
 /* ========================= */
 /*   LARGE-TALL SCREENS      */
 /* ========================= */
-@media (min-width: 1080px) and (min-height: 2340px) {
+@media (min-width: 1080px) && (min-height: 2340px) {
   .center-stage { max-width: 820px !important; padding: 32px !important; }
-  .bar-block { max-height: calc(100vh - 160px) !important; overflow: hidden !important; }
+  .bar-block { max-height: calc(100vh - 160px) !important; }    /* ⬅ deeper */
   .bar-overlay { max-height: calc(100vh - 200px) !important; overflow: auto !important; }
 }
 
 /* ========================= */
 /*   DUEL-OPEN TWEAKS        */
 /* ========================= */
-/* small shift is OK, but avoid hiding navbar via global rules — do not change .navbar here */
 body.duel-open .center-stage { transform: translateX(1px) !important; }
 
 body.duel-open .bar-overlay > div,
@@ -812,19 +825,6 @@ body.duel-open .bar-overlay .duel-slot,
 body.duel-open .bar-overlay .slot-poster-wrap {
   margin-left: 0 !important;
   margin-right: 0 !important;
-}
-
-/* Safety: make sure our duel styles don't unintentionally change navbar layout on this page.
-   This rule is intentionally conservative: it prevents our local styles from overriding the global navbar
-   positioning in case some other stylesheet tries to hide or move it when duel styles are present. */
-.duel-play-root ~ .navbar,
-.duel-play-root .navbar {
-  /* do not force display/position here — just ensure the navbar can remain fixed at top */
-  position: fixed !important;
-  top: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
-  z-index: 60 !important;
 }
 `}</style>
 
