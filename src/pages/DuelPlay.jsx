@@ -782,6 +782,14 @@ body.duel-open .bar-overlay .slot-poster-wrap {
   margin-left: 0 !important;
   margin-right: 0 !important;
 }
+
+/* Center the navbar content column-wise */
+  .navbar {
+    justify-content: center !important;  /* place the nav content in the middle */
+    transform: translateX(-160px) scale(0.98) !important;
+    padding-left: 12px;
+    padding-right: 12px;
+  }
 `}</style>
 
     </div>
