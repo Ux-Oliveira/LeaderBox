@@ -828,22 +828,6 @@ body.duel-open .bar-overlay .slot-poster-wrap {
 }
 
 /* !!!!!! NAVBAR !!!!!! */
-/* Ensure navbar always sits above duel transforms */
-.navbar {
-  z-index: 9999 !important; /* higher than duel elements so transforms don't visually overlap it */
-  position: fixed;          /* keep the standard fixed navbar behavior */
-  top: 0;
-  left: 0;
-  right: 0;
-}
-
-/* If some rule hides the navbar when duel opens, force it visible */
-body.duel-open .navbar {
-  display: flex !important;
-  visibility: visible !important;
-  opacity: 1 !important;
-}
-
 /* MOBILE: center the nav contents while keeping any right-side controls usable */
 @media (max-width: 920px) {
   /* keep the transform rules for center-stage untouched (you said those are required) */
@@ -854,59 +838,6 @@ body.duel-open .navbar {
     padding-left: 12px;
     padding-right: 12px;
   }
-
-  /* Hide brand if it collides — your existing rules already hide brand on small screens,
-     but we preserve that intent while forcing no reflow to the left. */
-  .brand { display: none !important; }
-
-  /* Keep the navRight group visually centered. If you want the small icon-group
-     to stay exactly centered, make it a normal inline-flex here. */
-  .navRight {
-    position: relative !important;
-    display: inline-flex !important;
-    gap: 12px !important;
-    align-items: center !important;
-    justify-content: center !important;
-    margin: 0 auto !important; /* center inside navbar */
-  }
-
-  /* Ensure the nav-link group centers and doesn't stretch to the sides */
-  .navLinks {
-    display: inline-flex !important;
-    gap: 12px !important;
-    align-items: center !important;
-    justify-content: center !important;
-    margin: 0 !important;
-  }
-
-  /* Slight spacing tweak for individual icons so they don't hug edges when centered */
-  .nav-icon { margin: 0 6px !important; }
-
-  /* If you still want a small persistent control pinned to the right (e.g. dropdown),
-     give it absolute positioning so it doesn't push the centered group. */
-  .dropdown-panel--pin-right {
-    position: absolute;
-    right: 12px;
-    top: 64px;
-    z-index: 10010;
-  }
-}
-
-/* Keep profile modal rules untouched: ensure they still operate as before */
-.profile-modal {
-  /* do not change left/top/transition here — this block intentionally minimal */
-  z-index: 10020 !important; /* above navbar dropdowns if needed */
-}
-
-/* A defensive rule to prevent duel transforms from changing navbar stacking */
-.duel-play-root,
-.center-stage,
-.bar-block {
-  will-change: transform;
-  /* do NOT set z-index higher than .navbar here */
-}
-
-
 `}</style>
 
     </div>
