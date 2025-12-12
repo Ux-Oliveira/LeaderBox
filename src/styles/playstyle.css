@@ -1,3 +1,20 @@
+@font-face {
+  font-family: "ArcadeClassic";
+  src: local("Courier New"), local("monospace");
+}
+
+/*color palette*/
+:root{
+  --bg: #525DA9;
+  --tone: #FDEE69;
+  --tone: #DE5022;
+  --redlink: #AB350F;
+  --white: #FFFFFF;
+  --black: #212121;
+  --card-bg: rgba(255,255,255,0.03);
+}
+
+
 /* Plain background, no nav/footer/modal */
 .playing-root {
   min-height: 100vh;
@@ -10,7 +27,6 @@
   box-sizing: border-box;
   position: relative;
   color: white;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial;
 }
 
 /* Top and bottom are column-oriented stacks; slots live inside movie-slots row */
