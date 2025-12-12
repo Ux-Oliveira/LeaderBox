@@ -207,7 +207,11 @@ export default function DuelPlay() {
         // show BEGIN overlay automatically on small screens only
         const mobileBreakpoint = 920; // same threshold you've used
         if (typeof window !== "undefined" && window.innerWidth <= mobileBreakpoint) {
-          setShowBeginOverlay(true);
+          // BEGIN button removed — automatically apply the same effect BEGIN would have done.
+          // Call handleBeginClick shortly after init so DOM refs exist (equivalent to tapping BEGIN).
+          setTimeout(() => {
+            try { handleBeginClick(); } catch (e) { /* swallow */ }
+          }, 60);
         } else {
           setShowBeginOverlay(false);
         }
@@ -286,7 +290,12 @@ export default function DuelPlay() {
       if (!mountedRef.current) return;
       const mobileBreakpoint = 920;
       if (window.innerWidth <= mobileBreakpoint) {
-        if (!scaledRef.current) setShowBeginOverlay(true);
+        if (!scaledRef.current) {
+          // BEGIN removed — auto-apply the same behavior if not already applied
+          setTimeout(() => {
+            try { handleBeginClick(); } catch (e) { /* swallow */ }
+          }, 60);
+        }
       } else {
         setShowBeginOverlay(false);
         // clear transform when leaving mobile
@@ -448,59 +457,6 @@ export default function DuelPlay() {
       className="duel-play-root"
       style={{ padding: 24, display: "flex", justifyContent: "center", position: "relative" }}
     >
-      {/* BEGIN overlay for mobile */}
-      {showBeginOverlay && (
-        <div
-          className="duel-begin-overlay"
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 9999,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background: "linear-gradient(180deg, rgba(2,2,6,0.85), rgba(2,2,6,0.9))",
-            padding: 24,
-          }}
-        >
-          <div style={{ width: "100%", maxWidth: 520, textAlign: "center", color: "#fff" }}>
-            <h2 className="h1-retro" style={{ marginBottom: 8 }}>Prepare for battle</h2>
-            <p style={{ color: "rgba(255,255,255,0.85)", marginBottom: 18 }}>Tap BEGIN to fit this duel nicely on your device.</p>
-            <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
-              <button
-                onClick={handleBeginClick}
-                style={{
-                  padding: "12px 18px",
-                  borderRadius: 10,
-                  background: "linear-gradient(90deg,#FDEE69,#ffd85a)",
-                  color: "#111",
-                  fontWeight: 900,
-                  border: 0,
-                  cursor: "pointer",
-                  fontSize: 16,
-                }}
-              >
-                BEGIN
-              </button>
-              <button
-                onClick={() => { setShowBeginOverlay(false); scaledRef.current = true; }}
-                style={{
-                  padding: "12px 16px",
-                  borderRadius: 10,
-                  background: "transparent",
-                  color: "#fff",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                  cursor: "pointer"
-                }}
-              >
-                Skip
-              </button>
-            </div>
-            <div style={{ marginTop: 12, color: "rgba(255,255,255,0.6)", fontSize: 13 }}>You can always use pinch-to-zoom in your browser if needed.</div>
-          </div>
-        </div>
-      )}
-
       <div
         className="center-stage"
         style={{
@@ -826,18 +782,6 @@ body.duel-open .bar-overlay .slot-poster-wrap {
   margin-left: 0 !important;
   margin-right: 0 !important;
 }
-
-/* !!!!!! NAVBAR !!!!!! */
-/* MOBILE: center the nav contents while keeping any right-side controls usable */
-@media (max-width: 920px) {
-  /* keep the transform rules for center-stage untouched (you said those are required) */
-  /* Center the navbar content column-wise */
-  .navbar {
-    justify-content: center !important;  /* place the nav content in the middle */
-    transform: translateX(-160px) scale(0.98) !important;
-    padding-left: 12px;
-    padding-right: 12px;
-  }
 `}</style>
 
     </div>
