@@ -759,7 +759,7 @@ export default function DuelPlay() {
   /* NEW */
 .bar-block {
     transform-origin: center;
-    transform: scaleX(10.0) scaleY(10); /* 8% wider */
+    transform: scaleX(2.0) scaleY(10); /* 8% wider */
     min-height: 780px;
     position: relative !important;
     left: auto !important;
