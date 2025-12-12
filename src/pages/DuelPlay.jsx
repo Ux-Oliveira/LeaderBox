@@ -827,12 +827,7 @@ body.duel-open .bar-overlay .slot-poster-wrap {
   margin-right: 0 !important;
 }
 
-/* !!!!!! NAVBAR */
-
-/* ====== NAVBAR MOBILE CENTERING + DUEL SAFEGUARDS ======
-   Place this after your duel mobile CSS (near end of styles.css).
-   DOES NOT TOUCH your .center-stage/.bar-block transforms. ====== */
-
+/* !!!!!! NAVBAR !!!!!! */
 /* Ensure navbar always sits above duel transforms */
 .navbar {
   z-index: 9999 !important; /* higher than duel elements so transforms don't visually overlap it */
@@ -855,6 +850,7 @@ body.duel-open .navbar {
   /* Center the navbar content column-wise */
   .navbar {
     justify-content: center !important;  /* place the nav content in the middle */
+    transform: translateX(-180px) scale(0.98) !important;
     padding-left: 12px;
     padding-right: 12px;
   }
