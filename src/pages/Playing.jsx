@@ -319,22 +319,16 @@ export default function Playing() {
       <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 18 }}>
         <button
           className="home"
-          title="Home"
           onClick={() => navigate("/")}
           aria-label="Home"
           style={{
-            background: "transparent",
-            border: "1px solid rgba(255,255,255,0.06)",
             padding: "10px 12px",
-            borderRadius: 8,
             cursor: "pointer",
-            color: "var(--white)",
+            color: "var(--tone)",
             fontWeight: 800,
           }}
         >
-          <i className="fa-regular fa-house" aria-hidden="true" /> Home
-        </button>
-
+          <i className="fa-regular fa-house" aria-hidden="true" /></button>
         <button
           className="yellow-btn"
           onClick={() => navigate("/rules")}
