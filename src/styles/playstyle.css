@@ -10,36 +10,52 @@
   box-sizing: border-box;
   position: relative;
   color: white;
-  font-family: sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial;
 }
 
+/* Top and bottom are column-oriented stacks; slots live inside movie-slots row */
 .player-top, .player-bottom {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 12px;
+  width: 100%;
+  max-width: 980px;
 }
 
+/* player info rows */
 .player-info {
   display: flex;
   align-items: center;
   gap: 12px;
+  margin-bottom: 6px;
 }
 
 .player-info-bottom {
   display: flex;
   align-items: center;
   gap: 12px;
+  margin-top: 10px;
 }
 
+/* remove boxed frame for pfp: make it circular and transparent */
 .pfp {
   width: 72px;
   height: 72px;
-  border-radius: 12px;
+  border-radius: 999px; /* full circle */
   object-fit: cover;
-  background: #111;
+  background: transparent; /* no square frame */
+  border: none;
+  display: block;
 }
 
+/* helper to optionally override (kept for explicitness) */
+.pfp.no-frame {
+  background: transparent;
+  box-shadow: none;
+}
+
+/* username + level */
 .username-level {
   display: flex;
   flex-direction: column;
@@ -56,11 +72,14 @@
   color: #ddd;
 }
 
+/* challenger totals area */
 .points {
   font-weight: 900;
   color: #FDEE69;
+  margin-top: 6px;
 }
 
+/* attack badges under each movie */
 .atk-points span {
   margin-right: 6px;
   font-weight: 700;
@@ -68,12 +87,25 @@
   color: #FDEE69;
 }
 
+/* container for slots plus atk badge */
 .movie-slots {
   display: flex;
   gap: 12px;
   margin-top: 6px;
+  justify-content: center;
+  flex-wrap: nowrap;
 }
 
+/* each slot and its badge */
+.slot-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 92px;
+}
+
+/* poster slot */
 .slot {
   width: 92px;
   height: 136px;
@@ -85,31 +117,62 @@
   justify-content: center;
   opacity: 0;
   transform: translateY(0);
-  transition: transform 420ms cubic-bezier(.2,.9,.2,1), opacity 360ms;
+  transition: transform 240ms cubic-bezier(.2,.9,.2,1), opacity 240ms, box-shadow 240ms;
 }
 
+/* poster image */
 .slot img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  display: block;
+  transition: transform 240ms ease;
 }
 
+/* visible/hidden transforms */
 .slot.visible.from-top { opacity: 1; transform: translateY(0); }
 .slot.hidden.from-top { opacity: 0; transform: translateY(-18px) scale(0.98); }
 
 .slot.visible.from-bottom { opacity: 1; transform: translateY(0); }
 .slot.hidden.from-bottom { opacity: 0; transform: translateY(18px) scale(0.98); }
 
+/* hover effect on each visible slot */
+.slot:hover {
+  transform: translateY(-6px) scale(1.04);
+  box-shadow: 0 18px 40px rgba(0,0,0,0.6);
+}
+.slot:hover img { transform: scale(1.03); }
+
+/* empty placeholder when no poster */
 .empty-slot {
   color: #666;
   font-weight: 700;
   font-size: 20px;
 }
 
-.spacer {
-  height: 32px;
+/* ATK badge under each slot */
+.atk-badge {
+  font-weight: 800;
+  font-size: 12px;
+  color: #FDEE69;
+  min-height: 18px;     /* reserve space so layout doesn't jump */
+  line-height: 18px;
+  text-align: center;
 }
 
+/* opponent: reserve space but hide text */
+.atk-badge.placeholder {
+  visibility: hidden;
+}
+
+/* Larger gap between top and bottom — the GO message appears here */
+.spacer {
+  height: 180px;
+  width: 100%;
+  max-width: 980px;
+}
+
+/* yellow rules button */
 .yellow-btn {
   margin-top: 24px;
   padding: 12px 24px;
@@ -120,6 +183,7 @@
   cursor: pointer;
 }
 
+/* center GO message */
 .go-message {
   position: absolute;
   top: 50%;
@@ -128,4 +192,17 @@
   font-size: 28px;
   font-weight: 900;
   color: #FDEE69;
+  pointer-events: none;
+  text-shadow: 0 6px 20px rgba(0,0,0,0.6);
+}
+
+/* responsive */
+@media (max-width: 920px) {
+  .movie-slots { gap: 8px; overflow-x: auto; padding: 8px; }
+  .slot { width: 78px; height: 116px; border-radius: 8px; }
+  .slot-wrap { width: 78px; }
+  .pfp { width: 60px; height: 60px; border-radius: 999px; }
+  .username { font-size: 16px; }
+  .go-message { font-size: 22px; }
+  .spacer { height: 120px; }
 }
