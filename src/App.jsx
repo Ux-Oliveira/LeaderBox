@@ -19,7 +19,7 @@ import TikTokCallback from "./pages/TikTokCallback";
 import LetterboxdCallback from "./pages/LetterboxdCallback";
 import Playing from "./pages/Playing";
 
-// Components
+// Components (full UI)
 import NavBar from "./components/NavBar";
 import ProfileModal from "./components/ProfileModal";
 import Support from "./components/Support";
@@ -30,7 +30,7 @@ export default function App() {
   const nav = useNavigate();
   const location = useLocation();
 
-  // Check if we are on Playing page
+  // IMPORTANT: detect playing route by path prefix
   const isPlaying = location.pathname.startsWith("/duel/play");
 
   useEffect(() => {
@@ -40,7 +40,9 @@ export default function App() {
         const p = JSON.parse(raw);
         setUser(p);
       }
-    } catch {}
+    } catch (e) {
+      // ignore
+    }
   }, []);
 
   function handleLogin(userObj, token) {
@@ -56,18 +58,30 @@ export default function App() {
     nav("/");
   }
 
-  // If we're on Playing page, render only the page itself
+  // If we're on the Playing route, render a minimal router tree that still
+  // provides route context (so useParams() works inside Playing)
   if (isPlaying) {
-    return <Playing />;
+    return (
+      <div style={{ width: "100%", height: "100vh" }}>
+        <Routes>
+          {/* Keep this exact path so useParams inside Playing gets challenger & opponent */}
+          <Route path="/duel/play/:challenger/:opponent" element={<Playing />} />
+          {/* Optionally support legacy /duel/play without params to still show Playing */}
+          <Route path="/duel/play" element={<Playing />} />
+        </Routes>
+      </div>
+    );
   }
 
-  // Otherwise render full app layout
+  // Otherwise render the normal full app layout (navbar, gif, routes, modal, support)
   return (
     <div className="app-root">
       <NavBar user={user} onOpenProfile={() => setModalOpen(true)} />
 
+      {/* Single persistent background GIF for the entire app */}
       <div className="bg-gif" aria-hidden="true" />
 
+      {/* main flexible container — this will expand and push the footer to the bottom */}
       <div className="app-container">
         <Routes>
           <Route path="/" element={<Landing />} />
@@ -85,9 +99,11 @@ export default function App() {
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/coming-soon" element={<ComingSoon />} />
           <Route path="/attribution" element={<Attribution />} />
+          {/* Note: we do NOT register /duel/play here because it's handled above when isPlaying */}
         </Routes>
       </div>
 
+      {/* Profile modal stays outside app-container (overlays) */}
       <ProfileModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
@@ -96,6 +112,7 @@ export default function App() {
         onUpdateUser={(u) => setUser(u)}
       />
 
+      {/* Support (footer/section) — placed in normal document flow so it appears after the gif and page content */}
       <Support />
     </div>
   );
