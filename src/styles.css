@@ -2,7 +2,6 @@
   font-family: "ArcadeClassic";
   src: local("Courier New"), local("monospace");
 }
-
 /*color palette*/
 :root{
   --bg: #525DA9;
