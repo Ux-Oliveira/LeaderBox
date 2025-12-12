@@ -1,7 +1,7 @@
 // src/pages/Playing.jsx
 import React, { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import "../styles/playstyle.css"; // relative import — ensure this path matches your project
+import "../styles/playstyle.css"; // ensure this path matches your project
 
 const BACKGROUND_SONGS = [
   "/audios/city_battle_stars.mp3",
@@ -14,7 +14,6 @@ const SLOT_AUDIO = "/audios/slot.mp3";
 const SILENT_AUDIO = "/audios/silent.mp3";
 const READYGO_AUDIO = "/audios/readygo.mp3";
 
-// poster helper
 function posterFor(movie) {
   if (!movie) return null;
   if (movie.poster_path) return `https://image.tmdb.org/t/p/w342${movie.poster_path}`;
@@ -114,7 +113,7 @@ function distributeAttackPoints(totalPoints, moviesArr) {
 }
 
 export default function Playing() {
-  // <-- IMPORTANT: param names must match your Duel navigation route
+  // param names must match Duel navigation route
   const { challenger: challengerSlug, opponent: opponentSlug } = useParams();
   const navigate = useNavigate();
 
@@ -137,7 +136,6 @@ export default function Playing() {
       setLoading(true);
 
       try {
-        // fetch exactly like DuelPlay did — by slug (nickname) first, then open_id
         const [c, o] = await Promise.all([
           fetchProfileBySlug(challengerSlug),
           fetchProfileBySlug(opponentSlug),
@@ -146,7 +144,6 @@ export default function Playing() {
         if (!mounted) return;
 
         if (!c || !o) {
-          // friendly fallback: show error and go back
           alert("Error loading duel users");
           navigate(-1);
           return;
@@ -265,7 +262,7 @@ export default function Playing() {
     <div className="playing-root">
       <div className="player-top">
         <div className="player-info">
-          <img src={opponent.avatar || ""} alt={opponent.nickname} className="pfp" />
+          <img src={opponent.avatar || ""} alt={opponent.nickname} className="pfp"/>
           <div className="username-level">
             <div className="username">{opponent.nickname}</div>
             <div className="level">Level {opponent.level}</div>
@@ -277,8 +274,12 @@ export default function Playing() {
             const poster = posterFor(m);
             const visible = i <= revealIndexTop;
             return (
-              <div key={i} className={`slot ${visible ? "visible from-top" : "hidden from-top"}`}>
-                {poster ? <img src={poster} alt={m.title || m.name} /> : <div className="empty-slot">—</div>}
+              <div key={i} className="slot-wrap">
+                <div className={`slot ${visible ? "visible from-top" : "hidden from-top"}`}>
+                  {poster ? <img src={poster} alt={m.title || m.name} /> : <div className="empty-slot">—</div>}
+                </div>
+                {/* opponent: reserve space but do not display atk */}
+                <div className="atk-badge placeholder" aria-hidden="true"> </div>
               </div>
             );
           })}
@@ -292,23 +293,24 @@ export default function Playing() {
           {(challenger.deck || []).map((m, i) => {
             const poster = posterFor(m);
             const visible = i <= revealIndexBottom;
+            const atkLabel = challengerPerMovie && challengerPerMovie[i] !== undefined ? `${challengerPerMovie[i]} atk` : "—";
             return (
-              <div key={i} className={`slot ${visible ? "visible from-bottom" : "hidden from-bottom"}`}>
-                {poster ? <img src={poster} alt={m.title || m.name} /> : <div className="empty-slot">—</div>}
+              <div key={i} className="slot-wrap">
+                <div className={`slot ${visible ? "visible from-bottom" : "hidden from-bottom"}`}>
+                  {poster ? <img src={poster} alt={m.title || m.name} /> : <div className="empty-slot">—</div>}
+                </div>
+                <div className="atk-badge">{visible ? atkLabel : " "}</div>
               </div>
             );
           })}
         </div>
 
         <div className="player-info-bottom">
-          <img src={challenger.avatar || ""} alt={challenger.nickname} className="pfp" />
+          <img src={challenger.avatar || ""} alt={challenger.nickname} className="pfp no-frame"/>
           <div className="username-level">
             <div className="username">{challenger.nickname}</div>
             <div className="level">Level {challenger.level}</div>
             <div className="points">{challengerPoints} pts</div>
-            <div className="atk-points">
-              {challengerPerMovie.map((p, idx) => <span key={idx}>{p} atk</span>)}
-            </div>
           </div>
         </div>
       </div>
