@@ -1,7 +1,7 @@
 // src/pages/Playing.jsx
 import React, { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import "../styles/playstyle.css";
+import "../styles/playstyle.css"; // ensure this path matches your project
 
 const BACKGROUND_SONGS = [
   "/audios/city_battle_stars.mp3",
@@ -315,13 +315,31 @@ export default function Playing() {
         </div>
       </div>
 
-      {/* controls: only Rules button (navigates by hard reload so /rules is available) */}
-      <div className="playing-controls" role="toolbar" aria-label="Playing controls" style={{ marginTop: 18 }}>
+      {/* controls: Home (left) and Rules (right) */}
+      <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 18 }}>
         <button
-          type="button"
+          className="home"
+          title="Home"
+          onClick={() => navigate("/")}
+          aria-label="Home"
+          style={{
+            background: "transparent",
+            border: "1px solid rgba(255,255,255,0.06)",
+            padding: "10px 12px",
+            borderRadius: 8,
+            cursor: "pointer",
+            color: "var(--white)",
+            fontWeight: 800,
+          }}
+        >
+          <i className="fa-regular fa-house" aria-hidden="true" /> Home
+        </button>
+
+        <button
           className="yellow-btn"
-          onClick={() => { window.location.href = "/rules"; }}
+          onClick={() => navigate("/rules")}
           aria-label="Brush up on the rules"
+          style={{ marginLeft: 6 }}
         >
           Brush up on the rules
         </button>
