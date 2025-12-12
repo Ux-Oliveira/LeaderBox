@@ -1,7 +1,7 @@
 // src/pages/Playing.jsx
 import React, { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import "../styles/playstyle.css"; // ensure this path matches your project
+import "../styles/playstyle.css";
 
 const BACKGROUND_SONGS = [
   "/audios/city_battle_stars.mp3",
