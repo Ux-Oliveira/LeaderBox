@@ -483,7 +483,7 @@ export default function Playing() {
   const payload = { winner: winnerId, loser: loserId, via: "first_turn_auto" };
 
   try {
-    const res = await fetch("/api/duel/result", {
+    const res = await fetch("/api/duel-result", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
