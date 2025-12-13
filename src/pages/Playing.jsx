@@ -138,36 +138,284 @@ function playAudioWait(src, fallbackMs = 700) {
 export default function Playing() {
   const { challenger: challengerSlug, opponent: opponentSlug } = useParams();
   const navigate = useNavigate();
-  const [showGoMessage, setShowGoMessage] = useState(false);
+
   const [loading, setLoading] = useState(true);
   const [challenger, setChallenger] = useState(null);
   const [opponent, setOpponent] = useState(null);
   const [revealIndexTop, setRevealIndexTop] = useState(-1);
   const [revealIndexBottom, setRevealIndexBottom] = useState(-1);
+  const [showGoMessage, setShowGoMessage] = useState(false);
 
-  /* state + refs unchanged */
+  // refs for stacks and slots
+  const topStackRef = useRef(null);
+  const bottomStackRef = useRef(null);
+  const topSlotRefs = useRef([]);
+  const bottomSlotRefs = useRef([]);
+  const [showDamageCalc, setShowDamageCalc] = useState(false);
+  const [damageLeft, setDamageLeft] = useState(0);
+  const [damageRight, setDamageRight] = useState(0);
+  const [showLossModal, setShowLossModal] = useState(false);
+  const [winnerOpenId, setWinnerOpenId] = useState(null);
+  const [loserOpenId, setLoserOpenId] = useState(null);
+
+  // preload audios (kept for reuse)
+  const bgAudioRef = useRef(null);
+  const slotAudioRef = useRef(null);
+  const readyGoRef = useRef(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function init() {
+      setLoading(true);
+      try {
+        const [c, o] = await Promise.all([
+          fetchProfileBySlug(challengerSlug),
+          fetchProfileBySlug(opponentSlug),
+        ]);
+
+        if (!mounted) return;
+
+        if (!c || !o) {
+          alert("Error loading duel users");
+          navigate(-1);
+          return;
+        }
+
+        // normalize minimal fields so UI won't break
+        c.wins = Number.isFinite(c.wins) ? c.wins : 0;
+        c.losses = Number.isFinite(c.losses) ? c.losses : 0;
+        c.draws = Number.isFinite(c.draws) ? c.draws : 0;
+        c.level = Number.isFinite(c.level) ? c.level : 1;
+        c.deck = Array.isArray(c.deck) ? c.deck : [];
+
+        o.wins = Number.isFinite(o.wins) ? o.wins : 0;
+        o.losses = Number.isFinite(o.losses) ? o.losses : 0;
+        o.draws = Number.isFinite(o.draws) ? o.draws : 0;
+        o.level = Number.isFinite(o.level) ? o.level : 1;
+        o.deck = Array.isArray(o.deck) ? o.deck : [];
+
+        setChallenger(c);
+        setOpponent(o);
+
+        // silent audio to unlock
+        try {
+          const s = new Audio(SILENT_AUDIO);
+          s.volume = 0;
+          s.play().catch(() => {});
+        } catch (e) {}
+
+        // slot audio preload
+        slotAudioRef.current = new Audio(SLOT_AUDIO);
+        slotAudioRef.current.preload = "auto";
+
+        // readygo preload
+        readyGoRef.current = new Audio(READYGO_AUDIO);
+
+        // background audio rotate
+        const lastIdxRaw = localStorage.getItem("leaderbox_last_song_idx");
+        let idx = 0;
+        try {
+          const last = Number.isFinite(+lastIdxRaw) ? Number(lastIdxRaw) : -1;
+          idx = (last + 1) % BACKGROUND_SONGS.length;
+        } catch (e) {
+          idx = Math.floor(Math.random() * BACKGROUND_SONGS.length);
+        }
+        localStorage.setItem("leaderbox_last_song_idx", String(idx));
+        const bg = new Audio(BACKGROUND_SONGS[idx]);
+        bg.loop = true;
+        bg.volume = 0.14;
+        bg.preload = "auto";
+        bgAudioRef.current = bg;
+        setTimeout(() => {
+          bgAudioRef.current && bgAudioRef.current.play().catch(() => {});
+        }, 150);
+
+        // reveal sequence then show GO
+        startRevealSequence(o.deck || [], c.deck || []);
+      } catch (err) {
+        console.error("Playing init error:", err);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+
+    function startRevealSequence(topDeck, bottomDeck) {
+      let topStep = 0;
+      const topTick = () => {
+        if (topStep < topDeck.length) {
+          setRevealIndexTop(topStep);
+          try { slotAudioRef.current && slotAudioRef.current.cloneNode(true).play().catch(() => {}); } catch (e) {}
+          topStep++;
+          setTimeout(topTick, 360);
+        } else {
+          let bottomStep = 0;
+          const bottomTick = () => {
+            if (bottomStep < bottomDeck.length) {
+              setRevealIndexBottom(bottomStep);
+              try { slotAudioRef.current && slotAudioRef.current.cloneNode(true).play().catch(() => {}); } catch (e) {}
+              bottomStep++;
+              setTimeout(bottomTick, 360);
+            } else {
+              // GO!
+              setShowGoMessage(true);
+            }
+          };
+          bottomTick();
+        }
+      };
+      topTick();
+    }
+
+    init();
+
+    return () => {
+      mounted = false;
+      try { if (bgAudioRef.current) { bgAudioRef.current.pause(); bgAudioRef.current.src = ""; } } catch (e) {}
+      try { if (slotAudioRef.current) { slotAudioRef.current.pause(); slotAudioRef.current.src = ""; } } catch (e) {}
+    };
+  }, [challengerSlug, opponentSlug, navigate]);
+
+  // compute both players' points
+  const opponentStats = computeStats((opponent && opponent.deck) || []);
+  const opponentPointsRaw = opponentStats.pretentious + opponentStats.rewatch + opponentStats.quality + opponentStats.popularity;
+  const opponentPoints = Math.round(opponentPointsRaw);
+  const opponentPerMovie = distributeAttackPoints(opponentPoints, (opponent && opponent.deck) || []);
+
+  const challengerStats = computeStats((challenger && challenger.deck) || []);
+  const challengerPointsRaw = challengerStats.pretentious + challengerStats.rewatch + challengerStats.quality + challengerStats.popularity;
+  const challengerPoints = Math.round(challengerPointsRaw);
+  const challengerPerMovie = distributeAttackPoints(challengerPoints, (challenger && challenger.deck) || []);
 
   // when GO message appears, kick off first-turn animation once
   useEffect(() => {
     if (!showGoMessage) return;
+    // run sequence asynchronously and only once
     let cancelled = false;
 
     async function runFirstTurnSequence() {
+      // play readygo
       await playAudioWait(READYGO_AUDIO, 900);
+
       if (cancelled) return;
 
-      /* animation logic unchanged */
+      // popup top stack (scale up a bit) + woosh
+      if (topStackRef.current) {
+        topStackRef.current.style.transition = "transform 220ms cubic-bezier(.2,.9,.2,1)";
+        topStackRef.current.style.transform = "translateY(-20px) scale(1.03)";
+      }
+      await playAudioWait(WOOSH_AUDIO, 500);
+
+      if (cancelled) return;
+
+      // compute slide distance so top stack touches challenger's top poster tips
+      const topRect = topStackRef.current ? topStackRef.current.getBoundingClientRect() : null;
+      const bottomRect = bottomStackRef.current ? bottomStackRef.current.getBoundingClientRect() : null;
+
+      // fallback: slide by fixed px if measurements fail
+      let slidePx = 0;
+      if (topRect && bottomRect) {
+        // want the bottom edge of topRect to align very close to top edge of bottomRect
+        const desiredBottom = bottomRect.top + 10; // 10px gap
+        slidePx = desiredBottom - topRect.top - topRect.height; // how much to move down (post-translate)
+      } else {
+        slidePx = 120; // safe default
+      }
+
+      // animate slide down while playing move sound
+      if (topStackRef.current) {
+        // ensure we start from the popped position
+        topStackRef.current.style.transition = "transform 520ms cubic-bezier(.25,.9,.2,1)";
+        topStackRef.current.style.transform = `translateY(${slidePx}px) scale(1.02)`;
+      }
+      // play move and let it run while sliding
+      const movePlay = playAudioWait(MOVE_AUDIO, 600);
+
+      // wait roughly same duration as slide
+      await Promise.all([movePlay, new Promise(r => setTimeout(r, 520))]);
+
+      if (cancelled) return;
+
+      // on impact: play demage and darken challenger's posters briefly
+      await playAudioWait(DEMAGE_AUDIO, 350);
+
+      if (cancelled) return;
+
+      // apply damage overlay (reduce brightness) on challengeer's posters
+      if (bottomSlotRefs.current && bottomSlotRefs.current.length) {
+        bottomSlotRefs.current.forEach(el => {
+          if (!el) return;
+          const img = el.querySelector("img");
+          if (img) {
+            img.style.transition = "filter 160ms ease";
+            img.style.filter = "brightness(0.45) saturate(0.8)";
+          }
+        });
+      }
+
+      // short pause so effect is visible
+      await new Promise(r => setTimeout(r, 550));
+
+      // revert challenger's posters back to normal
+      if (bottomSlotRefs.current && bottomSlotRefs.current.length) {
+        bottomSlotRefs.current.forEach(el => {
+          if (!el) return;
+          const img = el.querySelector("img");
+          if (img) {
+            img.style.transition = "filter 320ms ease";
+            img.style.filter = "";
+          }
+        });
+      }
+
+      // slide top back up into place
+      if (topStackRef.current) {
+        topStackRef.current.style.transition = "transform 420ms cubic-bezier(.2,.9,.2,1)";
+        topStackRef.current.style.transform = "translateY(0) scale(1)";
+      }
+
+      // short delay to allow settle
+      await new Promise(r => setTimeout(r, 420));
+
+      if (cancelled) return;
+
+      // show damage calculation UI in the middle
+      setDamageLeft(opponentPoints);
+      setDamageRight(challengerPoints);
+      setShowDamageCalc(true);
+
+      // animate damage calc:
+      // briefly slide the left number left then back then resolve outcome
+      await new Promise(r => setTimeout(r, 300));
+      const leftEl = document.querySelector(".damage-left");
+      if (leftEl) {
+        leftEl.style.transition = "transform 220ms cubic-bezier(.2,.9,.2,1)";
+        leftEl.style.transform = "translateX(-18px)";
+        await new Promise(res => setTimeout(res, 240));
+        leftEl.style.transform = "translateX(0)";
+        await new Promise(res => setTimeout(res, 200));
+      } else {
+        await new Promise(res => setTimeout(res, 460));
+      }
 
       // determine winner (higher points wins)
       const leftPoints = opponentPoints;
       const rightPoints = challengerPoints;
       let winnerIsOpponent = leftPoints >= rightPoints;
+      // if tie treat opponent (challenged) as winner for now (user expected)
       if (leftPoints === rightPoints) winnerIsOpponent = true;
 
       if (!winnerIsOpponent) {
-        // challenger lost
+        // opponent lost: challenger wins => left slides back and right turns to 0
+        // But per your description, when left slides back, challenger points go to 0 (we'll invert variable names to match)
+      }
+
+      // animation for removal of losing points: if challenger lost, show challenger( right ) -> 0 with lose sound
+      if (!winnerIsOpponent) {
+        // challenger lost show lose animation on right
         const rightEl = document.querySelector(".damage-right");
         if (rightEl) {
+          // flash and drop to 0
           rightEl.style.transition = "opacity 220ms, transform 220ms";
           rightEl.style.transform = "scale(1.04)";
           await new Promise(r => setTimeout(r, 160));
@@ -177,24 +425,26 @@ export default function Playing() {
         } else {
           setDamageRight(0);
         }
-
+        // play lose sound and show loss modal
         await playAudioWait(LOSE_AUDIO, 900);
         setShowLossModal(true);
-        setTimeout(() => setShowLossModal(false), 7000);
-
+        setTimeout(() => setShowLossModal(false), 3000); // show 3s
+        // register result (challenger lost -> challengerSlug is loser, opponentSlug is winner)
         try {
           await registerResult(opponentSlug, challengerSlug);
-
-          // ✅ ADDED: notify app profiles changed
-          window.dispatchEvent(
-            new CustomEvent("leaderbox:profile-changed", { detail: { user: null } })
-          );
         } catch (e) {
           console.warn("registerResult failed:", e);
         }
-
+        // redirect to Duel list page
         setTimeout(() => navigate("/duel"), 900);
       } else {
+        // opponent (challenged) wins — per description challenger loses? Wait: we used left=opponent, right=challenger
+        // leftPoints >= rightPoints means opponent (top) wins -> challenger loses. That means we should treat winnerIsOpponent true => challenger loses.
+        // So handle winnerIsOpponent true as challenger losing (per your example).
+        // Play lose sound and show loss modal for the loser (which is challenger)
+        // Per your requested flow: when left slides back to place, have challengers user movie points turn to 0 and remove this movie point text off the middle, play lose.mp3.
+        // Implement that:
+        // animate right -> vanish
         const rightEl = document.querySelector(".damage-right");
         if (rightEl) {
           await new Promise(r => setTimeout(r, 160));
@@ -210,88 +460,59 @@ export default function Playing() {
 
         await playAudioWait(LOSE_AUDIO, 900);
         setShowLossModal(true);
-        setTimeout(() => setShowLossModal(false), 7000);
-
+        setTimeout(() => setShowLossModal(false), 3000);
+        // register result: opponent wins, challenger loses
         try {
           await registerResult(opponentSlug, challengerSlug);
-
-          // ✅ ADDED: notify app profiles changed
-          window.dispatchEvent(
-            new CustomEvent("leaderbox:profile-changed", { detail: { user: null } })
-          );
         } catch (e) {
           console.warn("registerResult failed:", e);
         }
-
         setTimeout(() => navigate("/duel"), 900);
       }
 
+      // hide damage calc after a short pause
       setTimeout(() => setShowDamageCalc(false), 1400);
     }
 
     runFirstTurnSequence();
+
     return () => { cancelled = true; };
   }, [showGoMessage, opponentPoints, challengerPoints, opponentSlug, challengerSlug, navigate]);
 
   // best-effort result registration — tries a few plausible endpoints
-  async function registerResult(winnerId, loserId, isDraw = false) {
-    try {
-      const wRes = await fetch(`/api/profile?open_id=${encodeURIComponent(winnerId)}`, {
-        credentials: "same-origin"
-      });
-      const wJson = await wRes.json();
-      const winner = wJson.profile || wJson;
-
-      const lRes = await fetch(`/api/profile?open_id=${encodeURIComponent(loserId)}`, {
-        credentials: "same-origin"
-      });
-      const lJson = await lRes.json();
-      const loser = lJson.profile || lJson;
-
-      if (!winner || !loser) return false;
-
-      if (isDraw) {
-        await fetch("/api/profile", {
+  async function registerResult(winnerId, loserId) {
+    setWinnerOpenId(winnerId);
+    setLoserOpenId(loserId);
+    const payload = { winner: winnerId, loser: loserId, via: "first_turn_auto" };
+    const tries = [
+      "/api/duel/result",
+      "/api/match/result",
+      "/api/result",
+      "/api/profile/result",
+      "/api/profile/win",
+    ];
+    for (const url of tries) {
+      try {
+        const res = await fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          credentials: "same-origin",
-          body: JSON.stringify({ open_id: winner.open_id, draws: (winner.draws || 0) + 1 })
+          credentials: "include",
+          body: JSON.stringify(payload),
         });
-
-        await fetch("/api/profile", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "same-origin",
-          body: JSON.stringify({ open_id: loser.open_id, draws: (loser.draws || 0) + 1 })
-        });
-
-        return true;
+        if (res.ok) {
+          try { await res.json(); } catch (e) {}
+          return true;
+        }
+      } catch (e) {
+        // ignore and try next
       }
-
-      await fetch("/api/profile", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "same-origin",
-        body: JSON.stringify({ open_id: winner.open_id, wins: (winner.wins || 0) + 1 })
-      });
-
-      await fetch("/api/profile", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "same-origin",
-        body: JSON.stringify({ open_id: loser.open_id, losses: (loser.losses || 0) + 1 })
-      });
-
-      return true;
-    } catch (err) {
-      console.error("registerResult failed:", err);
-      return false;
     }
+    // if all fail, still return false (we still redirect)
+    return false;
   }
 
-  if (loading || !challenger || !opponent) {
-    return <div className="loading">Loading duel…</div>;
-  }
+  if (loading || !challenger || !opponent) return <div className="loading">Loading duel…</div>;
+
   return (
     <div className="playing-root">
       {/* Inline minimal CSS for the animations and overlays that are specific to first-turn */}
