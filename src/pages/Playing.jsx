@@ -479,37 +479,31 @@ export default function Playing() {
     return () => { cancelled = true; };
   }, [showGoMessage, opponentPoints, challengerPoints, opponentSlug, challengerSlug, navigate]);
 
-  // best-effort result registration — tries a few plausible endpoints
   async function registerResult(winnerId, loserId) {
-    setWinnerOpenId(winnerId);
-    setLoserOpenId(loserId);
-    const payload = { winner: winnerId, loser: loserId, via: "first_turn_auto" };
-    const tries = [
-      "/api/duel/result",
-      "/api/match/result",
-      "/api/result",
-      "/api/profile/result",
-      "/api/profile/win",
-    ];
-    for (const url of tries) {
-      try {
-        const res = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify(payload),
-        });
-        if (res.ok) {
-          try { await res.json(); } catch (e) {}
-          return true;
-        }
-      } catch (e) {
-        // ignore and try next
-      }
+  const payload = { winner: winnerId, loser: loserId, via: "first_turn_auto" };
+
+  try {
+    const res = await fetch("/api/duel/result", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(payload),
+    });
+
+    if (res.ok) {
+      try { await res.json(); } catch (_) {}
+
+      //  notify app to refresh profiles / leaderboard
+      window.dispatchEvent(
+        new CustomEvent("leaderbox:profile-changed")
+      );
+
+      return true;
     }
-    // if all fail, still return false (we still redirect)
-    return false;
-  }
+  } catch (_) {}
+
+  return false;
+}
 
   if (loading || !challenger || !opponent) return <div className="loading">Loading duel…</div>;
 
