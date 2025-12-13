@@ -428,7 +428,7 @@ export default function Playing() {
         // play lose sound and show loss modal
         await playAudioWait(LOSE_AUDIO, 900);
         setShowLossModal(true);
-        setTimeout(() => setShowLossModal(false), 3000); // show 3s
+        setTimeout(() => setShowLossModal(false), 7000); // show 3s
         // register result (challenger lost -> challengerSlug is loser, opponentSlug is winner)
         try {
           await registerResult(opponentSlug, challengerSlug);
@@ -460,7 +460,7 @@ export default function Playing() {
 
         await playAudioWait(LOSE_AUDIO, 900);
         setShowLossModal(true);
-        setTimeout(() => setShowLossModal(false), 3000);
+        setTimeout(() => setShowLossModal(false), 7000);
         // register result: opponent wins, challenger loses
         try {
           await registerResult(opponentSlug, challengerSlug);
