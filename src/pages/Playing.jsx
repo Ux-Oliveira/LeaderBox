@@ -139,6 +139,11 @@ export default function Playing() {
   const { challenger: challengerSlug, opponent: opponentSlug } = useParams();
   const navigate = useNavigate();
   const [showGoMessage, setShowGoMessage] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [challenger, setChallenger] = useState(null);
+  const [opponent, setOpponent] = useState(null);
+  const [revealIndexTop, setRevealIndexTop] = useState(-1);
+  const [revealIndexBottom, setRevealIndexBottom] = useState(-1);
 
   /* state + refs unchanged */
 
