@@ -293,6 +293,36 @@ export default function Playing() {
     // run sequence asynchronously and only once
     let cancelled = false;
 
+    // when GO message appears, kick off first-turn animation once
+useEffect(() => {
+  if (!showGoMessage) return;
+
+  let cancelled = false;
+
+  async function runFirstTurnSequence() {
+    // play readygo
+    await playAudioWait(READYGO_AUDIO, 900);
+
+    if (cancelled) return;
+
+    // 👇 HIDE GO MESSAGE AFTER 3 SECONDS
+    setTimeout(() => {
+      if (!cancelled) {
+        setShowGoMessage(false);
+      }
+    }, 3000);
+
+    // continue your turn logic here…
+  }
+
+  runFirstTurnSequence();
+
+  return () => {
+    cancelled = true;
+  };
+}, [showGoMessage]);
+
+
     async function runFirstTurnSequence() {
       // play readygo
       await playAudioWait(READYGO_AUDIO, 900);
@@ -428,7 +458,7 @@ export default function Playing() {
         // play lose sound and show loss modal
         await playAudioWait(LOSE_AUDIO, 900);
         setShowLossModal(true);
-        setTimeout(() => setShowLossModal(false), 3000); // show 3s
+        setTimeout(() => setShowLossModal(false), 9000); // show 3s
         // register result (challenger lost -> challengerSlug is loser, opponentSlug is winner)
         try {
           await registerResult(opponentSlug, challengerSlug);
@@ -460,7 +490,7 @@ export default function Playing() {
 
         await playAudioWait(LOSE_AUDIO, 900);
         setShowLossModal(true);
-        setTimeout(() => setShowLossModal(false), 3000);
+        setTimeout(() => setShowLossModal(false), 9000);
         // register result: opponent wins, challenger loses
         try {
           await registerResult(opponentSlug, challengerSlug);
@@ -554,7 +584,7 @@ export default function Playing() {
         .loss-modal .card {
           background: transparent;
           border-radius: 12px;
-          padding: 12px;
+          padding: 46px;
           box-shadow: none;
         }
         .loss-modal img { width: 240px; height: 240px; object-fit: contain; display:block; }
