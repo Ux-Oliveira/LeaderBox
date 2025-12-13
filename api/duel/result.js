@@ -1,4 +1,4 @@
-import { getFirestore } from "../../server/lib/firestore.js";
+import { getFirestore } from "../_lib/firestore.js";
 
 const COLLECTION = "profiles";
 
