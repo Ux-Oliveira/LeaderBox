@@ -297,10 +297,6 @@ export default function Playing() {
       // play readygo
       await playAudioWait(READYGO_AUDIO, 900);
 
-      setTimeout(() => {
-        if (!cancelled) setShowGoMessage(false);
-      }, 3000);
-
       if (cancelled) return;
 
       // popup top stack (scale up a bit) + woosh
