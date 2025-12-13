@@ -173,9 +173,6 @@ export default function Playing() {
   if (loading || !challenger || !opponent) {
     return <div className="loading">Loading duel…</div>;
   }
-}
-
-
   return (
     <div className="playing-root">
       {/* Inline minimal CSS for the animations and overlays that are specific to first-turn */}
