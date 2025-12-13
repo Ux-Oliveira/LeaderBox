@@ -1,4 +1,6 @@
-import { getProfileByOpenId, updateProfile } from "@/lib/db";
+import { getFirestore } from "../../server/lib/firestore.js";
+
+const COLLECTION = "profiles";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -12,24 +14,37 @@ export default async function handler(req, res) {
   }
 
   try {
-    const winnerProfile = await getProfileByOpenId(winner);
-    const loserProfile = await getProfileByOpenId(loser);
+    const db = getFirestore();
 
-    if (!winnerProfile || !loserProfile) {
+    const winnerRef = db.collection(COLLECTION).doc(String(winner));
+    const loserRef = db.collection(COLLECTION).doc(String(loser));
+
+    const [winnerSnap, loserSnap] = await Promise.all([
+      winnerRef.get(),
+      loserRef.get(),
+    ]);
+
+    if (!winnerSnap.exists || !loserSnap.exists) {
       return res.status(404).json({ error: "Profile not found" });
     }
 
-    await updateProfile(winner, {
-      wins: (winnerProfile.wins || 0) + 1,
-    });
+    const winnerData = winnerSnap.data();
+    const loserData = loserSnap.data();
 
-    await updateProfile(loser, {
-      losses: (loserProfile.losses || 0) + 1,
-    });
+    await Promise.all([
+      winnerRef.set(
+        { wins: (winnerData.wins || 0) + 1, updated_at: Date.now() },
+        { merge: true }
+      ),
+      loserRef.set(
+        { losses: (loserData.losses || 0) + 1, updated_at: Date.now() },
+        { merge: true }
+      ),
+    ]);
 
-    return res.status(200).json({ success: true });
+    return res.status(200).json({ ok: true });
   } catch (err) {
     console.error("Duel result error:", err);
-    return res.status(500).json({ error: "Failed to save duel result" });
+    return res.status(500).json({ error: "internal_server_error" });
   }
 }
