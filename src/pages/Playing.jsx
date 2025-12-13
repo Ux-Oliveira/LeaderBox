@@ -138,6 +138,7 @@ function playAudioWait(src, fallbackMs = 700) {
 export default function Playing() {
   const { challenger: challengerSlug, opponent: opponentSlug } = useParams();
   const navigate = useNavigate();
+  const [showGoMessage, setShowGoMessage] = useState(false);
 
   /* state + refs unchanged */
 
