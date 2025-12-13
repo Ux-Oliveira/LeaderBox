@@ -200,61 +200,6 @@
   cursor: pointer;
 }
 
-/* center GO message — nudged slightly upward for better visual weight */
-.go-message {
-  position: absolute;
-  top: 48%; /* slightly above exact center for better balance */
-  left: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 28px;
-  font-weight: 900;
-  color: #FDEE69;
-  pointer-events: none;
-  text-shadow: 0 6px 20px rgba(0,0,0,0.6);
-}
-
- .damage-calc {
-          position: absolute;
-          left: 50%;
-          top: 48%;
-          transform: translate(-50%, -50%);
-          background: transparent;
-          color: #fff;
-          display: flex;
-          align-items: center;
-          gap: 16px;
-          z-index: 120;
-          font-weight: 900;
-          font-size: 22px;
-          pointer-events: none;
-          text-shadow: 0 6px 18px rgba(0,0,0,0.6);
-        }
-        .damage-calc .damage-left, .damage-calc .damage-right {
-          min-width: 56px;
-          text-align: center;
-          display: inline-block;
-        }
-        .damage-calc .pipe { opacity: 0.9; color: #ddd; }
-
-/* loss modal */
-        .loss-modal {
-          position: fixed;
-          inset: 0;
-          display:flex;
-          align-items:center;
-          justify-content:center;
-          z-index: 200;
-          background: rgba(0,0,0,0.45);
-          pointer-events: none;
-        }
-        .loss-modal .card {
-          background: transparent;
-          border-radius: 12px;
-          padding: 12px;
-          box-shadow: none;
-        }
-        .loss-modal img { width: 240px; height: 240px; object-fit: contain; display:block; }
-
 /* Desktop tweaks: bring GO message further up and pull bottom content up */
 @media (min-width: 921px) {
   .go-message {
