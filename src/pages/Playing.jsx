@@ -337,21 +337,22 @@ export default function Playing() {
       if (cancelled) return;
 
       // on impact: play demage and darken challenger's posters briefly
-      await playAudioWait(DEMAGE_AUDIO, 350);
+     if (bottomSlotRefs.current && bottomSlotRefs.current.length) {
+  bottomSlotRefs.current.forEach(el => {
+    if (!el) return;
+    const img = el.querySelector("img");
+    if (img) {
+      // INSTANT hit effect
+      img.style.transition = "filter 80ms linear";
+      img.style.filter = "brightness(0.45) saturate(0.8)";
+    }
+  });
+}
 
-      if (cancelled) return;
+// play demage sound at the SAME TIME as the visual hit
+await playAudioWait(DEMAGE_AUDIO, 350);
 
-      // apply damage overlay (reduce brightness) on challengeer's posters
-      if (bottomSlotRefs.current && bottomSlotRefs.current.length) {
-        bottomSlotRefs.current.forEach(el => {
-          if (!el) return;
-          const img = el.querySelector("img");
-          if (img) {
-            img.style.transition = "filter 160ms ease";
-            img.style.filter = "brightness(0.45) saturate(0.8)";
-          }
-        });
-      }
+if (cancelled) return;
 
       // short pause so effect is visible
       await new Promise(r => setTimeout(r, 550));
@@ -480,38 +481,82 @@ export default function Playing() {
   }, [showGoMessage, opponentPoints, challengerPoints, opponentSlug, challengerSlug, navigate]);
 
   // best-effort result registration — tries a few plausible endpoints
-  async function registerResult(winnerId, loserId) {
-    setWinnerOpenId(winnerId);
-    setLoserOpenId(loserId);
-    const payload = { winner: winnerId, loser: loserId, via: "first_turn_auto" };
-    const tries = [
-      "/api/duel/result",
-      "/api/match/result",
-      "/api/result",
-      "/api/profile/result",
-      "/api/profile/win",
-    ];
-    for (const url of tries) {
-      try {
-        const res = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify(payload),
-        });
-        if (res.ok) {
-          try { await res.json(); } catch (e) {}
-          return true;
-        }
-      } catch (e) {
-        // ignore and try next
-      }
+async function registerResult(winnerId, loserId, isDraw = false) {
+  try {
+    // fetch winner
+    const wRes = await fetch(`/api/profile?open_id=${encodeURIComponent(winnerId)}`, {
+      credentials: "same-origin"
+    });
+    const wJson = await wRes.json();
+    const winner = wJson.profile || wJson;
+
+    // fetch loser
+    const lRes = await fetch(`/api/profile?open_id=${encodeURIComponent(loserId)}`, {
+      credentials: "same-origin"
+    });
+    const lJson = await lRes.json();
+    const loser = lJson.profile || lJson;
+
+    if (!winner || !loser) {
+      console.warn("registerResult: missing profiles");
+      return false;
     }
-    // if all fail, still return false (we still redirect)
+
+    if (isDraw) {
+      // draw
+      await fetch("/api/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({
+          open_id: winner.open_id,
+          draws: (winner.draws || 0) + 1
+        })
+      });
+
+      await fetch("/api/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({
+          open_id: loser.open_id,
+          draws: (loser.draws || 0) + 1
+        })
+      });
+
+      return true;
+    }
+
+    // winner update
+    await fetch("/api/profile", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({
+        open_id: winner.open_id,
+        wins: (winner.wins || 0) + 1
+      })
+    });
+
+    // loser update
+    await fetch("/api/profile", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({
+        open_id: loser.open_id,
+        losses: (loser.losses || 0) + 1
+      })
+    });
+
+    return true;
+  } catch (err) {
+    console.error("registerResult failed:", err);
     return false;
   }
+}
 
-  if (loading || !challenger || !opponent) return <div className="loading">Loading duel…</div>;
+   if (loading || !challenger || !opponent) return <div className="loading">Loading duel…</div>;
 
   return (
     <div className="playing-root">
